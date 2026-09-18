@@ -14,6 +14,8 @@ export interface Folder {
   delimiter: string
   unread: number
   total: number
+  /** Abonnement IMAP. Seul GET /api/folders?all=1 renvoie des dossiers non abonnés. */
+  subscribed: boolean
 }
 
 export interface Address {
@@ -75,6 +77,10 @@ export interface MessageDetail extends MessageSummary {
   attachments: AttachmentMeta[]
   /** Destinataire de l'accusé de lecture demandé, s'il n'a pas encore été envoyé ($MDNSent). */
   readReceiptTo: Address | null
+  /** Adresse de l'en-tête List-Post (sans « mailto: »), null si ce n'est pas une liste. */
+  listPost: string | null
+  /** L'expéditeur est dans les contacts (ajoutés à la main OU collectés). */
+  senderInContacts: boolean
 }
 
 export interface ComposeAttachment {
@@ -105,6 +111,8 @@ export interface ComposePayload {
   forwardAsAttachment?: MessageRef[]
   /** Message d'origine : reçoit \Answered (réponse) ou $Forwarded (transfert) après envoi. */
   origin?: (MessageRef & { kind: 'reply' | 'forward' }) | null
+  /** Identité d'envoi (R2.1). Absente : identité par défaut. */
+  identityId?: number
 }
 
 export interface MessageRef {
@@ -138,6 +146,31 @@ export interface Prefs {
   undoSendSeconds: 0 | 5 | 10 | 20
   conversationView: boolean
   desktopNotifications: boolean
+  // ─── R2.4 / R2.5 / R2.6 / R2.7 ───
+  /** Volet de lecture (ignoré sous 1024 px). */
+  readingPane: 'none' | 'right'
+  /** Secondes avant de marquer comme lu ; -1 = jamais automatiquement. */
+  markReadDelay: 0 | 5 | 10 | -1
+  preferHtml: boolean
+  remoteImages: 'never' | 'contacts' | 'always'
+  /** Fuseau IANA, ex. « Europe/Paris ». */
+  timeZone: string
+  dateFormat: 'relative' | 'short' | 'long'
+  timeFormat: '24h' | '12h'
+  replyPosition: 'above' | 'below'
+  /** false = éditeur texte brut. */
+  composeHtml: boolean
+  logoutEmptyTrash: boolean
+  logoutExpunge: boolean
+  deleteMode: 'trash' | 'permanent'
+  /** Chemins ; '' = détection automatique. */
+  specialFolders: SpecialFolders
+  /** Minutes d'inactivité avant la boîte « Toujours là ? ». */
+  idleMinutes: 15 | 30 | 60 | 120
+  /** Liste regroupée par conversation (une ligne par fil). */
+  threadList: boolean
+  /** La boîte « Bienvenue » (nom affiché) a été vue. */
+  welcomed: boolean
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -148,6 +181,22 @@ export const DEFAULT_PREFS: Prefs = {
   undoSendSeconds: 5,
   conversationView: true,
   desktopNotifications: false,
+  readingPane: 'right',
+  markReadDelay: 0,
+  preferHtml: true,
+  remoteImages: 'never',
+  timeZone: 'Europe/Paris',
+  dateFormat: 'relative',
+  timeFormat: '24h',
+  replyPosition: 'above',
+  composeHtml: true,
+  logoutEmptyTrash: false,
+  logoutExpunge: false,
+  deleteMode: 'trash',
+  specialFolders: { sent: '', drafts: '', trash: '', junk: '', archive: '' },
+  idleMinutes: 60,
+  threadList: false,
+  welcomed: false,
 }
 
 export interface Contact {
@@ -227,4 +276,126 @@ export interface MessageSource {
 
 export interface ImportResult {
   imported: number
+}
+
+// ─── R2 (parité Roundcube) ─────────────────────────────────────────────────
+
+/**
+ * Identité d'envoi. L'adresse d'expédition est TOUJOURS l'identifiant de connexion :
+ * `email` est en lecture seule et n'est jamais pris depuis le client.
+ */
+export interface Identity {
+  id: number
+  /** Nom affiché dans « De ». */
+  name: string
+  /** Toujours l'adresse de connexion. */
+  email: string
+  /** Adresse « Répondre à » ('' = aucune). */
+  replyTo: string
+  /** Copie cachée automatique ('' = aucune). */
+  bcc: string
+  organization: string
+  /** Signature HTML assainie ; peut contenir des images `data:image/(png|jpeg|gif)`. */
+  signatureHtml: string
+  isDefault: boolean
+}
+
+export type IdentityInput = Omit<Identity, 'id' | 'email'>
+
+/** Réponse type (nom évitant le conflit avec `Response` du DOM). */
+export interface CannedResponse {
+  id: number
+  name: string
+  html: string
+}
+
+export type CannedResponseInput = Omit<CannedResponse, 'id'>
+
+export type EmailLabel = 'home' | 'work' | 'other'
+export type PhoneLabel = 'home' | 'work' | 'mobile' | 'other'
+
+export interface PostalAddress {
+  street: string
+  postalCode: string
+  city: string
+  country: string
+}
+
+export interface ContactDetailInput {
+  firstName: string
+  lastName: string
+  /** Vide = « Prénom Nom ». */
+  displayName: string
+  /** Au moins une adresse ; la première est l'adresse principale (`Contact.email`). */
+  emails: Array<{ label: EmailLabel; address: string }>
+  phones: Array<{ label: PhoneLabel; number: string }>
+  organization: string
+  jobTitle: string
+  address: PostalAddress | null
+  /** AAAA-MM-JJ */
+  birthday: string | null
+  notes: string
+}
+
+export interface ContactDetail extends Contact, ContactDetailInput {
+  groupIds: number[]
+}
+
+export interface ContactGroup {
+  id: number
+  name: string
+  memberCount: number
+}
+
+/** GET /api/contacts?q=…&withGroups=1 */
+export interface ContactSearchResult {
+  contacts: Contact[]
+  groups: Array<{ id: number; name: string; emails: string[] }>
+}
+
+export interface ContactImportResult {
+  imported: number
+  skipped: number
+}
+
+export interface QuotaInfo {
+  usedBytes: number
+  /** null : le serveur ne fournit pas de quota. */
+  limitBytes: number | null
+}
+
+export interface FolderSize {
+  bytes: number
+  messages: number
+}
+
+export interface SpecialFolders {
+  sent: string
+  drafts: string
+  trash: string
+  junk: string
+  archive: string
+}
+
+export interface LoginEvent {
+  /** ISO 8601 */
+  at: string
+  ip: string
+  userAgent: string
+  success: boolean
+}
+
+export interface AccountActivity {
+  lastLogin: LoginEvent | null
+  recent: LoginEvent[]
+}
+
+export interface ActiveSession {
+  /** Identifiant opaque et masqué (jamais le sid réel). */
+  id: string
+  createdAt: string
+  lastSeenAt: string
+  ip: string
+  userAgent: string
+  current: boolean
 }

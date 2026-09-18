@@ -291,6 +291,7 @@ export class ImapBackend implements MailBackend {
             delimiter: e.delimiter,
             unread: e.status?.unseen ?? 0,
             total: e.status?.messages ?? 0,
+            subscribed: e.subscribed ?? true,
           }
         })
     }

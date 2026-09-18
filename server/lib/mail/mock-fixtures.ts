@@ -29,7 +29,8 @@ export interface FixtureMessage {
   headers?: Record<string, string>
 }
 
-export const FOLDERS: Array<{ path: string; name: string; specialUse: SpecialUse | null }> = [
+/** `subscribed` absent = abonné. */
+export const FOLDERS: Array<{ path: string; name: string; specialUse: SpecialUse | null; subscribed?: boolean }> = [
   { path: 'INBOX', name: 'Boîte de réception', specialUse: 'inbox' },
   { path: 'INBOX.Envoyés', name: 'Envoyés', specialUse: 'sent' },
   { path: 'INBOX.Brouillons', name: 'Brouillons', specialUse: 'drafts' },
@@ -37,7 +38,13 @@ export const FOLDERS: Array<{ path: string; name: string; specialUse: SpecialUse
   { path: 'INBOX.Spam', name: 'Spam', specialUse: 'junk' },
   { path: 'INBOX.Corbeille', name: 'Corbeille', specialUse: 'trash' },
   { path: 'INBOX.Projets', name: 'Projets', specialUse: null },
+  // R2 : sous-dossier et dossier non abonné
+  { path: 'INBOX.Projets.2026', name: '2026', specialUse: null },
+  { path: 'INBOX.Anciens cours', name: 'Anciens cours', specialUse: null, subscribed: false },
 ]
+
+/** Quota du backend mémoire (R2.4) : 1 Gio. */
+export const MOCK_QUOTA_LIMIT_BYTES = 1024 * 1024 * 1024
 
 /** Générateur pseudo-aléatoire déterministe (mulberry32). */
 function rng(seed: number): () => number {
@@ -272,6 +279,49 @@ export function devFixtures(now: number): FixtureMessage[] {
   for (let i = 0; i < 3; i++) {
     list.push({ folder: 'INBOX.Projets', from: PEOPLE[i + 1] ?? '', to: me, subject: `Projet tutoré — étape ${i + 1}`, text: `Étape ${i + 1} du projet tutoré.`, date: new Date(now - (4 + i) * day), seen: i > 0, flagged: false })
   }
+  // R2 : liste de diffusion, carte de visite, sous-dossier, dossier non abonné
+  list.push({
+    folder: 'INBOX',
+    from: PEOPLE[7] ?? '',
+    to: 'Liste MMI <liste-mmi@mmi-troyes.fr>',
+    subject: 'Liste MMI : réunion de rentrée',
+    text: 'Bonjour à toutes et à tous,\n\nLa réunion de rentrée aura lieu mardi à 9 h en amphi.\n\nInès',
+    headers: {
+      'List-Id': 'Liste MMI <liste-mmi.mmi-troyes.fr>',
+      'List-Post': '<mailto:liste-mmi@mmi-troyes.fr>',
+    },
+    date: new Date(now - 13 * 3_600_000),
+    seen: false,
+    flagged: false,
+  })
+  list.push({
+    folder: 'INBOX',
+    from: PEOPLE[2] ?? '',
+    to: me,
+    subject: 'Carte de visite de Léa',
+    text: 'Voici ma carte de visite, pour ton carnet d’adresses.',
+    attachments: [{
+      filename: 'lea-dubois.vcf',
+      contentType: 'text/vcard',
+      content: Buffer.from([
+        'BEGIN:VCARD',
+        'VERSION:3.0',
+        'N:Dubois;Léa;;;',
+        'FN:Léa Dubois',
+        'EMAIL;TYPE=WORK:lea.dubois@mmi-troyes.fr',
+        'TEL;TYPE=CELL:+33 6 12 34 56 78',
+        'ORG:IUT de Troyes',
+        'TITLE:Enseignante',
+        'END:VCARD',
+        '',
+      ].join('\r\n'), 'utf8'),
+    }],
+    date: new Date(now - 15 * 3_600_000),
+    seen: true,
+    flagged: false,
+  })
+  list.push({ folder: 'INBOX.Projets.2026', from: PEOPLE[4] ?? '', to: me, subject: 'Projet 2026 — cahier des charges', text: 'Le cahier des charges du projet 2026 est prêt.', date: new Date(now - 2 * day), seen: false, flagged: false })
+  list.push({ folder: 'INBOX.Anciens cours', from: PEOPLE[3] ?? '', to: me, subject: 'Archives du semestre 1', text: 'Documents du semestre 1.', date: new Date(now - 200 * day), seen: true, flagged: false })
   list.push({ folder: 'INBOX.Spam', from: 'Gagnant <promo@loterie.example>', to: me, subject: 'Vous avez gagné un iPhone !!!', text: 'Cliquez ici.', date: new Date(now - 3 * day), seen: false, flagged: false })
   return list
 }

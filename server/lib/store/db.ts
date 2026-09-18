@@ -40,6 +40,62 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX recovery_owner ON recovery_codes (owner);
   `,
+  // 2 — R2 : identités, réponses types, carnet complet, groupes, journal de connexion
+  `
+  CREATE TABLE identities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner TEXT NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    reply_to TEXT NOT NULL DEFAULT '',
+    bcc TEXT NOT NULL DEFAULT '',
+    organization TEXT NOT NULL DEFAULT '',
+    signature_html TEXT NOT NULL DEFAULT '',
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX identities_owner ON identities (owner);
+  CREATE TABLE responses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner TEXT NOT NULL,
+    name TEXT NOT NULL,
+    html TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX responses_owner ON responses (owner);
+  -- contacts.email reste l'adresse principale ; le reste de la fiche en JSON
+  -- (firstName, lastName, displayName, phones, organization, jobTitle, address, birthday, notes).
+  ALTER TABLE contacts ADD COLUMN details TEXT NOT NULL DEFAULT '{}';
+  CREATE TABLE contact_emails (
+    contact_id INTEGER NOT NULL REFERENCES contacts (id) ON DELETE CASCADE,
+    position INTEGER NOT NULL,
+    label TEXT NOT NULL DEFAULT 'other',
+    address TEXT NOT NULL,
+    PRIMARY KEY (contact_id, position)
+  );
+  CREATE INDEX contact_emails_address ON contact_emails (address);
+  CREATE TABLE contact_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner TEXT NOT NULL,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE (owner, name)
+  );
+  CREATE TABLE contact_group_members (
+    group_id INTEGER NOT NULL REFERENCES contact_groups (id) ON DELETE CASCADE,
+    contact_id INTEGER NOT NULL REFERENCES contacts (id) ON DELETE CASCADE,
+    PRIMARY KEY (group_id, contact_id)
+  );
+  -- owner = adresse saisie (en minuscules), y compris pour un échec de connexion.
+  CREATE TABLE login_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner TEXT NOT NULL,
+    at TEXT NOT NULL,
+    ip TEXT NOT NULL DEFAULT '',
+    user_agent TEXT NOT NULL DEFAULT '',
+    success INTEGER NOT NULL
+  );
+  CREATE INDEX login_events_owner ON login_events (owner, at DESC);
+  `,
 ]
 
 export function openDatabase(file: string): DatabaseSync {

@@ -108,6 +108,8 @@ export class MockBackend implements MailBackend {
         delimiter: folder.delimiter,
         unread,
         total: folder.messages.size,
+        // Filtrage des non-abonnés et ?all=1 : R2.4.
+        subscribed: true,
       })
     }
 
