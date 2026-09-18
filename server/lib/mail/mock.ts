@@ -1,0 +1,543 @@
+import type { MailBackend, MailCredentials, ListOptions, ListResult, FlagChange, SendEnvelope, StoredMessage } from './backend'
+import { MailError } from './backend'
+import { parseMessage } from './parse'
+import type { Folder, MessageSummary, SpecialUse } from '#shared/types/mail'
+import { aliceFixtures, buildFixtureRaw, devFixtures, FOLDERS } from './mock-fixtures'
+import type { FixtureMessage } from './mock-fixtures'
+import { publishMailboxChange } from '../live/bus'
+
+interface MockMessage {
+  raw: Buffer
+  seen: boolean
+  flagged: boolean
+}
+
+interface MockFolder {
+  path: string
+  name: string
+  specialUse: SpecialUse | null
+  delimiter: string
+  messages: Map<number, MockMessage>
+  nextUid: number
+}
+
+export const MOCK_USERS = [
+  { email: 'dev@mmi-troyes.fr', password: 'dev-password', name: 'Dev Webmail' },
+  { email: 'alice@mmi-troyes.fr', password: 'alice-password', name: 'Alice Martin' },
+] as const
+
+// Global store shared across MockBackend instances
+let mockStore: Map<string, Map<string, MockFolder>> = new Map()
+let storeInitialized = false
+
+function seedUser(email: string, fixtures: FixtureMessage[]): void {
+  const folders = new Map<string, MockFolder>()
+  for (const f of FOLDERS) {
+    folders.set(f.path, { path: f.path, name: f.name, specialUse: f.specialUse, delimiter: '.', messages: new Map(), nextUid: 1 })
+  }
+  // UID croissants dans l'ordre chronologique, comme sur un vrai serveur IMAP.
+  const sorted = fixtures.map((m, i) => ({ m, i })).sort((a, b) => a.m.date.getTime() - b.m.date.getTime())
+  for (const { m, i } of sorted) {
+    const folder = folders.get(m.folder)
+    if (!folder) continue
+    folder.messages.set(folder.nextUid++, { raw: buildFixtureRaw(m, i), seen: m.seen, flagged: m.flagged })
+  }
+  mockStore.set(email, folders)
+}
+
+function initializeStore(): void {
+  mockStore = new Map()
+  const now = Date.now()
+  seedUser('dev@mmi-troyes.fr', devFixtures(now))
+  seedUser('alice@mmi-troyes.fr', aliceFixtures(now))
+  storeInitialized = true
+}
+
+function ensureStore(): void {
+  if (!storeInitialized) initializeStore()
+}
+
+/** Remet le jeu de données dans son état initial. */
+export function resetMockStore(): void {
+  initializeStore()
+}
+
+export async function verifyMockCredentials(creds: MailCredentials): Promise<boolean> {
+  const user = MOCK_USERS.find(u => u.email === creds.email)
+  return user ? user.password === creds.password : false
+}
+
+export class MockBackend implements MailBackend {
+  constructor(private email: string) {
+    ensureStore()
+  }
+
+  async listFolders(): Promise<Folder[]> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folders: Folder[] = []
+
+    // Order: special folders first, then custom
+    const specialOrder = ['inbox', 'sent', 'drafts', 'archive', 'junk', 'trash']
+    const specialFolders = Array.from(userFolders.values()).filter(f => f.specialUse)
+    const customFolders = Array.from(userFolders.values()).filter(f => !f.specialUse)
+
+    // Sort special folders by order
+    specialFolders.sort((a, b) => {
+      const aIdx = specialOrder.indexOf(a.specialUse ?? '')
+      const bIdx = specialOrder.indexOf(b.specialUse ?? '')
+      return aIdx - bIdx
+    })
+
+    // Sort custom folders A-Z
+    customFolders.sort((a, b) => a.name.localeCompare(b.name))
+
+    for (const folder of [...specialFolders, ...customFolders]) {
+      const unread = Array.from(folder.messages.values()).filter(m => !m.seen).length
+      folders.push({
+        path: folder.path,
+        name: folder.name,
+        specialUse: folder.specialUse,
+        delimiter: folder.delimiter,
+        unread,
+        total: folder.messages.size,
+      })
+    }
+
+    return folders
+  }
+
+  async listMessages(folder: string, opts: ListOptions): Promise<ListResult> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folderData = userFolders.get(folder)
+    if (!folderData) {
+      throw new MailError('NOT_FOUND', `Folder ${folder} not found`)
+    }
+
+    // Sort messages by date descending (most recent first)
+    const sortedUids = Array.from(folderData.messages.keys()).reverse()
+
+    // Filter by query
+    let filteredUids = sortedUids
+    if (opts.query) {
+      const query = opts.query.toLowerCase()
+      filteredUids = []
+
+      for (const uid of sortedUids) {
+        const msg = folderData.messages.get(uid)!
+        const parsed = await parseMessage(msg.raw, {
+          uid,
+          folder,
+          seen: msg.seen,
+          flagged: msg.flagged,
+          size: msg.raw.length,
+        })
+
+        const searchText = `${parsed.subject} ${parsed.from?.address} ${parsed.from?.name} ${parsed.to.map(t => t.address).join(' ')} ${parsed.text || ''}`.toLowerCase()
+
+        if (searchText.includes(query)) {
+          filteredUids.push(uid)
+        }
+      }
+    }
+
+    // Paginate
+    const total = filteredUids.length
+    const page = opts.page || 1
+    const pageSize = Math.min(opts.pageSize || 50, 100)
+    const start = (page - 1) * pageSize
+    const end = start + pageSize
+
+    const pageUids = filteredUids.slice(start, end)
+
+    // Build summaries
+    const items: MessageSummary[] = []
+    for (const uid of pageUids) {
+      const msg = folderData.messages.get(uid)!
+      const parsed = await parseMessage(msg.raw, {
+        uid,
+        folder,
+        seen: msg.seen,
+        flagged: msg.flagged,
+        size: msg.raw.length,
+      })
+
+      items.push({
+        uid,
+        folder,
+        subject: parsed.subject,
+        from: parsed.from,
+        to: parsed.to,
+        date: parsed.date,
+        seen: msg.seen,
+        flagged: msg.flagged,
+        hasAttachments: parsed.hasAttachments,
+        preview: parsed.preview,
+        size: msg.raw.length,
+      })
+    }
+
+    return { items, total }
+  }
+
+  async getRawMessage(folder: string, uid: number): Promise<Buffer> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folderData = userFolders.get(folder)
+    if (!folderData) {
+      throw new MailError('NOT_FOUND', `Folder ${folder} not found`)
+    }
+
+    const msg = folderData.messages.get(uid)
+    if (!msg) {
+      throw new MailError('NOT_FOUND', `Message ${uid} not found in ${folder}`)
+    }
+
+    return msg.raw
+  }
+
+  async getMessage(folder: string, uid: number): Promise<StoredMessage> {
+    const raw = await this.getRawMessage(folder, uid)
+    const msg = mockStore.get(this.email)?.get(folder)?.messages.get(uid)
+    return { raw, seen: msg?.seen ?? false, flagged: msg?.flagged ?? false, size: raw.length }
+  }
+
+  async setFlags(folder: string, uids: number[], change: FlagChange): Promise<void> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folderData = userFolders.get(folder)
+    if (!folderData) {
+      throw new MailError('NOT_FOUND', `Folder ${folder} not found`)
+    }
+
+    for (const uid of uids) {
+      const msg = folderData.messages.get(uid)
+      if (msg) {
+        if (change.seen !== undefined) {
+          msg.seen = change.seen
+        }
+        if (change.flagged !== undefined) {
+          msg.flagged = change.flagged
+        }
+      }
+    }
+    publishMailboxChange(this.email, folder)
+  }
+
+  async move(folder: string, uids: number[], destination: string): Promise<void> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folderData = userFolders.get(folder)
+    if (!folderData) {
+      throw new MailError('NOT_FOUND', `Source folder ${folder} not found`)
+    }
+
+    const destData = userFolders.get(destination)
+    if (!destData) {
+      throw new MailError('NOT_FOUND', `Destination folder ${destination} not found`)
+    }
+
+    for (const uid of uids) {
+      const msg = folderData.messages.get(uid)
+      if (msg) {
+        folderData.messages.delete(uid)
+        const newUid = destData.nextUid++
+        destData.messages.set(newUid, msg)
+      }
+    }
+    publishMailboxChange(this.email, folder)
+    publishMailboxChange(this.email, destination)
+  }
+
+  async expunge(folder: string, uids: number[]): Promise<void> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folderData = userFolders.get(folder)
+    if (!folderData) {
+      throw new MailError('NOT_FOUND', `Folder ${folder} not found`)
+    }
+
+    for (const uid of uids) {
+      folderData.messages.delete(uid)
+    }
+    publishMailboxChange(this.email, folder)
+  }
+
+  async append(folder: string, raw: Buffer, flags: string[]): Promise<number | null> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folderData = userFolders.get(folder)
+    if (!folderData) {
+      throw new MailError('NOT_FOUND', `Folder ${folder} not found`)
+    }
+
+    const seen = flags.includes('\\Seen')
+    const flagged = flags.includes('\\Flagged')
+    const uid = folderData.nextUid++
+
+    folderData.messages.set(uid, { raw, seen, flagged })
+    publishMailboxChange(this.email, folder)
+    return uid
+  }
+
+  async send(raw: Buffer, envelope: SendEnvelope): Promise<void> {
+    // For each recipient that is a MOCK_USER, append to their INBOX
+    for (const recipient of envelope.to) {
+      const recipient_lowercase = recipient.toLowerCase()
+      for (const user of MOCK_USERS) {
+        if (user.email === recipient_lowercase) {
+          const userFolders = mockStore.get(user.email)
+          if (userFolders) {
+            const inbox = userFolders.get('INBOX')
+            if (inbox) {
+              const uid = inbox.nextUid++
+              inbox.messages.set(uid, { raw, seen: false, flagged: false })
+              publishMailboxChange(user.email, 'INBOX')
+            }
+          }
+          break
+        }
+      }
+    }
+  }
+
+  async close(): Promise<void> {
+    // No-op for mock backend
+  }
+
+  async createFolder(path: string): Promise<void> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    if (userFolders.has(path)) {
+      throw new MailError('INVALID', `Folder ${path} already exists`)
+    }
+
+    // Validate: no empty name, no delimiter at ends
+    const parts = path.split('.')
+    for (const part of parts) {
+      if (!part) {
+        throw new MailError('INVALID', 'Folder name cannot be empty or contain only delimiters')
+      }
+    }
+
+    const folderName = parts[parts.length - 1] ?? path
+    userFolders.set(path, {
+      path,
+      name: folderName,
+      specialUse: null,
+      delimiter: '.',
+      messages: new Map(),
+      nextUid: 1,
+    })
+
+    publishMailboxChange(this.email, path)
+  }
+
+  async renameFolder(path: string, newPath: string): Promise<void> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folder = userFolders.get(path)
+    if (!folder) {
+      throw new MailError('NOT_FOUND', `Folder ${path} not found`)
+    }
+
+    // Cannot rename INBOX or special-use folders
+    if (path === 'INBOX' || folder.specialUse) {
+      throw new MailError('INVALID', `Cannot rename ${path}`)
+    }
+
+    // Cannot rename to existing path
+    if (userFolders.has(newPath)) {
+      throw new MailError('INVALID', `Folder ${newPath} already exists`)
+    }
+
+    // Validate new path
+    const newParts = newPath.split('.')
+    for (const part of newParts) {
+      if (!part) {
+        throw new MailError('INVALID', 'Folder name cannot be empty or contain only delimiters')
+      }
+    }
+
+    // Move the folder
+    const newFolderName = newParts[newParts.length - 1] ?? newPath
+    const movedFolder = { ...folder, path: newPath, name: newFolderName }
+    userFolders.delete(path)
+    userFolders.set(newPath, movedFolder)
+
+    // Rename children (prefix-based)
+    const childrenToMove: Array<[string, MockFolder]> = []
+    for (const [p, f] of userFolders.entries()) {
+      if (p.startsWith(path + '.')) {
+        const suffix = p.slice(path.length)
+        childrenToMove.push([p, f])
+      }
+    }
+    for (const [p, f] of childrenToMove) {
+      const suffix = p.slice(path.length)
+      const newChildPath = newPath + suffix
+      userFolders.delete(p)
+      userFolders.set(newChildPath, { ...f, path: newChildPath })
+    }
+
+    publishMailboxChange(this.email, newPath)
+  }
+
+  async deleteFolder(path: string): Promise<void> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folder = userFolders.get(path)
+    if (!folder) {
+      throw new MailError('NOT_FOUND', `Folder ${path} not found`)
+    }
+
+    // Cannot delete INBOX or special-use folders
+    if (path === 'INBOX' || folder.specialUse) {
+      throw new MailError('INVALID', `Cannot delete ${path}`)
+    }
+
+    // Delete the folder
+    userFolders.delete(path)
+
+    // Delete all children
+    const toDelete: string[] = []
+    for (const p of userFolders.keys()) {
+      if (p.startsWith(path + '.')) {
+        toDelete.push(p)
+      }
+    }
+    for (const p of toDelete) {
+      userFolders.delete(p)
+    }
+
+    publishMailboxChange(this.email, path)
+  }
+
+  async searchHeader(folder: string, header: 'message-id' | 'references' | 'in-reply-to', value: string): Promise<number[]> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folderData = userFolders.get(folder)
+    if (!folderData) {
+      throw new MailError('NOT_FOUND', `Folder ${folder} not found`)
+    }
+
+    const found: number[] = []
+    for (const [uid, msg] of folderData.messages.entries()) {
+      const raw = msg.raw.toString('utf-8')
+      const lines = raw.split('\r\n')
+      let headerValue = ''
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        // Empty line marks end of headers
+        if (!line) break
+        // Header continuation (folded header)
+        if (line[0] === ' ' || line[0] === '\t') {
+          headerValue += ' ' + line.trim()
+          continue
+        }
+        // New header line
+        if (headerValue) {
+          const keyMatch = headerValue.split(':', 1)
+          const key = keyMatch[0]
+          if (key && key.toLowerCase() === header) {
+            const val = headerValue.slice(key.length + 1).trim()
+            if (val.toLowerCase().includes(value.toLowerCase())) {
+              found.push(uid)
+              break
+            }
+          }
+        }
+        headerValue = line
+      }
+      // Check last header
+      if (headerValue) {
+        const keyMatch = headerValue.split(':', 1)
+        const key = keyMatch[0]
+        if (key && key.toLowerCase() === header) {
+          const val = headerValue.slice(key.length + 1).trim()
+          if (val.toLowerCase().includes(value.toLowerCase())) {
+            found.push(uid)
+          }
+        }
+      }
+    }
+
+    return found
+  }
+
+  async summaries(folder: string, uids: number[]): Promise<MessageSummary[]> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folderData = userFolders.get(folder)
+    if (!folderData) {
+      throw new MailError('NOT_FOUND', `Folder ${folder} not found`)
+    }
+
+    const summaries: MessageSummary[] = []
+    for (const uid of uids) {
+      const msg = folderData.messages.get(uid)
+      if (!msg) continue
+      const parsed = await parseMessage(msg.raw, {
+        uid,
+        folder,
+        seen: msg.seen,
+        flagged: msg.flagged,
+        size: msg.raw.length,
+      })
+      summaries.push({
+        uid,
+        folder,
+        subject: parsed.subject,
+        from: parsed.from,
+        to: parsed.to,
+        date: parsed.date,
+        seen: msg.seen,
+        flagged: msg.flagged,
+        hasAttachments: parsed.hasAttachments,
+        preview: parsed.preview,
+        size: msg.raw.length,
+      })
+    }
+
+    return summaries
+  }
+}
+
+ensureStore()
