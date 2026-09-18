@@ -7,7 +7,7 @@
  * l'assainissement sont communs (parse.ts / sanitize.ts), donc le mock
  * exerce exactement le même chemin de rendu que la prod.
  */
-import type { Folder, MessageSummary } from '#shared/types/mail'
+import type { Folder, MessageSummary, SearchField, SortKey } from '#shared/types/mail'
 
 export interface MailCredentials {
   email: string
@@ -17,8 +17,22 @@ export interface MailCredentials {
 export interface ListOptions {
   page: number
   pageSize: number
-  /** Recherche plein texte (sujet, expéditeur, destinataires, corps). */
+  /** Recherche plein texte. Par défaut sur tous les champs, sinon sur `fields`. */
   query?: string
+  fields?: SearchField[]
+  filters?: {
+    unread?: boolean
+    flagged?: boolean
+    unanswered?: boolean
+    /** Approximation IMAP : en-tête Content-Type multipart/mixed. */
+    attachments?: boolean
+    /** Date (AAAA-MM-JJ) incluse, sur la date interne du message. */
+    since?: string
+    /** Date (AAAA-MM-JJ) exclue. */
+    before?: string
+  }
+  sort?: SortKey
+  order?: 'asc' | 'desc'
 }
 
 export interface ListResult {
@@ -34,6 +48,8 @@ export interface FlagChange {
 export interface SendEnvelope {
   from: string
   to: string[]
+  /** Accusé de remise (DSN) : NOTIFY=SUCCESS,FAILURE. */
+  dsn?: boolean
 }
 
 export interface StoredMessage {
@@ -41,6 +57,8 @@ export interface StoredMessage {
   seen: boolean
   flagged: boolean
   size: number
+  /** Tous les drapeaux et mots-clés IMAP (\Answered, $Forwarded, $MDNSent…). */
+  flags: string[]
 }
 
 export interface MailBackend {
@@ -74,6 +92,14 @@ export interface MailBackend {
   searchHeader(folder: string, header: 'message-id' | 'references' | 'in-reply-to', value: string): Promise<number[]>
   /** Résumés pour une liste d'UIDs (ordre non garanti, UIDs absents ignorés). */
   summaries(folder: string, uids: number[]): Promise<MessageSummary[]>
+
+  // ─── R1 ───
+  /** Copie (l'original reste). */
+  copy(folder: string, uids: number[], destination: string): Promise<void>
+  /** Ajoute / retire des drapeaux ou mots-clés IMAP arbitraires (\Answered, $Forwarded, $MDNSent). */
+  setKeywords(folder: string, uids: number[], add: string[], remove: string[]): Promise<void>
+  /** Tous les UIDs d'un dossier (pour « marquer tout comme lu », « vider »). */
+  allUids(folder: string): Promise<number[]>
 }
 
 export type MailErrorCode = 'AUTH_FAILED' | 'NOT_FOUND' | 'INVALID' | 'UNAVAILABLE'

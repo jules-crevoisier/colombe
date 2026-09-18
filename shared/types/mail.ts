@@ -35,7 +35,15 @@ export interface MessageSummary {
   /** Extrait texte brut, ≤ 200 caractères, sans HTML. */
   preview: string
   size: number
+  /** Drapeau IMAP \Answered. */
+  answered: boolean
+  /** Mot-clé IMAP $Forwarded. */
+  forwarded: boolean
+  /** D'après X-Priority / Importance. */
+  priority: Priority
 }
+
+export type Priority = 'high' | 'normal' | 'low'
 
 export interface MessagePage {
   items: MessageSummary[]
@@ -65,6 +73,8 @@ export interface MessageDetail extends MessageSummary {
   /** Nombre d'images distantes neutralisées dans `html`. */
   remoteImages: number
   attachments: AttachmentMeta[]
+  /** Destinataire de l'accusé de lecture demandé, s'il n'a pas encore été envoyé ($MDNSent). */
+  readReceiptTo: Address | null
 }
 
 export interface ComposeAttachment {
@@ -88,6 +98,18 @@ export interface ComposePayload {
   attachments?: ComposeAttachment[]
   /** UID d'un brouillon existant (dossier Brouillons) à remplacer / supprimer après envoi. */
   draftUid?: number | null
+  priority?: Priority
+  requestReadReceipt?: boolean
+  requestDeliveryReceipt?: boolean
+  /** Messages joints tels quels (message/rfc822), nommés « {objet}.eml ». */
+  forwardAsAttachment?: MessageRef[]
+  /** Message d'origine : reçoit \Answered (réponse) ou $Forwarded (transfert) après envoi. */
+  origin?: (MessageRef & { kind: 'reply' | 'forward' }) | null
+}
+
+export interface MessageRef {
+  folder: string
+  uid: number
 }
 
 export interface DraftSaveResult {
@@ -174,3 +196,35 @@ export interface LoginResult {
 export type LiveEvent =
   | { type: 'mailbox'; folder: string }
   | { type: 'ping' }
+
+// ─── R1 (parité Roundcube) ─────────────────────────────────────────────────
+
+export type SearchField = 'subject' | 'from' | 'to' | 'cc' | 'body'
+export type SortKey = 'date' | 'from' | 'subject' | 'size'
+
+/** Paramètres de GET /api/messages (en plus de folder, page, pageSize). */
+export interface MessageQuery {
+  q?: string
+  fields?: SearchField[]
+  scope?: 'folder' | 'all'
+  unread?: boolean
+  flagged?: boolean
+  unanswered?: boolean
+  attachments?: boolean
+  /** AAAA-MM-JJ inclus */
+  since?: string
+  /** AAAA-MM-JJ exclu */
+  before?: string
+  sort?: SortKey
+  order?: 'asc' | 'desc'
+}
+
+export interface MessageSource {
+  headers: Array<{ name: string; value: string }>
+  /** Source brute, tronquée à 1 Mo. */
+  source: string
+}
+
+export interface ImportResult {
+  imported: number
+}

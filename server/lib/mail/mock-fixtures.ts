@@ -25,6 +25,8 @@ export interface FixtureMessage {
   seen: boolean
   flagged: boolean
   draft?: boolean
+  /** En-têtes supplémentaires (ASCII), ex. X-Priority, Disposition-Notification-To. */
+  headers?: Record<string, string>
 }
 
 export const FOLDERS: Array<{ path: string; name: string; specialUse: SpecialUse | null }> = [
@@ -89,6 +91,7 @@ export function buildFixtureRaw(m: FixtureMessage, index: number): Buffer {
     `Date: ${m.date.toUTCString()}`,
     `Message-ID: <fixture-${index}@${domain}>`,
     'MIME-Version: 1.0',
+    ...Object.entries(m.headers ?? {}).map(([k, v]) => `${k}: ${v}`),
   ]
 
   const textPart = m.text !== undefined ? part('text/plain; charset=utf-8', Buffer.from(m.text, 'utf8')) : null
@@ -208,6 +211,52 @@ export function devFixtures(now: number): FixtureMessage[] {
       subject: 'Un sujet très long pour vérifier que la liste des messages tronque correctement le texte sans casser la mise en page sur mobile à 320 pixels de large',
       text: 'Texte court.',
       date: new Date(now - 50 * 3_600_000),
+      seen: true,
+      flagged: false,
+    },
+  )
+
+  // ─── Données R1 (parité Roundcube) ───
+  const PNG_RED = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==', 'base64')
+  list.push(
+    {
+      folder: 'INBOX',
+      from: PEOPLE[5] ?? '',
+      to: me,
+      subject: 'Photos de la sortie',
+      text: 'Voici les photos de la sortie au musée, et mes notes.',
+      attachments: [
+        { filename: 'photo-1.png', contentType: 'image/png', content: PNG },
+        { filename: 'photo-2.png', contentType: 'image/png', content: PNG_RED },
+        { filename: 'notes.txt', contentType: 'text/plain', content: Buffer.from('Notes de la sortie :\n- musée\n- déjeuner\n', 'utf8') },
+      ],
+      date: new Date(now - 7 * 3_600_000),
+      seen: false,
+      flagged: false,
+    },
+    {
+      folder: 'INBOX',
+      from: PEOPLE[1] ?? '',
+      to: me,
+      subject: 'Réunion : merci de confirmer',
+      text: 'Bonjour,\n\nMerci de confirmer la lecture de ce message avant la réunion de lundi.\n\nHugo',
+      headers: {
+        'X-Priority': '1 (Highest)',
+        'Importance': 'High',
+        'Disposition-Notification-To': 'hugo.bernard@mmi-troyes.fr',
+      },
+      date: new Date(now - 9 * 3_600_000),
+      seen: false,
+      flagged: false,
+    },
+    {
+      folder: 'INBOX',
+      from: PEOPLE[0] ?? '',
+      to: me,
+      subject: 'Re: Planning',
+      text: 'Ça me va pour jeudi.\n\n> Le planning proposé : jeudi 14 h.',
+      html: '<p>Ça me va pour jeudi.</p><blockquote><p>Le planning proposé : jeudi 14 h.</p><blockquote><p>Message initial.</p></blockquote></blockquote>',
+      date: new Date(now - 11 * 3_600_000),
       seen: true,
       flagged: false,
     },
