@@ -1,0 +1,14 @@
+node_modules
+.nuxt
+.output
+.data
+dist
+.env
+.env.*
+!.env.example
+test-results
+playwright-report
+*.log
+.DS_Store
+.build.lock
+.orchestrator/

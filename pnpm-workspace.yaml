@@ -1,0 +1,2 @@
+minimumReleaseAgeExclude:
+  - '@babel/plugin-transform-typescript@7.29.9'

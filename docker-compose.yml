@@ -1,0 +1,16 @@
+# Serveur mail de test local (IMAP + SMTP), jamais exposé hors de la machine.
+# Usage : docker compose up -d greenmail
+# Comptes : dev@mmi-troyes.fr / dev-password, alice@mmi-troyes.fr / alice-password
+services:
+  greenmail:
+    image: greenmail/standalone:2.1.5
+    environment:
+      GREENMAIL_OPTS: >-
+        -Dgreenmail.setup.test.smtp
+        -Dgreenmail.setup.test.imap
+        -Dgreenmail.hostname=0.0.0.0
+        -Dgreenmail.users.login=email
+        -Dgreenmail.users=dev:dev-password@mmi-troyes.fr,alice:alice-password@mmi-troyes.fr
+    ports:
+      - "127.0.0.1:3025:3025"   # SMTP
+      - "127.0.0.1:3143:3143"   # IMAP
