@@ -34,6 +34,38 @@ export async function buildRawMessage(from: string, payload: ComposePayload, opt
     }
   }
 
+  const attachments: Mail.Attachment[] = []
+
+  // Add regular attachments
+  if (payload.attachments) {
+    attachments.push(...payload.attachments.map(att => ({
+      filename: att.filename,
+      content: Buffer.from(att.content, 'base64'),
+      contentType: att.contentType,
+      // Toujours « attachment » : sinon un message/rfc822 joint est traité comme message intégré.
+      contentDisposition: 'attachment' as const,
+    })))
+  }
+
+  const headers: Record<string, string> = {}
+
+  // Add priority headers
+  if (payload.priority === 'high') {
+    headers['x-priority'] = '1'
+    headers['importance'] = 'high'
+  } else if (payload.priority === 'low') {
+    headers['x-priority'] = '5'
+    headers['importance'] = 'low'
+  } else {
+    headers['x-priority'] = '3'
+    headers['importance'] = 'normal'
+  }
+
+  // Add read receipt request
+  if (payload.requestReadReceipt) {
+    headers['disposition-notification-to'] = from
+  }
+
   const options: Mail.Options = {
     from,
     to: payload.to,
@@ -46,11 +78,8 @@ export async function buildRawMessage(from: string, payload: ComposePayload, opt
     messageId: opts.messageId ?? newMessageId(from),
     inReplyTo: payload.inReplyTo ?? undefined,
     references: payload.references && payload.references.length > 0 ? payload.references : undefined,
-    attachments: payload.attachments?.map(att => ({
-      filename: att.filename,
-      content: Buffer.from(att.content, 'base64'),
-      contentType: att.contentType,
-    })),
+    attachments: attachments.length > 0 ? attachments : undefined,
+    headers,
   }
 
   const node = new MailComposer(options).compile()

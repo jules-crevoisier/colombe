@@ -19,6 +19,11 @@ const attachmentSchema = z.object({
 
 const address = z.string().trim().pipe(z.email())
 
+const messageRefSchema = z.object({
+  folder: z.string().min(1).max(512),
+  uid: z.number().int().positive(),
+})
+
 const baseSchema = z.object({
   to: z.array(address).max(MAX_RECIPIENTS).default([]),
   cc: z.array(address).max(MAX_RECIPIENTS).default([]),
@@ -30,6 +35,11 @@ const baseSchema = z.object({
   references: z.array(z.string().max(998).refine(noNewline)).max(100).optional(),
   attachments: z.array(attachmentSchema).max(50).optional(),
   draftUid: z.number().int().positive().nullish(),
+  priority: z.enum(['high', 'normal', 'low']).optional(),
+  requestReadReceipt: z.boolean().optional(),
+  requestDeliveryReceipt: z.boolean().optional(),
+  forwardAsAttachment: z.array(messageRefSchema).max(50).optional(),
+  origin: messageRefSchema.extend({ kind: z.enum(['reply', 'forward']) }).nullish(),
 })
 
 function checkTotals(data: z.infer<typeof baseSchema>, ctx: z.RefinementCtx, requireRecipient: boolean): void {
@@ -57,5 +67,10 @@ export function toPayload(d: z.infer<typeof baseSchema>): ComposePayload {
     references: d.references ?? [],
     attachments: d.attachments ?? [],
     draftUid: d.draftUid ?? null,
+    priority: d.priority,
+    requestReadReceipt: d.requestReadReceipt,
+    requestDeliveryReceipt: d.requestDeliveryReceipt,
+    forwardAsAttachment: d.forwardAsAttachment,
+    origin: d.origin,
   }
 }

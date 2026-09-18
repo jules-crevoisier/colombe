@@ -99,6 +99,30 @@ function hasAttachments(structure: MessageStructureObject | undefined): boolean 
   })
 }
 
+function extractPriority(headers?: unknown): 'high' | 'normal' | 'low' {
+  if (!headers) return 'normal'
+
+  const headerMap = headers as Map<string, string | string[]> | undefined
+  if (!headerMap) return 'normal'
+
+  const xPriority = headerMap.get?.('x-priority')
+  const importance = headerMap.get?.('importance')
+
+  if (xPriority) {
+    const num = Number.parseInt(String(xPriority), 10)
+    if (num <= 2) return 'high'
+    if (num >= 4) return 'low'
+  }
+
+  if (importance) {
+    const imp = String(importance).toLowerCase()
+    if (imp === 'high') return 'high'
+    if (imp === 'low') return 'low'
+  }
+
+  return 'normal'
+}
+
 /** Première partie texte affichable, pour l'extrait de la liste. */
 function previewPart(structure: MessageStructureObject | undefined): MessageStructureObject | null {
   if (!structure) return null
@@ -289,7 +313,7 @@ export class ImapBackend implements MailBackend {
 
       const messages = await client.fetchAll(
         uidRange(pageUids),
-        { uid: true, flags: true, envelope: true, bodyStructure: true, size: true, internalDate: true },
+        { uid: true, flags: true, envelope: true, bodyStructure: true, size: true, internalDate: true, headers: ['x-priority', 'importance'] },
         { uid: true },
       )
       const previews = await this.fetchPreviews(client, messages)
@@ -299,6 +323,10 @@ export class ImapBackend implements MailBackend {
         const m = byUid.get(uid)
         if (!m) return []
         const env = m.envelope
+        const flags = m.flags ? Array.from(m.flags) : []
+        const answered = flags.includes('\\Answered')
+        const forwarded = flags.includes('$Forwarded')
+        const priority = extractPriority(m.headers)
         return [{
           uid,
           folder,
@@ -311,6 +339,9 @@ export class ImapBackend implements MailBackend {
           hasAttachments: hasAttachments(m.bodyStructure),
           preview: previews.get(uid) ?? '',
           size: m.size ?? 0,
+          answered,
+          forwarded,
+          priority,
         }]
       })
       return { items, total: uids.length }
@@ -348,11 +379,13 @@ export class ImapBackend implements MailBackend {
     return this.withMailbox(folder, true, async (client) => {
       const msg = await client.fetchOne(String(uid), { uid: true, source: true, flags: true, size: true }, { uid: true })
       if (!msg || !msg.source) throw new MailError('NOT_FOUND', `Message ${uid} introuvable`)
+      const flags = msg.flags ? Array.from(msg.flags) : []
       return {
         raw: msg.source,
         seen: msg.flags?.has('\\Seen') ?? false,
         flagged: msg.flags?.has('\\Flagged') ?? false,
         size: msg.size ?? msg.source.length,
+        flags,
       }
     })
   }
@@ -407,7 +440,11 @@ export class ImapBackend implements MailBackend {
       connectionTimeout: 15_000,
     })
     try {
-      await this.transport.sendMail({ envelope: { from: envelope.from, to: envelope.to }, raw })
+      const mailOpts: any = { envelope: { from: envelope.from, to: envelope.to }, raw }
+      if (envelope.dsn) {
+        mailOpts.envelope.dsn = { notify: ['success', 'failure'] }
+      }
+      await this.transport.sendMail(mailOpts)
     }
     catch (err) {
       const e = asImapError(err)
@@ -483,7 +520,7 @@ export class ImapBackend implements MailBackend {
     return this.withMailbox(folder, true, async (client) => {
       const messages = await client.fetchAll(
         uidRange(uids),
-        { uid: true, flags: true, envelope: true, bodyStructure: true, size: true, internalDate: true },
+        { uid: true, flags: true, envelope: true, bodyStructure: true, size: true, internalDate: true, headers: ['x-priority', 'importance'] },
         { uid: true },
       )
       const previews = await this.fetchPreviews(client, messages)
@@ -493,6 +530,10 @@ export class ImapBackend implements MailBackend {
         const m = byUid.get(uid)
         if (!m) return []
         const env = m.envelope
+        const flags = m.flags ? Array.from(m.flags) : []
+        const answered = flags.includes('\\Answered')
+        const forwarded = flags.includes('$Forwarded')
+        const priority = extractPriority(m.headers)
         return [{
           uid,
           folder,
@@ -505,9 +546,38 @@ export class ImapBackend implements MailBackend {
           hasAttachments: hasAttachments(m.bodyStructure),
           preview: previews.get(uid) ?? '',
           size: m.size ?? 0,
+          answered,
+          forwarded,
+          priority,
         }]
       })
       return items
+    })
+  }
+
+  async copy(folder: string, uids: number[], destination: string): Promise<void> {
+    await this.withMailbox(folder, false, async (client) => {
+      const result = await client.messageCopy(uidRange(uids), destination, { uid: true })
+      if (result === false) throw new MailError('NOT_FOUND', `Dossier ${destination} introuvable`)
+    })
+  }
+
+  async setKeywords(folder: string, uids: number[], add: string[], remove: string[]): Promise<void> {
+    await this.withMailbox(folder, false, async (client) => {
+      const range = uidRange(uids)
+      for (const flag of add) {
+        await client.messageFlagsAdd(range, [flag], { uid: true })
+      }
+      for (const flag of remove) {
+        await client.messageFlagsRemove(range, [flag], { uid: true })
+      }
+    })
+  }
+
+  async allUids(folder: string): Promise<number[]> {
+    return this.withMailbox(folder, true, async (client) => {
+      const found = await client.search({ all: true }, { uid: true })
+      return Array.isArray(found) ? found : []
     })
   }
 

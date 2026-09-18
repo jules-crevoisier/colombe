@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Paperclip, Star } from '@lucide/vue'
+import { CircleAlert, Forward, Paperclip, Reply, Star } from '@lucide/vue'
 import type { MessageSummary } from '#shared/types/mail'
 
 const props = defineProps<{
@@ -83,7 +83,13 @@ function onLinkClick(e: MouseEvent) {
           <span class="block truncate text-muted-foreground lg:inline"><span class="hidden lg:inline" aria-hidden="true"> — </span>{{ message.preview }}</span>
         </NuxtLink>
 
-        <Paperclip v-if="message.hasAttachments" class="mt-0.5 size-4 shrink-0 text-muted-foreground lg:mt-0" role="img" aria-label="Pièce jointe" />
+        <!-- Indicateurs : pièce jointe, répondu, transféré, priorité (libellés contractuels, docs/PLAN-v3.md) -->
+        <div class="flex shrink-0 items-center gap-1">
+          <Paperclip v-if="message.hasAttachments" class="mt-0.5 size-4 text-muted-foreground lg:mt-0" role="img" aria-label="Pièce jointe" />
+          <Reply v-if="message.answered" class="size-4 text-muted-foreground" role="img" aria-label="Répondu" />
+          <Forward v-if="message.forwarded" class="size-4 text-muted-foreground" role="img" aria-label="Transféré" />
+          <CircleAlert v-if="message.priority === 'high'" class="size-4 text-destructive" role="img" aria-label="Priorité haute" />
+        </div>
         <button
           type="button"
           class="relative z-10 -my-2 -mr-2 grid size-10 shrink-0 place-items-center rounded-full lg:hidden"
@@ -98,3 +104,4 @@ function onLinkClick(e: MouseEvent) {
     </div>
   </li>
 </template>
+

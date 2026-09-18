@@ -1,3 +1,4 @@
+import { simpleParser } from 'mailparser'
 import { MailError } from '../lib/mail/backend'
 import { buildRawMessage, newMessageId } from '../lib/mail/compose'
 import { sendSchema, toPayload } from '../lib/session/compose-schema'
@@ -17,11 +18,32 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 429, statusMessage: 'Limite d\'envoi atteinte', message: 'Limite d\'envoi atteinte. Réessayez plus tard.' })
     }
 
+    // Handle forwardAsAttachment - fetch raw messages and add as message/rfc822
+    if (payload.forwardAsAttachment?.length) {
+      const fwdAttachments = []
+      for (const fwd of payload.forwardAsAttachment) {
+        const raw = await backend.getRawMessage(fwd.folder, fwd.uid)
+        // Nom de fichier = objet du message transféré (pas celui du nouveau message).
+        const { subject } = await simpleParser(raw, { skipHtmlToText: true, skipTextToHtml: true, skipImageLinks: true })
+        const safe = (subject ?? '').replace(/[\\/:*?"<>|\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120)
+        fwdAttachments.push({
+          filename: `${safe || 'message'}.eml`,
+          contentType: 'message/rfc822',
+          content: raw.toString('base64'),
+        })
+      }
+      payload.attachments = [...(payload.attachments || []), ...fwdAttachments]
+    }
+
     // L'expéditeur est toujours l'utilisateur connecté, jamais une valeur du client.
     const messageId = newMessageId(email)
     const raw = await buildRawMessage(email, payload, { messageId })
     sendLimiter.hit(key)
-    await backend.send(raw, { from: email, to: [...payload.to, ...payload.cc, ...payload.bcc] })
+    await backend.send(raw, {
+      from: email,
+      to: [...payload.to, ...payload.cc, ...payload.bcc],
+      dsn: payload.requestDeliveryReceipt,
+    })
 
     // Le message est parti : les étapes suivantes ne doivent pas faire croire à un échec d'envoi.
     const folders = await backend.listFolders().catch(() => [])
@@ -35,6 +57,19 @@ export default defineEventHandler(async (event) => {
       await backend.expunge(drafts.path, [payload.draftUid]).catch((err: unknown) => {
         if (!(err instanceof MailError)) throw err
       })
+    }
+
+    // Set origin message flags (answered/forwarded) if specified
+    if (payload.origin) {
+      try {
+        const flagsToAdd = payload.origin.kind === 'reply' ? ['\\Answered'] : ['$Forwarded']
+        await backend.setKeywords(payload.origin.folder, [payload.origin.uid], flagsToAdd, []).catch((err: unknown) => {
+          if (!(err instanceof MailError) || err.code !== 'NOT_FOUND') throw err
+        })
+      }
+      catch {
+        // Origin message may have been deleted: not a fatal error
+      }
     }
 
     // Record recipients for auto-completion, but don't fail the send if storage fails

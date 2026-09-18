@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import { onKeyStroke } from '@vueuse/core'
-import { Archive, ArrowLeft, ChevronDown, CircleAlert, Download, FileText, FolderInput, ImageOff, Mail, Paperclip, Reply, ReplyAll, Forward, Star, Trash2 } from '@lucide/vue'
+import { Archive, ArrowLeft, ChevronDown, CircleAlert, Download, Eye, FileText, Image as ImageIcon, FolderInput, ImageOff, Mail, Paperclip, Reply, ReplyAll, Forward, Star, Trash2, AlertCircle, CheckCircle2, EllipsisVertical, Share2 } from '@lucide/vue'
 import type { Address, MessageDetail, MessageSummary } from '#shared/types/mail'
 
 definePageMeta({ layout: 'mail' })
@@ -24,6 +24,15 @@ const notFound = ref(false)
 const failed = ref(false)
 const showRemote = ref(false)
 const showDetails = ref(false)
+const showSource = ref(false)
+const sourceData = ref<{ headers: Array<{ name: string; value: string }>; source: string } | null>(null)
+const showAllHeaders = ref(false)
+const redirectDialogOpen = ref(false)
+const redirectTo = ref<string[]>([])
+const previewAttachment = ref<{ filename: string; contentType: string; id: string } | null>(null)
+const previewContent = ref<{ type: 'image' | 'text'; data: string } | null>(null)
+const receiptDismissed = ref(false)
+const showReadReceiptBanner = computed(() => !receiptDismissed.value && !!msg.value?.readReceiptTo)
 
 const backLink = computed(() => {
   const query = new URLSearchParams()
@@ -54,7 +63,10 @@ async function load() {
     loading.value = false
   }
 }
-watch([folderPath, uid], load, { immediate: true })
+watch([folderPath, uid], () => {
+  receiptDismissed.value = false
+  void load()
+}, { immediate: true })
 
 /** Autres messages de la conversation (dossier courant + Envoyés), du plus ancien au plus récent. */
 async function loadThread() {
@@ -127,6 +139,17 @@ async function act(action: () => Promise<unknown>, done: string) {
 
 const doArchive = () => archive.value && act(() => api.move(folderPath.value, [uid.value], archive.value!.path), 'Message archivé')
 const doDelete = () => act(() => api.remove(folderPath.value, [uid.value]), folder.value?.specialUse === 'trash' ? 'Message supprimé définitivement' : 'Message placé dans la corbeille')
+/** Copie : on reste sur le message. */
+async function copyTo(path: string, name: string) {
+  try {
+    await api.copy(folderPath.value, [uid.value], path)
+    toast(`Message copié vers « ${name} »`)
+    void mail.loadFolders()
+  }
+  catch (err) {
+    toast.error(errorText(err))
+  }
+}
 const doMove = (path: string, name: string) => act(() => api.move(folderPath.value, [uid.value], path), `Message déplacé vers « ${name} »`)
 const doUnread = () => act(() => api.setFlags(folderPath.value, [uid.value], { seen: false }), 'Marqué comme non lu')
 
@@ -146,6 +169,101 @@ async function toggleStar() {
 const me = computed(() => user.value?.email ?? '')
 const canReplyAll = computed(() => !!msg.value && (msg.value.to.length + msg.value.cc.length) > 1)
 
+async function loadSource() {
+  if (sourceData.value) return
+  try {
+    sourceData.value = await api.source(folderPath.value, uid.value)
+  }
+  catch (err) {
+    toast.error(errorText(err, 'Impossible de charger la source.'))
+  }
+}
+
+async function sendMdn() {
+  try {
+    await api.sendMdn(folderPath.value, uid.value)
+    toast('Accusé de lecture envoyé')
+    await load()
+  }
+  catch (err) {
+    toast.error(errorText(err, 'Impossible d\'envoyer l\'accusé.'))
+  }
+}
+
+function print() {
+  const url = api.printUrl(folderPath.value, uid.value)
+  window.open(url, '_blank', 'noopener')
+}
+
+async function redirect() {
+  if (!redirectTo.value.length) return
+  try {
+    await api.redirect(folderPath.value, uid.value, redirectTo.value)
+    toast('Message redirigé')
+    redirectDialogOpen.value = false
+    await navigateTo(backLink.value)
+  }
+  catch (err) {
+    toast.error(errorText(err, 'Impossible de rediriger.'))
+  }
+}
+
+async function forwardAsAttachment() {
+  if (!msg.value) return
+  await compose.openForwardAsAttachment(msg.value)
+}
+
+const PREVIEWABLE_IMAGES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
+function isPreviewable(contentType: string): boolean {
+  return PREVIEWABLE_IMAGES.includes(contentType) || contentType === 'text/plain'
+}
+
+async function previewAttachmentFile(a: { id: string; filename: string; contentType: string }) {
+  previewAttachment.value = a
+  previewContent.value = null
+  try {
+    const url = api.attachmentUrl(folderPath.value, uid.value, a.id)
+    const blob = await $fetch<Blob>(url, { responseType: 'blob' })
+    if (PREVIEWABLE_IMAGES.includes(a.contentType)) {
+      const dataUrl = URL.createObjectURL(blob)
+      previewContent.value = { type: 'image', data: dataUrl }
+    } else if (a.contentType === 'text/plain') {
+      const text = await blob.text()
+      previewContent.value = { type: 'text', data: text }
+    }
+  }
+  catch (err) {
+    toast.error(errorText(err, 'Impossible de charger l\'aperçu.'))
+  }
+}
+
+function closePreview() {
+  if (previewContent.value?.type === 'image') {
+    URL.revokeObjectURL(previewContent.value.data)
+  }
+  previewAttachment.value = null
+  previewContent.value = null
+}
+
+function downloadAttachment(id: string, filename: string) {
+  const url = api.attachmentUrl(folderPath.value, uid.value, id)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+}
+
+async function junkSelected() {
+  try {
+    await api.junk(folderPath.value, [uid.value], true)
+    toast('Message signalé comme spam')
+    await navigateTo(backLink.value)
+  }
+  catch (err) {
+    toast.error(errorText(err))
+  }
+}
+
 useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
 </script>
 
@@ -164,17 +282,48 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
         <MailIconButton v-if="archive && folderPath !== archive.path" :icon="Archive" label="Archiver" @click="doArchive" />
         <MailIconButton :icon="Trash2" :label="folder?.specialUse === 'trash' ? 'Supprimer définitivement' : 'Supprimer'" @click="doDelete" />
         <MailIconButton :icon="Mail" label="Marquer comme non lu" @click="doUnread" />
+        <!-- Plus d'actions menu -->
         <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <DropdownMenuTrigger as-child>
-                <button type="button" class="grid size-11 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground lg:size-10" aria-label="Déplacer vers">
-                  <FolderInput class="size-5" aria-hidden="true" />
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent>Déplacer vers</TooltipContent>
-          </Tooltip>
+          <MailMenuButton :icon="EllipsisVertical" label="Plus d'actions" />
+          <DropdownMenuContent align="start" class="w-56">
+            <DropdownMenuItem @select="print">
+              Imprimer
+            </DropdownMenuItem>
+            <DropdownMenuItem @select="showSource = true; loadSource()">
+              Afficher la source
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem @select="showAllHeaders = !showAllHeaders">
+              {{ showAllHeaders ? 'Masquer' : 'Afficher' }} tous les en-têtes
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <!-- Copier vers -->
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <FolderInput class="size-4" aria-hidden="true" />
+                Copier vers…
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent class="w-48">
+                <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="copyTo(f.path, f.name)">
+                  {{ f.name }}
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem @select="redirectDialogOpen = true">
+              <Share2 class="size-4" aria-hidden="true" />
+              Rediriger…
+            </DropdownMenuItem>
+            <DropdownMenuItem @select="forwardAsAttachment">
+              Transférer en pièce jointe
+            </DropdownMenuItem>
+            <DropdownMenuItem @select="junkSelected">
+              Signaler comme spam
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <MailMenuButton :icon="FolderInput" label="Déplacer vers" />
           <DropdownMenuContent align="start" class="w-56">
             <DropdownMenuLabel>Déplacer vers</DropdownMenuLabel>
             <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="doMove(f.path, f.name)">{{ f.name }}</DropdownMenuItem>
@@ -248,16 +397,53 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
           <Button variant="outline" class="h-10 self-start rounded-full px-4 sm:self-auto" @click="showRemote = true">Afficher les images</Button>
         </div>
 
+        <!-- Read receipt banner -->
+        <div v-if="showReadReceiptBanner" class="flex flex-col gap-2 rounded-xl bg-secondary px-4 py-3 text-sm sm:flex-row sm:items-center">
+          <AlertCircle class="hidden size-5 shrink-0 text-muted-foreground sm:block" aria-hidden="true" />
+          <p class="flex-1">L'expéditeur demande un accusé de lecture.</p>
+          <div class="flex gap-2">
+            <Button variant="outline" class="h-10 rounded-full px-4" @click="sendMdn">Envoyer l'accusé</Button>
+            <Button variant="ghost" class="h-10 rounded-full px-4" @click="receiptDismissed = true">Ignorer</Button>
+          </div>
+        </div>
+
         <MailFrame :html="msg.html" :text="msg.text" :show-remote="showRemote" />
 
         <section v-if="msg.attachments.length" aria-labelledby="pj-titre" class="flex flex-col gap-2">
-          <h2 id="pj-titre" class="flex items-center gap-2 text-sm font-medium">
-            <Paperclip class="size-4" aria-hidden="true" />
-            {{ msg.attachments.length }} pièce{{ msg.attachments.length > 1 ? 's' : '' }} jointe{{ msg.attachments.length > 1 ? 's' : '' }}
-          </h2>
+          <div class="flex items-center justify-between">
+            <h2 id="pj-titre" class="flex items-center gap-2 text-sm font-medium">
+              <Paperclip class="size-4" aria-hidden="true" />
+              {{ msg.attachments.length }} pièce{{ msg.attachments.length > 1 ? 's' : '' }} jointe{{ msg.attachments.length > 1 ? 's' : '' }}
+            </h2>
+            <template v-if="msg.attachments.length >= 2">
+              <a
+                :href="api.attachmentsZipUrl(folderPath, uid)"
+                :download="`${msg.subject.slice(0, 50)}-attachments.zip`"
+                class="text-xs font-medium text-primary hover:underline"
+              >
+                Tout télécharger (.zip)
+              </a>
+            </template>
+          </div>
           <ul class="flex flex-wrap gap-2">
             <li v-for="a in msg.attachments" :key="a.id">
+              <!-- Aperçu uniquement pour les images et le texte (R1.3) ; le reste se télécharge. -->
+              <button
+                v-if="isPreviewable(a.contentType)"
+                type="button"
+                class="flex h-14 max-w-72 items-center gap-3 rounded-xl border px-3 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
+                :aria-label="`Aperçu de ${a.filename} (${formatSize(a.size)})`"
+                @click="previewAttachmentFile(a)"
+              >
+                <component :is="a.contentType.startsWith('image/') ? ImageIcon : FileText" class="size-6 shrink-0 text-primary" aria-hidden="true" />
+                <span class="flex min-w-0 flex-col text-left">
+                  <span class="truncate text-sm font-medium">{{ a.filename }}</span>
+                  <span class="text-xs text-muted-foreground">{{ formatSize(a.size) }}</span>
+                </span>
+                <Eye class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              </button>
               <a
+                v-else
                 :href="api.attachmentUrl(folderPath, uid, a.id)"
                 :download="a.filename"
                 class="flex h-14 max-w-72 items-center gap-3 rounded-xl border px-3 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
@@ -293,5 +479,70 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
         </div>
       </div>
     </div>
+
+    <!-- Source dialog -->
+    <Dialog v-model:open="showSource" @update:open="open => { if (!open) { sourceData = null } }">
+      <DialogContent class="flex max-h-[80dvh] flex-col gap-0">
+        <DialogHeader class="border-b px-6 py-4">
+          <DialogTitle>Source du message</DialogTitle>
+        </DialogHeader>
+        <div class="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          <pre v-if="sourceData" class="whitespace-pre-wrap break-words text-xs font-mono">{{ sourceData.source }}</pre>
+        </div>
+        <DialogFooter class="border-t px-6 py-4">
+          <Button variant="outline" @click="downloadAttachment('', msg?.messageId || 'message'); " disabled>
+            <span>Vous ne pouvez pas télécharger depuis la source</span>
+          </Button>
+          <a v-if="msg" :href="api.rawUrl(folderPath, uid)" :download="`${msg.subject.slice(0, 50)}.eml`" hidden />
+          <Button as-child>
+            <a :href="api.rawUrl(folderPath, uid)" :download="`${msg?.subject.slice(0, 50) || 'message'}.eml`">
+              Télécharger (.eml)
+            </a>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Redirect dialog -->
+    <Dialog v-model:open="redirectDialogOpen">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Rediriger le message</DialogTitle>
+        </DialogHeader>
+        <div class="flex flex-col gap-4">
+          <div class="rounded-lg border px-3">
+            <MailRecipientInput id="redirect-to" v-model="redirectTo" label="À" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="redirectDialogOpen = false">Annuler</Button>
+          <Button @click="redirect">Rediriger</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Attachment preview dialog -->
+    <Dialog :open="previewAttachment !== null" @update:open="(v: boolean) => { if (!v) previewAttachment = null }">
+      <DialogContent class="flex max-h-[80dvh] flex-col gap-0">
+        <DialogHeader class="border-b px-6 py-4">
+          <DialogTitle>Aperçu : {{ previewAttachment?.filename }}</DialogTitle>
+        </DialogHeader>
+        <div class="min-h-0 flex-1 overflow-auto px-6 py-4">
+          <template v-if="previewContent?.type === 'image'">
+            <img :src="previewContent.data" :alt="previewAttachment?.filename" class="max-w-full" />
+          </template>
+          <template v-else-if="previewContent?.type === 'text'">
+            <pre class="whitespace-pre-wrap break-words text-xs font-mono">{{ previewContent.data }}</pre>
+          </template>
+        </div>
+        <DialogFooter class="border-t px-6 py-4">
+          <Button variant="outline" @click="closePreview">Fermer</Button>
+          <Button v-if="previewAttachment" @click="downloadAttachment(previewAttachment.id, previewAttachment.filename)">
+            <Download class="size-4" aria-hidden="true" />
+            Télécharger
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </article>
 </template>

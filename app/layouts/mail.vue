@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import type { SearchField } from '#shared/types/mail'
 import { onKeyStroke, useColorMode, useDocumentVisibility, useIntervalFn } from '@vueuse/core'
-import { Keyboard, LogOut, Menu, Moon, Pencil, Search, Settings, Sun, X } from '@lucide/vue'
+import { Keyboard, LogOut, Menu, Moon, Pencil, Search, Settings, Sun, X, Sliders } from '@lucide/vue'
+import type { MessageQuery } from '#shared/types/mail'
 
 const mail = useMailStore()
 const compose = useComposeStore()
@@ -16,6 +18,23 @@ const drawerOpen = ref(false)
 const railCollapsed = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
 const search = ref(typeof route.query.q === 'string' ? route.query.q : '')
+const searchOptionsOpen = ref(false)
+
+// Options de recherche avancée (docs/PLAN-v3.md R1.2), synchronisées avec l'URL.
+const SEARCH_FIELDS: readonly SearchField[] = ['subject', 'from', 'to', 'cc', 'body']
+function isSearchField(v: string): v is SearchField {
+  return (SEARCH_FIELDS as readonly string[]).includes(v)
+}
+const searchOptions = reactive({
+  fields: (typeof route.query.fields === 'string' ? route.query.fields.split(',').filter(isSearchField) : []) as SearchField[],
+  scope: (typeof route.query.scope === 'string' ? route.query.scope : 'folder') as 'folder' | 'all',
+  unread: route.query.unread === '1',
+  flagged: route.query.flagged === '1',
+  unanswered: route.query.unanswered === '1',
+  attachments: route.query.attachments === '1',
+  since: (typeof route.query.since === 'string' ? route.query.since : '') as string,
+  before: (typeof route.query.before === 'string' ? route.query.before : '') as string,
+})
 
 const currentFolder = computed(() => (typeof route.params.folder === 'string' ? route.params.folder : 'INBOX'))
 
@@ -33,13 +52,37 @@ function toggleMenu() {
 
 function submitSearch() {
   const q = search.value.trim()
-  void navigateTo({ path: `/mail/${encodeURIComponent(currentFolder.value)}`, query: q ? { q } : {} })
+  const query: Record<string, string | undefined> = {}
+  if (q) query.q = q
+  if (searchOptions.fields.length) query.fields = searchOptions.fields.join(',')
+  if (searchOptions.scope === 'all') query.scope = 'all'
+  if (searchOptions.unread) query.unread = '1'
+  if (searchOptions.flagged) query.flagged = '1'
+  if (searchOptions.unanswered) query.unanswered = '1'
+  if (searchOptions.attachments) query.attachments = '1'
+  if (searchOptions.since) query.since = searchOptions.since
+  if (searchOptions.before) query.before = searchOptions.before
+  searchOptionsOpen.value = false
+  void navigateTo({ path: `/mail/${encodeURIComponent(currentFolder.value)}`, query })
   searchInput.value?.blur()
 }
 
 function clearSearch() {
   search.value = ''
+  searchOptions.fields = []
+  searchOptions.scope = 'folder'
+  searchOptions.unread = false
+  searchOptions.flagged = false
+  searchOptions.unanswered = false
+  searchOptions.attachments = false
+  searchOptions.since = ''
+  searchOptions.before = ''
+  searchOptionsOpen.value = false
   void navigateTo({ path: `/mail/${encodeURIComponent(currentFolder.value)}` })
+}
+
+function resetSearchOptions() {
+  clearSearch()
 }
 
 // Raccourcis globaux : « c » nouveau message, « / » recherche, « ? » aide (ignorés pendant la saisie).
@@ -108,6 +151,53 @@ useHead({
             class="h-full min-w-0 flex-1 bg-transparent pr-2 text-base outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden"
             @keydown.esc="clearSearch"
           >
+          <!-- Search options button -->
+          <Popover v-model:open="searchOptionsOpen">
+            <PopoverTrigger as-child>
+              <button type="button" class="mr-1 grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent" aria-label="Options de recherche">
+                <Sliders class="size-4" aria-hidden="true" />
+              </button>
+            </PopoverTrigger>
+            <!-- Contrôles natifs (cases, boutons radio, dates) : accessibles et sans dépendance. -->
+            <PopoverContent align="end" :collision-padding="8" class="max-h-[var(--reka-popover-content-available-height)] w-[min(calc(100vw-2rem),24rem)] overflow-y-auto overscroll-contain p-4">
+              <form class="flex flex-col gap-4" aria-label="Options de recherche" @submit.prevent="submitSearch">
+                <fieldset class="flex flex-col gap-1">
+                  <legend class="mb-1 text-sm font-medium">Chercher dans</legend>
+                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="subject" class="size-5 shrink-0 accent-[var(--primary)]"> Objet</label>
+                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="from" class="size-5 shrink-0 accent-[var(--primary)]"> Expéditeur</label>
+                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="to" class="size-5 shrink-0 accent-[var(--primary)]"> Destinataires</label>
+                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="body" class="size-5 shrink-0 accent-[var(--primary)]"> Corps du message</label>
+                </fieldset>
+                <fieldset class="flex flex-col gap-1">
+                  <legend class="mb-1 text-sm font-medium">Portée</legend>
+                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.scope" type="radio" name="search-scope" value="folder" class="size-5 shrink-0 accent-[var(--primary)]"> Ce dossier</label>
+                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.scope" type="radio" name="search-scope" value="all" class="size-5 shrink-0 accent-[var(--primary)]"> Tous les dossiers</label>
+                </fieldset>
+                <fieldset class="flex flex-col gap-1">
+                  <legend class="mb-1 text-sm font-medium">Filtres</legend>
+                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.unread" type="checkbox" class="size-5 shrink-0 accent-[var(--primary)]"> Non lus</label>
+                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.flagged" type="checkbox" class="size-5 shrink-0 accent-[var(--primary)]"> Suivis</label>
+                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.unanswered" type="checkbox" class="size-5 shrink-0 accent-[var(--primary)]"> Sans réponse</label>
+                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.attachments" type="checkbox" class="size-5 shrink-0 accent-[var(--primary)]"> Avec pièce jointe</label>
+                </fieldset>
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="flex flex-col gap-1">
+                    <Label for="search-since">Du</Label>
+                    <Input id="search-since" v-model="searchOptions.since" type="date" class="h-11 text-base" />
+                  </div>
+                  <div class="flex flex-col gap-1">
+                    <Label for="search-before">Au</Label>
+                    <Input id="search-before" v-model="searchOptions.before" type="date" class="h-11 text-base" />
+                  </div>
+                </div>
+                <div class="flex gap-2 pt-1">
+                  <Button type="button" variant="outline" class="h-11 flex-1 rounded-full" @click="resetSearchOptions">Réinitialiser</Button>
+                  <Button type="submit" class="h-11 flex-1 rounded-full">Rechercher</Button>
+                </div>
+              </form>
+            </PopoverContent>
+          </Popover>
+
           <button v-if="search" type="button" class="mr-1 grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent" aria-label="Effacer la recherche" @click="clearSearch">
             <X class="size-5" aria-hidden="true" />
           </button>

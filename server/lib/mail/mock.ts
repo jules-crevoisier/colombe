@@ -10,6 +10,7 @@ interface MockMessage {
   raw: Buffer
   seen: boolean
   flagged: boolean
+  flags: string[]
 }
 
 interface MockFolder {
@@ -40,7 +41,10 @@ function seedUser(email: string, fixtures: FixtureMessage[]): void {
   for (const { m, i } of sorted) {
     const folder = folders.get(m.folder)
     if (!folder) continue
-    folder.messages.set(folder.nextUid++, { raw: buildFixtureRaw(m, i), seen: m.seen, flagged: m.flagged })
+    const flags: string[] = []
+    if (m.seen) flags.push('\\Seen')
+    if (m.flagged) flags.push('\\Flagged')
+    folder.messages.set(folder.nextUid++, { raw: buildFixtureRaw(m, i), seen: m.seen, flagged: m.flagged, flags })
   }
   mockStore.set(email, folders)
 }
@@ -121,68 +125,90 @@ export class MockBackend implements MailBackend {
       throw new MailError('NOT_FOUND', `Folder ${folder} not found`)
     }
 
-    // Sort messages by date descending (most recent first)
-    const sortedUids = Array.from(folderData.messages.keys()).reverse()
-
-    // Filter by query
-    let filteredUids = sortedUids
-    if (opts.query) {
-      const query = opts.query.toLowerCase()
-      filteredUids = []
-
-      for (const uid of sortedUids) {
-        const msg = folderData.messages.get(uid)!
-        const parsed = await parseMessage(msg.raw, {
-          uid,
-          folder,
-          seen: msg.seen,
-          flagged: msg.flagged,
-          size: msg.raw.length,
-        })
-
-        const searchText = `${parsed.subject} ${parsed.from?.address} ${parsed.from?.name} ${parsed.to.map(t => t.address).join(' ')} ${parsed.text || ''}`.toLowerCase()
-
-        if (searchText.includes(query)) {
-          filteredUids.push(uid)
-        }
-      }
-    }
-
-    // Paginate
-    const total = filteredUids.length
-    const page = opts.page || 1
-    const pageSize = Math.min(opts.pageSize || 50, 100)
-    const start = (page - 1) * pageSize
-    const end = start + pageSize
-
-    const pageUids = filteredUids.slice(start, end)
-
-    // Build summaries
-    const items: MessageSummary[] = []
-    for (const uid of pageUids) {
-      const msg = folderData.messages.get(uid)!
+    // Collect all messages with parsed metadata
+    const allMessages: Array<{ uid: number; msg: MockMessage; parsed: Awaited<ReturnType<typeof parseMessage>> }> = []
+    for (const [uid, msg] of folderData.messages.entries()) {
       const parsed = await parseMessage(msg.raw, {
         uid,
         folder,
         seen: msg.seen,
         flagged: msg.flagged,
         size: msg.raw.length,
+        flags: msg.flags,
       })
+      allMessages.push({ uid, msg, parsed })
+    }
 
-      items.push({
-        uid,
-        folder,
-        subject: parsed.subject,
-        from: parsed.from,
-        to: parsed.to,
-        date: parsed.date,
-        seen: msg.seen,
-        flagged: msg.flagged,
-        hasAttachments: parsed.hasAttachments,
-        preview: parsed.preview,
-        size: msg.raw.length,
+    // Apply filters
+    let filtered = allMessages
+    if (opts.filters) {
+      filtered = filtered.filter((m) => {
+        if (opts.filters!.unread === true && m.msg.seen) return false
+        if (opts.filters!.flagged === true && !m.msg.flagged) return false
+        if (opts.filters!.unanswered === true && m.parsed.answered) return false
+        if (opts.filters!.attachments === true && !m.parsed.hasAttachments) return false
+        if (opts.filters!.since && new Date(m.parsed.date) < new Date(opts.filters!.since)) return false
+        if (opts.filters!.before && new Date(m.parsed.date) >= new Date(opts.filters!.before)) return false
+        return true
       })
     }
+
+    // Apply text search
+    if (opts.query) {
+      const query = opts.query.toLowerCase()
+      filtered = filtered.filter((m) => {
+        const searchFields = opts.fields || ['subject', 'from', 'to', 'cc', 'body']
+        let match = false
+        if (searchFields.includes('subject')) match = match || m.parsed.subject.toLowerCase().includes(query)
+        if (searchFields.includes('from')) match = match || (m.parsed.from?.address.toLowerCase().includes(query) ?? false) || (m.parsed.from?.name.toLowerCase().includes(query) ?? false)
+        if (searchFields.includes('to')) match = match || m.parsed.to.some(a => a.address.toLowerCase().includes(query) || a.name.toLowerCase().includes(query))
+        if (searchFields.includes('cc')) match = match || m.parsed.cc.some(a => a.address.toLowerCase().includes(query) || a.name.toLowerCase().includes(query))
+        if (searchFields.includes('body')) match = match || (m.parsed.text?.toLowerCase().includes(query) ?? false)
+        return match
+      })
+    }
+
+    // Apply sorting
+    const sortKey = opts.sort || 'date'
+    const order = opts.order || 'desc'
+    filtered.sort((a, b) => {
+      let cmp = 0
+      if (sortKey === 'subject') {
+        cmp = a.parsed.subject.localeCompare(b.parsed.subject, 'fr', { sensitivity: 'base' })
+      } else if (sortKey === 'from') {
+        cmp = (a.parsed.from?.address ?? '').localeCompare(b.parsed.from?.address ?? '')
+      } else if (sortKey === 'size') {
+        cmp = a.msg.raw.length - b.msg.raw.length
+      } else {
+        cmp = new Date(a.parsed.date).getTime() - new Date(b.parsed.date).getTime()
+      }
+      return order === 'desc' ? -cmp : cmp
+    })
+
+    // Paginate
+    const total = filtered.length
+    const page = opts.page || 1
+    const pageSize = Math.min(opts.pageSize || 50, 100)
+    const start = (page - 1) * pageSize
+    const end = start + pageSize
+    const pageItems = filtered.slice(start, end)
+
+    const items: MessageSummary[] = pageItems.map(m => ({
+      uid: m.uid,
+      folder,
+      subject: m.parsed.subject,
+      from: m.parsed.from,
+      to: m.parsed.to,
+      date: m.parsed.date,
+      seen: m.msg.seen,
+      flagged: m.msg.flagged,
+      hasAttachments: m.parsed.hasAttachments,
+      preview: m.parsed.preview,
+      size: m.msg.raw.length,
+      answered: m.parsed.answered,
+      forwarded: m.parsed.forwarded,
+      priority: m.parsed.priority,
+    }))
 
     return { items, total }
   }
@@ -209,7 +235,7 @@ export class MockBackend implements MailBackend {
   async getMessage(folder: string, uid: number): Promise<StoredMessage> {
     const raw = await this.getRawMessage(folder, uid)
     const msg = mockStore.get(this.email)?.get(folder)?.messages.get(uid)
-    return { raw, seen: msg?.seen ?? false, flagged: msg?.flagged ?? false, size: raw.length }
+    return { raw, seen: msg?.seen ?? false, flagged: msg?.flagged ?? false, size: raw.length, flags: msg?.flags ?? [] }
   }
 
   async setFlags(folder: string, uids: number[], change: FlagChange): Promise<void> {
@@ -297,7 +323,7 @@ export class MockBackend implements MailBackend {
     const flagged = flags.includes('\\Flagged')
     const uid = folderData.nextUid++
 
-    folderData.messages.set(uid, { raw, seen, flagged })
+    folderData.messages.set(uid, { raw, seen, flagged, flags })
     publishMailboxChange(this.email, folder)
     return uid
   }
@@ -313,7 +339,7 @@ export class MockBackend implements MailBackend {
             const inbox = userFolders.get('INBOX')
             if (inbox) {
               const uid = inbox.nextUid++
-              inbox.messages.set(uid, { raw, seen: false, flagged: false })
+              inbox.messages.set(uid, { raw, seen: false, flagged: false, flags: [] })
               publishMailboxChange(user.email, 'INBOX')
             }
           }
@@ -520,6 +546,7 @@ export class MockBackend implements MailBackend {
         seen: msg.seen,
         flagged: msg.flagged,
         size: msg.raw.length,
+        flags: msg.flags,
       })
       summaries.push({
         uid,
@@ -533,10 +560,80 @@ export class MockBackend implements MailBackend {
         hasAttachments: parsed.hasAttachments,
         preview: parsed.preview,
         size: msg.raw.length,
+        answered: parsed.answered,
+        forwarded: parsed.forwarded,
+        priority: parsed.priority,
       })
     }
 
     return summaries
+  }
+
+  async copy(folder: string, uids: number[], destination: string): Promise<void> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folderData = userFolders.get(folder)
+    if (!folderData) {
+      throw new MailError('NOT_FOUND', `Source folder ${folder} not found`)
+    }
+
+    const destData = userFolders.get(destination)
+    if (!destData) {
+      throw new MailError('NOT_FOUND', `Destination folder ${destination} not found`)
+    }
+
+    for (const uid of uids) {
+      const msg = folderData.messages.get(uid)
+      if (msg) {
+        const newUid = destData.nextUid++
+        destData.messages.set(newUid, { ...msg })
+      }
+    }
+    publishMailboxChange(this.email, destination)
+  }
+
+  async setKeywords(folder: string, uids: number[], add: string[], remove: string[]): Promise<void> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folderData = userFolders.get(folder)
+    if (!folderData) {
+      throw new MailError('NOT_FOUND', `Folder ${folder} not found`)
+    }
+
+    for (const uid of uids) {
+      const msg = folderData.messages.get(uid)
+      if (msg) {
+        const flags = new Set(msg.flags)
+        for (const flag of add) {
+          flags.add(flag)
+        }
+        for (const flag of remove) {
+          flags.delete(flag)
+        }
+        msg.flags = Array.from(flags)
+      }
+    }
+    publishMailboxChange(this.email, folder)
+  }
+
+  async allUids(folder: string): Promise<number[]> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folderData = userFolders.get(folder)
+    if (!folderData) {
+      throw new MailError('NOT_FOUND', `Folder ${folder} not found`)
+    }
+
+    return Array.from(folderData.messages.keys())
   }
 }
 

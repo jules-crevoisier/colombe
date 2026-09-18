@@ -15,7 +15,7 @@ export default defineEventHandler(async (event): Promise<MessageDetail> => {
     const stored = await backend.getMessage(folder, uid)
     if (!stored.seen) await backend.setFlags(folder, [uid], { seen: true })
 
-    return await parseMessage(stored.raw, { uid, folder, seen: true, flagged: stored.flagged, size: stored.size })
+    return await parseMessage(stored.raw, { uid, folder, seen: true, flagged: stored.flagged, size: stored.size, flags: stored.flags })
   }
   catch (err) {
     throw mailError(err)

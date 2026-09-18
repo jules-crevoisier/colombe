@@ -33,6 +33,8 @@ const editor = useEditor({
       'aria-label': props.label,
       'aria-multiline': 'true',
       'role': 'textbox',
+      'spellcheck': 'true',
+      'lang': 'fr',
     },
   },
   onUpdate: ({ editor: e }) => {

@@ -80,7 +80,13 @@ export async function setup(project: TestProject): Promise<void> {
 }
 
 export async function teardown(): Promise<void> {
-  server?.kill()
+  const proc = server
   server = null
-  rmSync(dataDir, { recursive: true, force: true })
+  if (proc && proc.exitCode === null) {
+    // Windows : la base SQLite reste verrouillée tant que le processus n'est pas sorti.
+    const exited = new Promise(resolve => proc.once('exit', resolve))
+    proc.kill()
+    await Promise.race([exited, new Promise(r => setTimeout(r, 5000))])
+  }
+  rmSync(dataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
 }

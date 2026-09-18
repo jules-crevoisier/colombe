@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { toast } from 'vue-sonner'
-import type { ComposeAttachment, ComposePayload, MessageDetail } from '#shared/types/mail'
+import type { ComposeAttachment, ComposePayload, MessageDetail, Priority, MessageRef } from '#shared/types/mail'
 
 export const MAX_ATTACHMENTS_BYTES = 10 * 1024 * 1024
 const AUTOSAVE_MS = 3000
@@ -25,6 +25,13 @@ function emptyForm() {
     inReplyTo: null as string | null,
     references: [] as string[],
     draftUid: null as number | null,
+    priority: 'normal' as Priority,
+    requestReadReceipt: false,
+    requestDeliveryReceipt: false,
+    forwardAsAttachment: [] as MessageRef[],
+    /** Noms affichés des messages joints (`{objet}.eml`), parallèles à `forwardAsAttachment`. */
+    forwardAsAttachmentNames: [] as string[],
+    origin: null as (MessageRef & { kind: 'reply' | 'forward' }) | null,
   }
 }
 
@@ -35,6 +42,12 @@ let autosaveTimer: ReturnType<typeof setTimeout> | null = null
 function cancelAutosave(): void {
   if (autosaveTimer) clearTimeout(autosaveTimer)
   autosaveTimer = null
+}
+
+/** Même règle que le serveur (send.post.ts) pour nommer la pièce jointe. */
+function emlFilename(subject: string): string {
+  const safe = subject.replace(/[\\/:*?"<>|\r\n]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120)
+  return `${safe || 'message'}.eml`
 }
 
 function quoteHeader(msg: MessageDetail): string {
@@ -54,6 +67,7 @@ export const useComposeStore = defineStore('compose', {
     minimized: false,
     expanded: false,
     showCc: false,
+    showSendOptions: false,
     ...emptyForm(),
     dirty: false,
     saveState: 'idle' as SaveState,
@@ -64,7 +78,7 @@ export const useComposeStore = defineStore('compose', {
 
   getters: {
     attachmentsBytes: state => state.attachments.reduce((sum, a) => sum + a.size, 0),
-    isEmpty: state => !state.to.length && !state.cc.length && !state.bcc.length && !state.subject.trim() && !state.text.trim() && !state.attachments.length,
+    isEmpty: state => !state.to.length && !state.cc.length && !state.bcc.length && !state.subject.trim() && !state.text.trim() && !state.attachments.length && !state.forwardAsAttachment.length,
     title: state => state.subject.trim() || 'Nouveau message',
   },
 
@@ -81,6 +95,12 @@ export const useComposeStore = defineStore('compose', {
         inReplyTo: this.inReplyTo,
         references: [...this.references],
         draftUid: this.draftUid,
+        priority: this.priority,
+        requestReadReceipt: this.requestReadReceipt,
+        requestDeliveryReceipt: this.requestDeliveryReceipt,
+        forwardAsAttachment: [...this.forwardAsAttachment],
+        forwardAsAttachmentNames: [...this.forwardAsAttachmentNames],
+        origin: this.origin ? { ...this.origin } : null,
       }
     },
 
@@ -97,6 +117,11 @@ export const useComposeStore = defineStore('compose', {
         references: form.references,
         attachments: form.attachments.map(({ filename, contentType, content }) => ({ filename, contentType, content })),
         draftUid: form.draftUid,
+        priority: form.priority !== 'normal' ? form.priority : undefined,
+        requestReadReceipt: form.requestReadReceipt || undefined,
+        requestDeliveryReceipt: form.requestDeliveryReceipt || undefined,
+        forwardAsAttachment: form.forwardAsAttachment.length > 0 ? form.forwardAsAttachment : undefined,
+        origin: form.origin || undefined,
       }
     },
 
@@ -135,6 +160,7 @@ export const useComposeStore = defineStore('compose', {
         html: `<p></p>${this.signature()}<p>${escapeHtml(quoteHeader(msg))}</p><blockquote>${quotedBody(msg)}</blockquote>`,
         inReplyTo: msg.messageId,
         references: [...msg.references, ...(msg.messageId ? [msg.messageId] : [])],
+        origin: { folder: msg.folder, uid: msg.uid, kind: 'reply' },
       })
     },
 
@@ -149,7 +175,26 @@ export const useComposeStore = defineStore('compose', {
       return this.openWith({
         subject: buildForwardSubject(msg.subject),
         html: `<p></p>${this.signature()}<p>${lines.map(escapeHtml).join('<br>')}</p>${quotedBody(msg)}`,
+        origin: { folder: msg.folder, uid: msg.uid, kind: 'forward' },
       })
+    },
+
+    /** Transfert en pièce jointe : le message d'origine part intact en message/rfc822, sans citation. */
+    openForwardAsAttachment(msg: MessageDetail) {
+      const sig = this.signature()
+      return this.openWith({
+        subject: buildForwardSubject(msg.subject),
+        html: sig ? `<p></p>${sig}` : '',
+        forwardAsAttachment: [{ folder: msg.folder, uid: msg.uid }],
+        forwardAsAttachmentNames: [emlFilename(msg.subject)],
+        origin: { folder: msg.folder, uid: msg.uid, kind: 'forward' },
+      })
+    },
+
+    removeForwardedMessage(index: number) {
+      this.forwardAsAttachment.splice(index, 1)
+      this.forwardAsAttachmentNames.splice(index, 1)
+      this.touch()
     },
 
     /** Reprend un brouillon existant, pièces jointes comprises. */
@@ -306,6 +351,7 @@ export const useComposeStore = defineStore('compose', {
       this.minimized = false
       this.expanded = false
       this.showCc = false
+      this.showSendOptions = false
       this.dirty = false
       this.saveState = 'idle'
     },

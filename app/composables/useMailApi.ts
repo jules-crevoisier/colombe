@@ -5,6 +5,9 @@ import type {
   Folder,
   MessageDetail,
   MessagePage,
+  MessageQuery,
+  MessageSource,
+  ImportResult,
 } from '#shared/types/mail'
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE'
@@ -31,10 +34,28 @@ export function useMailApi() {
     }
   }
 
+  function buildMessageQuery(q: MessageQuery): Record<string, string | number | undefined> {
+    const query: Record<string, string | number | undefined> = {}
+    if (q.q) query.q = q.q
+    if (q.fields?.length) query.fields = q.fields.join(',')
+    if (q.scope) query.scope = q.scope
+    if (q.unread) query.unread = '1'
+    if (q.flagged) query.flagged = '1'
+    if (q.unanswered) query.unanswered = '1'
+    if (q.attachments) query.attachments = '1'
+    if (q.since) query.since = q.since
+    if (q.before) query.before = q.before
+    if (q.sort) query.sort = q.sort
+    if (q.order) query.order = q.order
+    return query
+  }
+
   return {
     folders: () => call<Folder[]>('/api/folders'),
-    messages: (folder: string, page = 1, q?: string, pageSize = 50) =>
-      call<MessagePage>('/api/messages', { query: { folder, page, pageSize, q: q || undefined } }),
+    messages: (folder: string, page = 1, query?: MessageQuery, pageSize = 50) => {
+      const q = query ? buildMessageQuery(query) : {}
+      return call<MessagePage>('/api/messages', { query: { folder, page, pageSize, ...q } })
+    },
     message: (folder: string, uid: number) => call<MessageDetail>(`/api/messages/${uid}`, { query: { folder } }),
     attachmentUrl: (folder: string, uid: number, id: string) =>
       `/api/messages/${uid}/attachments/${encodeURIComponent(id)}?folder=${encodeURIComponent(folder)}`,
@@ -44,6 +65,38 @@ export function useMailApi() {
       call<null>('/api/messages/move', { method: 'POST', body: { folder, uids, destination } }),
     remove: (folder: string, uids: number[]) =>
       call<null>('/api/messages/delete', { method: 'POST', body: { folder, uids } }),
+    copy: (folder: string, uids: number[], destination: string) =>
+      call<null>('/api/messages/copy', { method: 'POST', body: { folder, uids, destination } }),
+    junk: (folder: string, uids: number[], junk: boolean) =>
+      call<null>('/api/messages/junk', { method: 'POST', body: { folder, uids, junk } }),
+    markFolderRead: (folder: string) =>
+      call<null>('/api/folders/mark-read', { method: 'POST', body: { folder } }),
+    emptyFolder: (folder: string) =>
+      call<null>('/api/folders/empty', { method: 'POST', body: { folder } }),
+    zipUrl: (folder: string, uids: number[]) =>
+      `/api/messages/zip?folder=${encodeURIComponent(folder)}&uids=${uids.join(',')}`,
+    async importEml(folder: string, files: File[]) {
+      const formData = new FormData()
+      formData.append('folder', folder)
+      for (const file of files) {
+        formData.append('files', file)
+      }
+      return call<ImportResult>('/api/messages/import', {
+        method: 'POST',
+        body: formData,
+      })
+    },
+    source: (folder: string, uid: number) => call<MessageSource>(`/api/messages/${uid}/source`, { query: { folder } }),
+    rawUrl: (folder: string, uid: number) =>
+      `/api/messages/${uid}/raw?folder=${encodeURIComponent(folder)}`,
+    printUrl: (folder: string, uid: number) =>
+      `/api/messages/${uid}/print?folder=${encodeURIComponent(folder)}`,
+    attachmentsZipUrl: (folder: string, uid: number) =>
+      `/api/messages/${uid}/attachments.zip?folder=${encodeURIComponent(folder)}`,
+    redirect: (folder: string, uid: number, to: string[]) =>
+      call<null>(`/api/messages/${uid}/redirect`, { method: 'POST', body: { folder, to } }),
+    sendMdn: (folder: string, uid: number) =>
+      call<null>(`/api/messages/${uid}/mdn`, { method: 'POST', body: { folder } }),
     thread: (folder: string, uid: number) => call<ThreadResult>(`/api/messages/${uid}/thread`, { query: { folder } }),
     createFolder: (name: string, parent?: string) => call<Folder>('/api/folders', { method: 'POST', body: { name, parent } }),
     renameFolder: (path: string, name: string) => call<{ path: string }>('/api/folders', { method: 'PATCH', body: { path, name } }),

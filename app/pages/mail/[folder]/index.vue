@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import { onKeyStroke } from '@vueuse/core'
-import { Archive, ChevronLeft, ChevronRight, CircleAlert, FolderInput, Inbox, Mail, MailOpen, RefreshCw, SearchX, Trash2, X } from '@lucide/vue'
-import type { MessagePage, MessageSummary } from '#shared/types/mail'
+import { Archive, ArrowDownUp, ChevronLeft, ChevronRight, CircleAlert, Download, EllipsisVertical, FolderInput, Inbox, Mail, MailOpen, RefreshCw, SearchX, Trash2, X } from '@lucide/vue'
+import type { MessagePage, MessageSummary, SortKey } from '#shared/types/mail'
 
 definePageMeta({ layout: 'mail' })
 
@@ -18,21 +18,32 @@ const compact = computed(() => prefsStore.prefs.density === 'compact')
 const folderPath = computed(() => String(route.params.folder ?? 'INBOX'))
 const page = computed(() => Math.max(1, Number(route.query.page) || 1))
 const q = computed(() => (typeof route.query.q === 'string' ? route.query.q.trim() : ''))
+const sort = computed<SortKey>(() => {
+  const s = route.query.sort
+  return typeof s === 'string' && ['date', 'from', 'subject', 'size'].includes(s) ? s as SortKey : 'date'
+})
+const order = computed(() => {
+  const o = route.query.order
+  return typeof o === 'string' && ['asc', 'desc'].includes(o) ? o as 'asc' | 'desc' : 'desc'
+})
 const folder = computed(() => mail.byPath(folderPath.value))
 const folderName = computed(() => folder.value?.name ?? folderPath.value)
 const isDrafts = computed(() => folder.value?.specialUse === 'drafts')
+const isTrash = computed(() => folder.value?.specialUse === 'trash')
+const isJunk = computed(() => folder.value?.specialUse === 'junk')
 const showRecipient = computed(() => folder.value?.specialUse === 'sent' || isDrafts.value)
 
 const data = ref<MessagePage | null>(null)
 const loading = ref(true)
 const failed = ref(false)
 const selected = ref(new Set<number>())
+const fileInput = ref<HTMLInputElement | null>(null)
 
 async function load(silent = false) {
   if (!silent) loading.value = true
   failed.value = false
   try {
-    data.value = await api.messages(folderPath.value, page.value, q.value || undefined, pageSize.value)
+    data.value = await api.messages(folderPath.value, page.value, { q: q.value || undefined, sort: sort.value, order: order.value }, pageSize.value)
     const uids = new Set(data.value.items.map(m => m.uid))
     selected.value = new Set([...selected.value].filter(uid => uids.has(uid)))
   }
@@ -236,6 +247,72 @@ function onRowFocus(e: FocusEvent) {
   if (uid) focusedUid.value = uid
 }
 
+function setSort(value: string) {
+  const key = (['date', 'from', 'subject', 'size'] as const).find(k => k === value)
+  if (key) void navigateTo({ query: { ...route.query, sort: key, page: undefined } })
+}
+function setOrder(value: string) {
+  if (value === 'asc' || value === 'desc') void navigateTo({ query: { ...route.query, order: value, page: undefined } })
+}
+
+async function markAllAsRead() {
+  try {
+    await api.markFolderRead(folderPath.value)
+    toast('Tous les messages marqués comme lus')
+    await Promise.all([load(true), mail.loadFolders()])
+  }
+  catch (err) {
+    toast.error(errorText(err))
+  }
+}
+
+async function copySelected(destination: string, label: string) {
+  const n = selected.value.size
+  return run(() => api.copy(folderPath.value, [...selected.value], destination), `${plural(n, 'message')} copié${n > 1 ? 's' : ''} vers « ${label} »`)
+}
+
+async function junkSelected(junk: boolean) {
+  const n = selected.value.size
+  const label = junk ? 'Signaler comme spam' : 'Ce n\'est pas un spam'
+  return run(() => api.junk(folderPath.value, [...selected.value], junk), junk ? `${plural(n, 'message')} déplacé${n > 1 ? 's' : ''} vers le spam` : `${plural(n, 'message')} déplacé${n > 1 ? 's' : ''} vers la boîte de réception`)
+}
+
+function downloadSelected() {
+  const uids = [...selected.value]
+  if (!uids.length) return
+  const url = api.zipUrl(folderPath.value, uids)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `messages-${new Date().toISOString().split('T')[0]}.zip`
+  a.click()
+}
+
+async function importFiles(e: Event) {
+  const files = (e.target as HTMLInputElement).files
+  if (!files?.length) return
+  try {
+    const result = await api.importEml(folderPath.value, Array.from(files))
+    toast(`${result.imported} message${result.imported > 1 ? 's' : ''} importé${result.imported > 1 ? 's' : ''}`)
+    await Promise.all([load(true), mail.loadFolders()])
+  }
+  catch (err) {
+    toast.error(errorText(err, 'Impossible d\'importer les messages.'))
+  }
+  if (fileInput.value) fileInput.value.value = ''
+}
+
+async function emptyFolderConfirm() {
+  try {
+    await api.emptyFolder(folderPath.value)
+    toast(isTrash.value ? 'Corbeille vidée' : 'Spam vidé')
+    selected.value = new Set()
+    await Promise.all([load(true), mail.loadFolders()])
+  }
+  catch (err) {
+    toast.error(errorText(err))
+  }
+}
+
 // ─── Glisser-déposer vers un dossier (voir FolderNav) ───
 function onDragStart(m: MessageSummary, e: DragEvent) {
   if (!e.dataTransfer) return
@@ -263,6 +340,45 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
 
       <template v-if="!selected.size">
         <MailIconButton :icon="RefreshCw" label="Actualiser" @click="load(); mail.loadFolders()" />
+        <!-- Trier menu -->
+        <DropdownMenu>
+          <MailMenuButton :icon="ArrowDownUp" label="Trier" />
+          <DropdownMenuContent align="start" class="w-48">
+            <DropdownMenuLabel>Trier par</DropdownMenuLabel>
+            <DropdownMenuRadioGroup :model-value="sort" @update:model-value="(v) => setSort(String(v))">
+              <DropdownMenuRadioItem value="date">Date</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="from">Expéditeur</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="subject">Objet</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="size">Taille</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuRadioGroup :model-value="order" @update:model-value="(v) => setOrder(String(v))">
+              <DropdownMenuRadioItem value="asc">Ordre croissant</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="desc">Ordre décroissant</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <!-- Plus d'actions menu (no selection) -->
+        <DropdownMenu>
+          <MailMenuButton :icon="EllipsisVertical" label="Plus d'actions" />
+          <DropdownMenuContent align="start" class="w-56">
+            <DropdownMenuItem @select="markAllAsRead">
+              <Mail class="size-4" aria-hidden="true" />
+              Marquer tout comme lu
+            </DropdownMenuItem>
+            <DropdownMenuItem @select="fileInput?.click()">
+              <span>Importer des messages (.eml)</span>
+            </DropdownMenuItem>
+            <input
+              ref="fileInput"
+              type="file"
+              accept=".eml,message/rfc822"
+              multiple
+              hidden
+              @change="importFiles"
+            >
+          </DropdownMenuContent>
+        </DropdownMenu>
       </template>
       <template v-else>
         <span class="px-1 text-sm font-medium tabular-nums" aria-live="polite">{{ selected.size }}</span>
@@ -270,17 +386,38 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
         <MailIconButton :icon="Trash2" :label="folder?.specialUse === 'trash' ? 'Supprimer définitivement' : 'Supprimer'" @click="removeSelected" />
         <MailIconButton v-if="selectionUnread" :icon="MailOpen" label="Marquer comme lu" @click="markSeen(true)" />
         <MailIconButton v-else :icon="Mail" label="Marquer comme non lu" @click="markSeen(false)" />
+        <!-- Plus d'actions menu (with selection) -->
         <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger as-child>
-              <DropdownMenuTrigger as-child>
-                <button type="button" class="grid size-11 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground lg:size-10" aria-label="Déplacer vers">
-                  <FolderInput class="size-5" aria-hidden="true" />
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent>Déplacer vers</TooltipContent>
-          </Tooltip>
+          <MailMenuButton :icon="EllipsisVertical" label="Plus d'actions" />
+          <DropdownMenuContent align="start" class="w-56">
+            <!-- Copier vers -->
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <FolderInput class="size-4" aria-hidden="true" />
+                Copier vers…
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent class="w-48">
+                <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="copySelected(f.path, f.name)">
+                  {{ f.name }}
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <!-- Télécharger zip -->
+            <DropdownMenuItem @select="downloadSelected">
+              <Download class="size-4" aria-hidden="true" />
+              Télécharger (.zip)
+            </DropdownMenuItem>
+            <!-- Signaler comme spam / Ce n'est pas un spam -->
+            <DropdownMenuItem v-if="!isJunk" @select="junkSelected(true)">
+              Signaler comme spam
+            </DropdownMenuItem>
+            <DropdownMenuItem v-else @select="junkSelected(false)">
+              Ce n'est pas un spam
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <MailMenuButton :icon="FolderInput" label="Déplacer vers" />
           <DropdownMenuContent align="start" class="w-56">
             <DropdownMenuLabel>Déplacer vers</DropdownMenuLabel>
             <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="moveSelected(f.path, f.name)">
@@ -288,6 +425,31 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+      </template>
+
+      <!-- Vider la corbeille / Vider le spam button -->
+      <template v-if="(isTrash || isJunk) && !selected.size">
+        <AlertDialog>
+          <AlertDialogTrigger as-child>
+            <button type="button" class="ml-auto h-10 rounded-full px-4 text-sm font-medium text-destructive hover:bg-accent">
+              {{ isTrash ? 'Vider la corbeille' : 'Vider le spam' }}
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{{ isTrash ? 'Vider la corbeille' : 'Vider le spam' }}</AlertDialogTitle>
+            </AlertDialogHeader>
+            <AlertDialogDescription>
+              Cette action supprimera définitivement tous les messages de {{ isTrash ? 'la corbeille' : 'le dossier spam' }}.
+            </AlertDialogDescription>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction class="bg-destructive text-white hover:bg-destructive/90" @click="emptyFolderConfirm">
+                Vider
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </template>
 
       <div class="ml-auto flex items-center gap-1 text-xs text-muted-foreground">

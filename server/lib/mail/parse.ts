@@ -1,7 +1,7 @@
 import { simpleParser } from 'mailparser'
 import type { AddressObject, Attachment, EmailAddress, ParsedMail } from 'mailparser'
 import { sanitizeEmailHtml } from './sanitize'
-import type { Address, AttachmentMeta, MessageDetail } from '#shared/types/mail'
+import type { Address, AttachmentMeta, MessageDetail, Priority } from '#shared/types/mail'
 
 export interface MessageContext {
   uid: number
@@ -9,6 +9,7 @@ export interface MessageContext {
   seen: boolean
   flagged: boolean
   size: number
+  flags?: string[]
 }
 
 const INLINE_IMAGE_TYPE = /^image\/(?:png|jpe?g|gif|webp)$/i
@@ -72,6 +73,70 @@ function buildPreview(text: string | null, html: string | null): string {
   return source.replace(/\s+/g, ' ').trim().slice(0, 200)
 }
 
+/**
+ * Priorité : mailparser interprète déjà X-Priority / X-MSMail-Priority / Importance
+ * dans `parsed.priority` (les en-têtes bruts ne sont pas conservés sous ce nom).
+ */
+function extractPriority(parsed: ParsedMail): Priority {
+  if (parsed.priority === 'high' || parsed.priority === 'low') return parsed.priority
+  // Repli sur les lignes brutes : « X-Priority: 1 » seul n'est pas toujours interprété.
+  const line = (key: string) => {
+    const lower = key.toLowerCase()
+    const header = parsed.headerLines.find(h => h.key.toLowerCase() === lower)
+    if (!header) return ''
+    // Extract everything after the first colon
+    const colonIndex = header.line.indexOf(':')
+    return colonIndex >= 0 ? header.line.slice(colonIndex + 1).trim().toLowerCase() : ''
+  }
+  const x = Number.parseInt(line('x-priority'), 10)
+  if (x === 1 || x === 2) return 'high'
+  if (x === 4 || x === 5) return 'low'
+  const importance = line('importance') || line('x-msmail-priority')
+  if (importance === 'high') return 'high'
+  if (importance === 'low') return 'low'
+  return 'normal'
+}
+
+function isAddressObject(value: unknown): value is AddressObject {
+  return typeof value === 'object' && value !== null && Array.isArray((value as { value?: unknown }).value)
+}
+
+/**
+ * Destinataire de l'accusé de lecture demandé (Disposition-Notification-To),
+ * sauf s'il a déjà été envoyé ($MDNSent). mailparser fournit un objet adresse.
+ */
+function extractReadReceiptTo(parsed: ParsedMail, flags: string[] | undefined): Address | null {
+  if (flags?.includes('$MDNSent')) return null
+  const header = parsed.headers.get('disposition-notification-to')
+  if (!header) return null
+
+  // Handle AddressObject
+  if (isAddressObject(header)) {
+    const addresses = toAddresses(header)
+    if (addresses.length > 0) return addresses[0] ?? null
+  }
+
+  // Handle string
+  if (typeof header === 'string') {
+    const address = (header.match(/<([^>]+)>/)?.[1] ?? header).trim()
+    return /^[^\s@]+@[^\s@]+$/.test(address) ? { name: '', address } : null
+  }
+
+  // Handle object with toString method
+  try {
+    const str = String(header ?? '').trim()
+    if (str && str !== '[object Object]') {
+      const address = (str.match(/<([^>]+)>/)?.[1] ?? str).trim()
+      return /^[^\s@]+@[^\s@]+$/.test(address) ? { name: '', address } : null
+    }
+  }
+  catch {
+    // ignore
+  }
+
+  return null
+}
+
 export async function parseMessage(raw: Buffer, ctx: MessageContext): Promise<MessageDetail> {
   const parsed = await simpleParser(raw, { keepCidLinks: true })
   const { inline, files } = classifyAttachments(parsed)
@@ -97,6 +162,12 @@ export async function parseMessage(raw: Buffer, ctx: MessageContext): Promise<Me
     ? parsed.references
     : parsed.references ? [parsed.references] : []
 
+  const flags = ctx.flags ?? []
+  const answered = flags.includes('\\Answered')
+  const forwarded = flags.includes('$Forwarded')
+  const priority = extractPriority(parsed)
+  const readReceiptTo = extractReadReceiptTo(parsed, flags)
+
   return {
     uid: ctx.uid,
     folder: ctx.folder,
@@ -120,6 +191,10 @@ export async function parseMessage(raw: Buffer, ctx: MessageContext): Promise<Me
     text,
     remoteImages,
     attachments,
+    answered,
+    forwarded,
+    priority,
+    readReceiptTo,
   }
 }
 
