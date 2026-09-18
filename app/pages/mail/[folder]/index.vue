@@ -1,0 +1,353 @@
+<script setup lang="ts">
+import { toast } from 'vue-sonner'
+import { onKeyStroke } from '@vueuse/core'
+import { Archive, ChevronLeft, ChevronRight, CircleAlert, FolderInput, Inbox, Mail, MailOpen, RefreshCw, SearchX, Trash2, X } from '@lucide/vue'
+import type { MessagePage, MessageSummary } from '#shared/types/mail'
+
+definePageMeta({ layout: 'mail' })
+
+const route = useRoute()
+const api = useMailApi()
+const mail = useMailStore()
+const compose = useComposeStore()
+const prefsStore = usePrefsStore()
+const PAGE_SIZE_DEFAULT = 50
+const pageSize = computed(() => prefsStore.prefs.pageSize ?? PAGE_SIZE_DEFAULT)
+const compact = computed(() => prefsStore.prefs.density === 'compact')
+
+const folderPath = computed(() => String(route.params.folder ?? 'INBOX'))
+const page = computed(() => Math.max(1, Number(route.query.page) || 1))
+const q = computed(() => (typeof route.query.q === 'string' ? route.query.q.trim() : ''))
+const folder = computed(() => mail.byPath(folderPath.value))
+const folderName = computed(() => folder.value?.name ?? folderPath.value)
+const isDrafts = computed(() => folder.value?.specialUse === 'drafts')
+const showRecipient = computed(() => folder.value?.specialUse === 'sent' || isDrafts.value)
+
+const data = ref<MessagePage | null>(null)
+const loading = ref(true)
+const failed = ref(false)
+const selected = ref(new Set<number>())
+
+async function load(silent = false) {
+  if (!silent) loading.value = true
+  failed.value = false
+  try {
+    data.value = await api.messages(folderPath.value, page.value, q.value || undefined, pageSize.value)
+    const uids = new Set(data.value.items.map(m => m.uid))
+    selected.value = new Set([...selected.value].filter(uid => uids.has(uid)))
+  }
+  catch {
+    failed.value = true
+  }
+  finally {
+    loading.value = false
+  }
+}
+
+// Changement poussé par le serveur (SSE) sur le dossier affiché : rechargement silencieux.
+watch(() => mail.liveTick, () => {
+  if (mail.liveFolder === folderPath.value && !loading.value) void load(true)
+})
+
+watch([folderPath, page, q, pageSize], () => {
+  selected.value = new Set()
+  void load()
+}, { immediate: true })
+
+/** Messages masqués pendant le délai d'annulation d'une suppression. */
+const hidden = ref(new Set<number>())
+const items = computed(() => (data.value?.items ?? []).filter(m => !hidden.value.has(m.uid)))
+const total = computed(() => data.value?.total ?? 0)
+const rangeLabel = computed(() => {
+  if (!total.value) return ''
+  const start = (page.value - 1) * pageSize.value + 1
+  return `${start}–${Math.min(page.value * pageSize.value, total.value)} sur ${total.value}`
+})
+const lastPage = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
+
+const allState = computed<boolean | 'indeterminate'>(() => {
+  if (!selected.value.size) return false
+  return selected.value.size === items.value.length ? true : 'indeterminate'
+})
+const selection = computed(() => items.value.filter(m => selected.value.has(m.uid)))
+const selectionUnread = computed(() => selection.value.some(m => !m.seen))
+
+const moveTargets = computed(() => mail.folders.filter(f => f.path !== folderPath.value && f.specialUse !== 'drafts'))
+const archive = computed(() => mail.special('archive'))
+
+function toggleAll() {
+  selected.value = allState.value === true ? new Set() : new Set(items.value.map(m => m.uid))
+}
+function toggle(uid: number) {
+  const next = new Set(selected.value)
+  if (next.has(uid)) next.delete(uid)
+  else next.add(uid)
+  selected.value = next
+}
+
+function goToPage(p: number) {
+  void navigateTo({ query: { ...route.query, page: p > 1 ? String(p) : undefined } })
+}
+
+function messageLink(m: MessageSummary): string {
+  const query = new URLSearchParams()
+  if (page.value > 1) query.set('page', String(page.value))
+  if (q.value) query.set('q', q.value)
+  const qs = query.toString()
+  return `/mail/${encodeURIComponent(folderPath.value)}/${m.uid}${qs ? `?${qs}` : ''}`
+}
+
+async function openDraft(m: MessageSummary) {
+  try {
+    await compose.openDraft(await api.message(folderPath.value, m.uid))
+  }
+  catch (err) {
+    toast.error(errorText(err, 'Impossible d’ouvrir le brouillon.'))
+  }
+}
+
+async function run(action: () => Promise<unknown>, done: string) {
+  const uids = [...selected.value]
+  if (!uids.length) return
+  try {
+    await action()
+    toast(done)
+    selected.value = new Set()
+    await Promise.all([load(true), mail.loadFolders()])
+  }
+  catch (err) {
+    toast.error(errorText(err))
+    await load(true)
+  }
+}
+
+function plural(n: number, word: string) {
+  return `${n} ${word}${n > 1 ? 's' : ''}`
+}
+
+const markSeen = (seen: boolean) => {
+  const uids = [...selected.value]
+  for (const m of selection.value) m.seen = seen
+  return run(() => api.setFlags(folderPath.value, uids, { seen }), seen ? 'Marqué comme lu' : 'Marqué comme non lu')
+}
+/**
+ * Suppression avec « Annuler » : les messages disparaissent tout de suite,
+ * la requête part après 5 s. Définitive depuis la Corbeille : confirmation, pas de délai.
+ */
+function removeUids(uids: number[]) {
+  if (!uids.length) return
+  const n = uids.length
+  const source = folderPath.value
+  if (folder.value?.specialUse === 'trash') {
+    if (!window.confirm(`Supprimer définitivement ${plural(n, 'message')} ?`)) return
+    selected.value = new Set(uids)
+    void run(() => api.remove(source, uids), `${plural(n, 'message')} supprimé${n > 1 ? 's' : ''} définitivement`)
+    return
+  }
+  hidden.value = new Set([...hidden.value, ...uids])
+  selected.value = new Set()
+  const unhide = () => {
+    hidden.value = new Set([...hidden.value].filter(u => !uids.includes(u)))
+  }
+  const timer = setTimeout(async () => {
+    try {
+      await api.remove(source, uids)
+      await mail.loadFolders()
+      if (source === folderPath.value) await load(true)
+    }
+    catch (err) {
+      toast.error(errorText(err, 'La suppression a échoué.'))
+    }
+    finally {
+      unhide()
+    }
+  }, 5000)
+  toast(`${plural(n, 'message')} placé${n > 1 ? 's' : ''} dans la corbeille`, {
+    duration: 5000,
+    action: {
+      label: 'Annuler',
+      onClick: () => {
+        clearTimeout(timer)
+        unhide()
+      },
+    },
+  })
+}
+const removeSelected = () => removeUids([...selected.value])
+const moveSelected = (destination: string, label: string) => {
+  const n = selected.value.size
+  return run(() => api.move(folderPath.value, [...selected.value], destination), `${plural(n, 'message')} déplacé${n > 1 ? 's' : ''} vers « ${label} »`)
+}
+
+async function toggleStar(m: MessageSummary) {
+  m.flagged = !m.flagged
+  try {
+    await api.setFlags(folderPath.value, [m.uid], { flagged: m.flagged })
+  }
+  catch (err) {
+    m.flagged = !m.flagged
+    toast.error(errorText(err))
+  }
+}
+
+// ─── Clavier : j/k déplacent le focus, x sélectionne, s étoile, e archive, # supprime ───
+const focusedUid = ref<number | null>(null)
+function focusRow(delta: number) {
+  const list = items.value
+  if (!list.length) return
+  const idx = list.findIndex(m => m.uid === focusedUid.value)
+  const next = list[Math.min(list.length - 1, Math.max(0, idx === -1 ? 0 : idx + delta))]
+  if (!next) return
+  focusedUid.value = next.uid
+  const link = document.querySelector<HTMLAnchorElement>(`li[data-uid="${next.uid}"] a`)
+  link?.focus()
+  link?.scrollIntoView({ block: 'nearest' })
+}
+function targetUids(): number[] {
+  if (selected.value.size) return [...selected.value]
+  return focusedUid.value !== null ? [focusedUid.value] : []
+}
+function onKey(key: string, action: () => void) {
+  onKeyStroke(key, (e) => {
+    if (isTypingTarget(e) || compose.isOpen) return
+    e.preventDefault()
+    action()
+  })
+}
+onKey('j', () => focusRow(1))
+onKey('k', () => focusRow(-1))
+onKey('x', () => {
+  if (focusedUid.value !== null) toggle(focusedUid.value)
+})
+onKey('s', () => {
+  const m = items.value.find(i => i.uid === focusedUid.value)
+  if (m) void toggleStar(m)
+})
+onKey('e', () => {
+  const uids = targetUids()
+  if (archive.value && folderPath.value !== archive.value.path && uids.length) {
+    selected.value = new Set(uids)
+    void moveSelected(archive.value.path, archive.value.name)
+  }
+})
+onKey('#', () => removeUids(targetUids()))
+function onRowFocus(e: FocusEvent) {
+  const uid = Number((e.target as HTMLElement | null)?.closest('li[data-uid]')?.getAttribute('data-uid'))
+  if (uid) focusedUid.value = uid
+}
+
+// ─── Glisser-déposer vers un dossier (voir FolderNav) ───
+function onDragStart(m: MessageSummary, e: DragEvent) {
+  if (!e.dataTransfer) return
+  const uids = selected.value.has(m.uid) ? [...selected.value] : [m.uid]
+  const payload: DragPayload = { folder: folderPath.value, uids }
+  e.dataTransfer.setData(DRAG_MIME, JSON.stringify(payload))
+  e.dataTransfer.effectAllowed = 'move'
+}
+
+useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folderName.value)) })
+</script>
+
+<template>
+  <section class="flex min-h-0 flex-1 flex-col" :aria-labelledby="'titre-dossier'">
+    <h1 id="titre-dossier" class="px-4 pt-4 pb-1 text-xl font-medium lg:sr-only">
+      {{ q ? `Résultats pour « ${q} »` : folderName }}
+    </h1>
+
+    <!-- Barre d'outils -->
+    <div class="sticky top-16 z-20 flex h-14 shrink-0 items-center gap-1 border-b border-border/60 bg-surface-panel px-2 lg:static lg:h-12 lg:px-3" role="toolbar" aria-label="Actions sur les messages">
+      <label class="grid size-11 cursor-pointer place-items-center rounded-full hover:bg-accent lg:size-10">
+        <span class="sr-only">{{ allState === true ? 'Tout désélectionner' : 'Tout sélectionner' }}</span>
+        <Checkbox :model-value="allState" :disabled="!items.length" @update:model-value="toggleAll" />
+      </label>
+
+      <template v-if="!selected.size">
+        <MailIconButton :icon="RefreshCw" label="Actualiser" @click="load(); mail.loadFolders()" />
+      </template>
+      <template v-else>
+        <span class="px-1 text-sm font-medium tabular-nums" aria-live="polite">{{ selected.size }}</span>
+        <MailIconButton v-if="archive && folderPath !== archive.path" :icon="Archive" label="Archiver" @click="moveSelected(archive.path, archive.name)" />
+        <MailIconButton :icon="Trash2" :label="folder?.specialUse === 'trash' ? 'Supprimer définitivement' : 'Supprimer'" @click="removeSelected" />
+        <MailIconButton v-if="selectionUnread" :icon="MailOpen" label="Marquer comme lu" @click="markSeen(true)" />
+        <MailIconButton v-else :icon="Mail" label="Marquer comme non lu" @click="markSeen(false)" />
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <DropdownMenuTrigger as-child>
+                <button type="button" class="grid size-11 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground lg:size-10" aria-label="Déplacer vers">
+                  <FolderInput class="size-5" aria-hidden="true" />
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>Déplacer vers</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="start" class="w-56">
+            <DropdownMenuLabel>Déplacer vers</DropdownMenuLabel>
+            <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="moveSelected(f.path, f.name)">
+              {{ f.name }}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </template>
+
+      <div class="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+        <span v-if="rangeLabel" class="hidden px-2 tabular-nums sm:inline">{{ rangeLabel }}</span>
+        <MailIconButton :icon="ChevronLeft" label="Page précédente" :disabled="page <= 1" @click="goToPage(page - 1)" />
+        <MailIconButton :icon="ChevronRight" label="Page suivante" :disabled="page >= lastPage" @click="goToPage(page + 1)" />
+      </div>
+    </div>
+
+    <div v-if="q" class="flex items-center gap-2 border-b border-border/60 px-4 py-2 text-sm">
+      <span class="min-w-0 flex-1 truncate" aria-live="polite">
+        {{ loading ? 'Recherche…' : `${total} résultat${total > 1 ? 's' : ''} dans ${folderName}` }}
+      </span>
+      <NuxtLink :to="`/mail/${encodeURIComponent(folderPath)}`" class="inline-flex h-9 items-center gap-1 rounded-full px-3 font-medium text-primary hover:bg-accent">
+        <X class="size-4" aria-hidden="true" /> Effacer
+      </NuxtLink>
+    </div>
+
+    <div class="min-h-0 flex-1 overflow-y-auto pb-24 lg:pb-0">
+      <!-- Chargement -->
+      <ul v-if="loading" aria-busy="true" aria-label="Chargement des messages">
+        <li v-for="n in 10" :key="n" class="flex items-center gap-3 border-b border-border/60 px-4 py-3 lg:h-10 lg:py-0">
+          <Skeleton class="size-10 shrink-0 rounded-full lg:size-4 lg:rounded" />
+          <div class="flex flex-1 flex-col gap-2 lg:flex-row lg:items-center lg:gap-4">
+            <Skeleton class="h-3.5 w-32 lg:w-48" />
+            <Skeleton class="h-3.5 w-3/4 lg:flex-1" />
+          </div>
+        </li>
+      </ul>
+
+      <!-- Erreur -->
+      <div v-else-if="failed" class="flex flex-col items-center gap-3 px-6 py-16 text-center" role="alert">
+        <CircleAlert class="size-10 text-destructive" aria-hidden="true" />
+        <p class="font-medium">Impossible de charger les messages.</p>
+        <Button variant="outline" class="h-11 rounded-full px-6" @click="load()">Réessayer</Button>
+      </div>
+
+      <!-- Vide -->
+      <div v-else-if="!items.length" class="flex flex-col items-center gap-3 px-6 py-16 text-center text-muted-foreground">
+        <component :is="q ? SearchX : Inbox" class="size-12 opacity-60" aria-hidden="true" />
+        <p v-if="q" class="text-base">Aucun résultat pour « {{ q }} ».</p>
+        <p v-else class="text-base">Aucun message dans ce dossier.</p>
+      </div>
+
+      <ul v-else aria-label="Messages" @focusin="onRowFocus">
+        <MailMessageRow
+          v-for="m in items"
+          :key="m.uid"
+          :message="m"
+          :to="messageLink(m)"
+          :selected="selected.has(m.uid)"
+          :show-recipient="showRecipient"
+          :intercept-open="isDrafts"
+          :compact="compact"
+          @dragstart="onDragStart(m, $event)"
+          @open="openDraft(m)"
+          @toggle-select="toggle(m.uid)"
+          @toggle-star="toggleStar(m)"
+        />
+      </ul>
+    </div>
+  </section>
+</template>

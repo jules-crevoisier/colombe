@@ -1,0 +1,182 @@
+/* Aucune ressource externe (règle n°5) : la police est auto-hébergée via @fontsource. */
+@import "@fontsource-variable/inter";
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn-vue/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Palette inspirée de Material 3 / Gmail.
+ * Tokens shadcn standards + tokens « mail » propres à l'appli :
+ *   --surface-app      fond général (bleuté)
+ *   --surface-panel    panneaux (liste, lecture)
+ *   --compose          bouton « Nouveau message » (tonal)
+ *   --nav-active       élément de navigation sélectionné
+ *   --row-read         ligne de message déjà lu
+ *   --row-selected     ligne cochée
+ */
+:root {
+  --radius: 0.75rem;
+
+  --background: #f6f8fc;
+  --foreground: #1f1f1f;
+  --card: #ffffff;
+  --card-foreground: #1f1f1f;
+  --popover: #ffffff;
+  --popover-foreground: #1f1f1f;
+  --primary: #0b57d0;
+  --primary-foreground: #ffffff;
+  --secondary: #e9eef6;
+  --secondary-foreground: #1f1f1f;
+  --muted: #f1f3f4;
+  --muted-foreground: #5e5e5e;
+  --accent: #e8ebf0;
+  --accent-foreground: #1f1f1f;
+  --destructive: #b3261e;
+  --destructive-foreground: #ffffff;
+  --border: #e1e3e1;
+  --input: #c4c7c5;
+  --ring: #0b57d0;
+
+  --sidebar: #f6f8fc;
+  --sidebar-foreground: #1f1f1f;
+  --sidebar-primary: #0b57d0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #d3e3fd;
+  --sidebar-accent-foreground: #041e49;
+  --sidebar-border: #e1e3e1;
+  --sidebar-ring: #0b57d0;
+
+  --chart-1: #0b57d0;
+  --chart-2: #146c2e;
+  --chart-3: #b3261e;
+  --chart-4: #e37400;
+  --chart-5: #7c4dff;
+
+  --surface-app: #f6f8fc;
+  --surface-panel: #ffffff;
+  --compose: #c2e7ff;
+  --compose-foreground: #001d35;
+  --nav-active: #d3e3fd;
+  --nav-active-foreground: #041e49;
+  --row-read: #f2f6fc;
+  --row-selected: #c2dbff;
+  --search: #e9eef6;
+}
+
+.dark {
+  --background: #1b1b1b;
+  --foreground: #e3e3e3;
+  --card: #262626;
+  --card-foreground: #e3e3e3;
+  --popover: #2d2f31;
+  --popover-foreground: #e3e3e3;
+  --primary: #a8c7fa;
+  --primary-foreground: #062e6f;
+  --secondary: #333537;
+  --secondary-foreground: #e3e3e3;
+  --muted: #2d2f31;
+  --muted-foreground: #c4c7c5;
+  --accent: #37393b;
+  --accent-foreground: #e3e3e3;
+  --destructive: #f2b8b5;
+  --destructive-foreground: #601410;
+  --border: #444746;
+  --input: #8e918f;
+  --ring: #a8c7fa;
+
+  --sidebar: #1b1b1b;
+  --sidebar-foreground: #e3e3e3;
+  --sidebar-primary: #a8c7fa;
+  --sidebar-primary-foreground: #062e6f;
+  --sidebar-accent: #004a77;
+  --sidebar-accent-foreground: #c2e7ff;
+  --sidebar-border: #444746;
+  --sidebar-ring: #a8c7fa;
+
+  --surface-app: #1b1b1b;
+  --surface-panel: #262626;
+  --compose: #004a77;
+  --compose-foreground: #c2e7ff;
+  --nav-active: #004a77;
+  --nav-active-foreground: #c2e7ff;
+  --row-read: #262626;
+  --row-selected: #1e3a5f;
+  --search: #333537;
+}
+
+@theme inline {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-sans);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-surface-app: var(--surface-app);
+  --color-surface-panel: var(--surface-panel);
+  --color-compose: var(--compose);
+  --color-compose-foreground: var(--compose-foreground);
+  --color-nav-active: var(--nav-active);
+  --color-nav-active-foreground: var(--nav-active-foreground);
+  --color-row-read: var(--row-read);
+  --color-row-selected: var(--row-selected);
+  --color-search: var(--search);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  /* 16px minimum sur les champs : pas de zoom forcé sur iOS */
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+}
