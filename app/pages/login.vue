@@ -85,7 +85,7 @@ function backToPassword() {
     <div class="mb-8 flex flex-col items-start gap-4">
       <span class="grid size-12 place-items-center rounded-xl bg-primary text-xl font-bold text-primary-foreground" aria-hidden="true">
         <ShieldCheck v-if="step === 'code'" class="size-6" />
-        <template v-else>M</template>
+        <template v-else>C</template>
       </span>
       <div>
         <h1 class="text-3xl font-normal tracking-tight">{{ step === 'code' ? 'Validation en deux étapes' : 'Connexion' }}</h1>
