@@ -1,0 +1,35 @@
+# Installation Docker de Colombe. Voir colombe.env.example pour les variables
+# à fournir, et docs/admin/CONFIGURATION.md pour la référence complète.
+#
+# Usage :
+#   cp colombe.env.example colombe.env   # puis remplir
+#   docker compose up -d
+#
+# Colombe écoute uniquement sur 127.0.0.1 : placez un reverse proxy devant
+# (voir ../apache/colombe.conf ou ../nginx/colombe.conf) pour le TLS et le
+# chemin public.
+
+services:
+  colombe:
+    image: ghcr.io/jules-crevoisier/colombe:latest
+    # Pour construire l'image depuis les sources plutôt que la tirer du
+    # registre, commenter "image:" ci-dessus et décommenter :
+    # build: ../..
+    env_file: colombe.env
+    volumes:
+      - colombe-data:/data
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+    # Durcissement : système de fichiers en lecture seule (sauf /tmp et le
+    # volume de données), aucune capacité Linux, pas d'élévation de privilèges.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  colombe-data:

@@ -1,7 +1,11 @@
 {
   "name": "colombe",
+  "version": "1.0.0-rc.1",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "nuxt dev",
     "dev:mock": "cross-env MAIL_BACKEND=mock nuxt dev",
@@ -14,7 +18,8 @@
     "test:e2e": "playwright test",
     "test:integration": "vitest run --project integration",
     "test:api": "node scripts/with-build-lock.mjs \"nuxt build && vitest run --project api\"",
-    "test:dovecot": "node scripts/with-build-lock.mjs \"nuxt build && vitest run --project integration-dovecot\""
+    "test:dovecot": "node scripts/with-build-lock.mjs \"nuxt build && vitest run --project integration-dovecot\"",
+    "release": "node scripts/build-release.mjs"
   },
   "dependencies": {
     "@fontsource-variable/instrument-sans": "5.3.0",

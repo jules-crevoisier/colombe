@@ -1,0 +1,25 @@
+# Bannissement des IP qui échouent à répétition la connexion ou la double
+# authentification sur Colombe. Voir ../filter.d/colombe.conf pour le motif.
+#
+# IMPORTANT : derrière un reverse proxy (Apache/Nginx), l'IP journalisée par
+# Colombe n'est l'IP réelle du client que si MAIL_TRUST_PROXY=true (Colombe
+# fait alors confiance à X-Forwarded-For pour la dernière valeur). Le
+# bannissement doit se faire sur l'hôte qui reçoit réellement les connexions
+# du client — dans l'installation standard (Apache/Nginx et Colombe sur la
+# même machine, voir docs/DEPLOIEMENT.md), c'est le même hôte que celui-ci.
+#
+# Installation :
+#   sudo cp colombe.conf /etc/fail2ban/filter.d/
+#   sudo cp colombe.local /etc/fail2ban/jail.d/
+#   sudo systemctl restart fail2ban
+#   sudo fail2ban-client status colombe
+
+[colombe]
+enabled = true
+backend = systemd
+journalmatch = _SYSTEMD_UNIT=colombe.service
+filter = colombe
+maxretry = 10
+findtime = 10m
+bantime = 1h
+action = %(action_)s

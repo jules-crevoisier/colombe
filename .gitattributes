@@ -1,0 +1,14 @@
+# Fichiers destinés à un serveur Linux : fins de ligne LF forcées, quel que
+# soit le paramétrage Git de la machine de développement (Windows).
+* text=auto eol=lf
+
+*.sh text eol=lf
+deploy/** text eol=lf
+Dockerfile text eol=lf
+
+# Binaires : jamais de conversion.
+*.png binary
+*.ico binary
+*.svg binary
+*.woff binary
+*.woff2 binary
