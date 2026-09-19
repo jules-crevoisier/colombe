@@ -4,7 +4,7 @@
  */
 import { ImapFlow } from 'imapflow'
 import type { MailCredentials, MailServerConfig } from '../mail/backend'
-import { mailUsername } from '../mail/backend'
+import { imapAuth } from '../mail/sasl'
 import { publishMailboxChange } from './bus'
 
 /**
@@ -17,7 +17,7 @@ function createIdleClient(creds: MailCredentials, config: MailServerConfig): Ima
     port: config.imapPort,
     secure: config.imapSecure,
     servername: config.imapServername,
-    auth: { user: mailUsername(creds.email, config), pass: creds.password },
+    auth: imapAuth(creds, config),
     logger: false,
     // Ne pas désactiver l'auto-IDLE : on veut que imapflow gère IDLE automatiquement
     connectionTimeout: 10_000,

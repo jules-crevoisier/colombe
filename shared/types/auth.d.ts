@@ -12,6 +12,17 @@ declare module '#auth-utils' {
     /** Connexion en attente du code 2FA (mot de passe déjà vérifié). */
     pendingId?: string
   }
+
+  // ─── SSO (OIDC) : début ───
+  interface UserSession {
+    /**
+     * « oidc » : session ouverte par connexion unique (pas de mot de passe côté Colombe :
+     * la confirmation d'une action sensible passe par une réauthentification chez le
+     * fournisseur d'identité). Absent : connexion par mot de passe.
+     */
+    authMethod?: 'oidc'
+  }
+  // ─── SSO (OIDC) : fin ───
 }
 
 export {}

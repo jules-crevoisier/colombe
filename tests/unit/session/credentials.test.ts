@@ -22,7 +22,7 @@ describe('CredentialsStore', () => {
     const creds = store.get(sid)
     expect(creds).toEqual({
       email: 'dev@universite.example',
-      password: 'password123',
+      auth: { kind: 'password', password: 'password123' },
     })
   })
 

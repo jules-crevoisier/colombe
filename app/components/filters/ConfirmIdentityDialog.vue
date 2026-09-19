@@ -12,6 +12,20 @@ import type { SecurityConfirmation, TwoFactorStatus } from '#shared/types/mail'
  * confirmé, et redemande (avec message d'erreur) si le serveur refuse encore.
  */
 const open = ref(false)
+// ─── SSO (OIDC) : début ───
+// Session par connexion unique : Colombe n'a pas de mot de passe à vérifier. Sans code
+// TOTP, la confirmation passe par une réauthentification chez l'établissement, qui ramène
+// sur cette page (?reauth=ok) ; l'utilisateur enregistre alors à nouveau (5 minutes).
+const { session } = useUserSession()
+const route = useRoute()
+const ssoSession = computed(() => session.value?.authMethod === 'oidc')
+const redirecting = ref(false)
+function reauthenticate(): void {
+  redirecting.value = true
+  const returnTo = encodeURIComponent(route.fullPath)
+  window.location.assign(apiUrl(`/api/auth/oidc/start?reauth=1&returnTo=${returnTo}`))
+}
+// ─── SSO (OIDC) : fin ───
 const password = ref('')
 const totpCode = ref('')
 const error = ref('')
@@ -94,7 +108,7 @@ async function withConfirmation<T>(action: (confirm?: SecurityConfirmation) => P
       }
       catch (err2) {
         if (statusOf(err2) !== 403) throw err2
-        message = 'Mot de passe ou code incorrect.'
+        message = ssoSession.value && !twoFactorEnabled.value ? 'Confirmation expirée : confirmez à nouveau.' : 'Mot de passe ou code incorrect.'
       }
     }
   }
@@ -112,7 +126,19 @@ defineExpose({ request, withConfirmation })
           Cette action modifie une redirection ou un transfert : confirmez pour continuer.
         </DialogDescription>
       </DialogHeader>
-      <form class="space-y-4" @submit.prevent="submit">
+      <div v-if="ssoSession && !twoFactorEnabled" class="space-y-4">
+        <p class="text-sm text-muted-foreground">
+          Vous allez vous identifier à nouveau auprès de votre établissement, puis revenir ici. Enregistrez ensuite votre modification une nouvelle fois.
+        </p>
+        <p v-if="error" role="alert" class="text-sm font-medium text-destructive">{{ error }}</p>
+        <DialogFooter class="gap-2 sm:justify-end">
+          <Button type="button" variant="outline" class="h-11 rounded-lg px-6" @click="cancel">Annuler</Button>
+          <Button type="button" class="h-auto min-h-11 rounded-lg px-6 py-2 whitespace-normal" :disabled="redirecting || checkingStatus" @click="reauthenticate">
+            Confirmer avec mon compte de l’établissement
+          </Button>
+        </DialogFooter>
+      </div>
+      <form v-else class="space-y-4" @submit.prevent="submit">
         <div v-if="!twoFactorEnabled" class="space-y-2">
           <Label for="confirm-identity-password">Mot de passe</Label>
           <Input

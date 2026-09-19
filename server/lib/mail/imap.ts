@@ -2,8 +2,10 @@ import { ImapFlow } from 'imapflow'
 import type { FetchMessageObject, ListResponse, MessageAddressObject, MessageStructureObject, SearchObject } from 'imapflow'
 import nodemailer from 'nodemailer'
 import type { Transporter } from 'nodemailer'
+import type { SMTPTransportOptions } from 'nodemailer/lib/smtp-transport'
 import type { Address, Folder, FolderSize, MessageSummary, QuotaInfo, SearchField, SortKey, SpecialUse } from '#shared/types/mail'
-import { MailError, mailUsername } from './backend'
+import { MailError } from './backend'
+import { imapAuth, smtpAuth } from './sasl'
 import type {
   FlagChange,
   ListFoldersOptions,
@@ -257,7 +259,7 @@ function newClient(creds: MailCredentials, config: MailServerConfig): ImapFlow {
     secure: config.imapSecure,
     servername: config.imapServername,
     tls: { rejectUnauthorized: config.tlsRejectUnauthorized !== false },
-    auth: { user: mailUsername(creds.email, config), pass: creds.password },
+    auth: imapAuth(creds, config),
     logger: false,
     disableAutoIdle: true,
     connectionTimeout: 10_000,
@@ -273,6 +275,8 @@ export class ImapBackend implements MailBackend {
   private client: ImapFlow | null = null
   private connecting: Promise<ImapFlow> | null = null
   private transport: Transporter | null = null
+  /** Identité d'authentification du transport courant (jeton OIDC ou type de session). */
+  private transportAuthKey: string | null = null
   private specialFoldersChecked = false
 
   constructor(private readonly creds: MailCredentials, private readonly config: MailServerConfig) {}
@@ -575,15 +579,27 @@ export class ImapBackend implements MailBackend {
   }
 
   async send(raw: Buffer, envelope: SendEnvelope): Promise<void> {
-    this.transport ??= nodemailer.createTransport({
-      host: this.config.smtpHost,
-      port: this.config.smtpPort,
-      secure: this.config.smtpSecure,
-      requireTLS: this.config.smtpRequireTls,
-      tls: { servername: this.config.smtpServername, rejectUnauthorized: this.config.tlsRejectUnauthorized !== false },
-      auth: { user: mailUsername(this.creds.email, this.config), pass: this.creds.password },
-      connectionTimeout: 15_000,
-    })
+    // Session OIDC : le jeton d'accès change à chaque rafraîchissement (objet `auth` muté
+    // en place, voir credentials.ts) ; le transport est reconstruit quand il a changé.
+    const authKey = this.creds.auth.kind === 'oauth2' ? this.creds.auth.accessToken : this.creds.auth.kind
+    if (this.transport && this.transportAuthKey !== authKey) {
+      this.transport.close()
+      this.transport = null
+    }
+    if (!this.transport) {
+      const { auth, customAuth } = smtpAuth(this.creds, this.config)
+      this.transport = nodemailer.createTransport({
+        host: this.config.smtpHost,
+        port: this.config.smtpPort,
+        secure: this.config.smtpSecure,
+        requireTLS: this.config.smtpRequireTls,
+        tls: { servername: this.config.smtpServername, rejectUnauthorized: this.config.tlsRejectUnauthorized !== false },
+        auth,
+        ...(customAuth ? { customAuth } : {}),
+        connectionTimeout: 15_000,
+      } satisfies SMTPTransportOptions)
+      this.transportAuthKey = authKey
+    }
     try {
       const mailOpts: any = { envelope: { from: envelope.from, to: envelope.to }, raw }
       if (envelope.dsn) {

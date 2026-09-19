@@ -19,9 +19,10 @@ import type {
   SecurityConfirmation,
   VacationSettings,
 } from '#shared/types/mail'
+import { freshCredentials } from '../auth/oidc/session'
 import { verifySecondFactor } from '../auth/second-factor'
 import { getConfig } from '../config'
-import { mailUsername } from '../mail/backend'
+import type { MailSsoConfig } from '../config'
 import { createBackend } from '../mail/index'
 import { buildRawMessage } from '../mail/compose'
 import { credentialsStore } from '../session/credentials'
@@ -30,6 +31,7 @@ import { sievePool } from '../session/sieve-pool'
 import { useDb } from '../store/db'
 import { isTwoFactorEnabled } from '../store/twofactor'
 import { mailConfig } from '../../utils/mail-session'
+import { hasRecentSsoReauth, sieveCredentials } from './auth'
 import { SieveClient, SieveError, type SieveErrorCode } from './client'
 import { generateScript, isAllowedForwardTarget, SieveGenerateError } from './generate'
 import { MockSieveSession, resetSieveMock } from './mock'
@@ -67,6 +69,8 @@ export interface SieveRuntimeConfig {
   forwardDomains: string[]
   /** Identifiant présenté au serveur ManageSieve pour une adresse (voir ColombeConfig.login.username). */
   loginUsername: 'email' | 'localpart'
+  /** Accès des sessions OIDC (MAIL_SSO_AUTH). */
+  mailSso: MailSsoConfig | null
 }
 
 export function sieveRuntimeConfig(_event: H3Event): SieveRuntimeConfig {
@@ -80,6 +84,7 @@ export function sieveRuntimeConfig(_event: H3Event): SieveRuntimeConfig {
     rejectUnauthorized: c.tlsRejectUnauthorized,
     forwardDomains: c.forwardDomains,
     loginUsername: c.login.username,
+    mailSso: c.mailSso,
   }
 }
 
@@ -96,14 +101,14 @@ export async function openSieveSession(
     const session = new MockSieveSession(email)
     return { available: true, session, capabilities: session.capabilities() }
   }
-  const creds = credentialsStore.get(sid)
+  const creds = await freshCredentials(sid)
   if (!creds) {
     throw createError({ statusCode: 401, statusMessage: 'Session expirée', message: 'Session expirée' })
   }
   try {
     const client = await SieveClient.connect(
       { host: cfg.host, port: cfg.port, rejectUnauthorized: cfg.rejectUnauthorized, servername: cfg.servername },
-      { email: mailUsername(creds.email, { loginUsername: cfg.loginUsername }), password: creds.password }
+      sieveCredentials(creds, cfg)
     )
     return { available: true, session: client, capabilities: client.sieveExtensions() }
   } catch (err) {
@@ -235,30 +240,48 @@ const CONFIRMATION_REQUIRED = createError({
   message: 'Confirmez votre mot de passe.',
 })
 
+// ─── SSO (OIDC) : début ───
+/** Session sans mot de passe (connexion unique) : la confirmation passe par le fournisseur. */
+const SSO_CONFIRMATION_REQUIRED = createError({
+  statusCode: 403,
+  statusMessage: 'Confirmation requise',
+  message: 'Confirmez votre identité auprès de votre établissement.',
+})
+// ─── SSO (OIDC) : fin ───
+
 /**
  * Même limite que la connexion (5 essais / 15 min, clé distincte) : un cookie de
  * session volé ne doit pas permettre de deviner le mot de passe par ce biais.
+ * Session par connexion unique (pas de mot de passe connu de Colombe) : code TOTP si
+ * activé, sinon réauthentification récente chez le fournisseur d'identité.
  */
 async function assertConfirmed(ctx: FiltersContext, confirm: SecurityConfirmation): Promise<void> {
   const key = `confirm:${ctx.email.toLowerCase()}`
   if (loginLimiter.isLimited(key)) {
     throw createError({ statusCode: 429, statusMessage: 'Trop de tentatives', message: 'Trop de tentatives. Réessayez plus tard.' })
   }
+  const creds = credentialsStore.get(ctx.sid)
+  const passwordSession = creds?.auth.kind === 'password'
+  // ─── SSO (OIDC) : début ───
+  if (creds && !passwordSession && hasRecentSsoReauth(credentialsStore.getSso(ctx.sid)?.reauthAt, Date.now())) {
+    loginLimiter.reset(key)
+    return
+  }
+  // ─── SSO (OIDC) : fin ───
   const db = useDb()
   let ok = false
   if (confirm.totpCode && isTwoFactorEnabled(db, ctx.email)) {
     ok = verifySecondFactor(db, ctx.email, confirm.totpCode, { requireEnabled: true, allowRecovery: true })
   }
-  else if (confirm.confirmPassword) {
-    const creds = credentialsStore.get(ctx.sid)
-    ok = !!creds && constantTimeEqual(confirm.confirmPassword, creds.password)
+  else if (confirm.confirmPassword && creds?.auth.kind === 'password') {
+    ok = constantTimeEqual(confirm.confirmPassword, creds.auth.password)
   }
   if (ok) {
     loginLimiter.reset(key)
     return
   }
   if (confirm.totpCode || confirm.confirmPassword) loginLimiter.hit(key)
-  throw CONFIRMATION_REQUIRED
+  throw creds && !passwordSession ? SSO_CONFIRMATION_REQUIRED : CONFIRMATION_REQUIRED
 }
 
 const UNMANAGED_SET = createError({
@@ -552,7 +575,7 @@ export async function putForward(
  */
 export async function onForwardingChanged(ctx: FiltersContext, owner: string, summary: string): Promise<void> {
   try {
-    const creds = credentialsStore.get(ctx.sid)
+    const creds = await freshCredentials(ctx.sid)
     if (!creds) return
     const { kind, server } = mailConfig(ctx.event)
     const backend = createBackend(kind, creds, server)

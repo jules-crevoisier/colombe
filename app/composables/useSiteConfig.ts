@@ -8,10 +8,11 @@ const FALLBACK: PublicConfig = {
   supportEmail: null,
   passwordResetUrl: null,
   hasLogo: false,
-  login: { domains: [], defaultDomain: null },
+  login: { domains: [], defaultDomain: null, methods: ['password'], oidc: null },
   limits: { attachmentsBytes: 10 * 1024 * 1024 },
   demo: null,
   features: { directory: false },
+  portalUrl: null,
 }
 
 /**

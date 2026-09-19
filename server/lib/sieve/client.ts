@@ -8,6 +8,7 @@
  */
 import { connect as netConnect, Socket as NetSocket } from 'node:net'
 import { connect as tlsConnectRaw, TLSSocket } from 'node:tls'
+import { OAUTHBEARER_ABORT, oauthbearerToken, plainToken, xoauth2Token } from '../mail/sasl'
 
 const COMMAND_TIMEOUT_MS = 10_000
 const CONNECT_TIMEOUT_MS = 10_000
@@ -35,10 +36,15 @@ export interface SieveConfig {
   servername?: string
 }
 
-export interface SieveCredentials {
-  email: string
-  password: string
-}
+/**
+ * Authentification ManageSieve :
+ *   - plain : SASL PLAIN (mot de passe ; ou utilisateur maître Dovecot avec
+ *     `authzid` = utilisateur et `user` = utilisateur maître) ;
+ *   - xoauth2 / oauthbearer : jeton d'accès OIDC (session par connexion unique).
+ */
+export type SieveCredentials =
+  | { kind: 'plain'; user: string; password: string; authzid?: string }
+  | { kind: 'xoauth2' | 'oauthbearer'; user: string; accessToken: string }
 
 // ─── Lecture des réponses : bas niveau, pur, testable avec un faux socket ───
 
@@ -300,7 +306,7 @@ export class SieveClient {
         throw new SieveError('UNAVAILABLE', 'Connexion ManageSieve non chiffrée refusée (hôte distant sans STARTTLS)')
       }
 
-      await client.authenticatePlain(creds.email, creds.password)
+      await client.login(creds)
       return client
     } catch (err) {
       client.destroy()
@@ -457,17 +463,38 @@ export class SieveClient {
     this.updateCapabilities(postTls.data)
   }
 
-  private async authenticatePlain(email: string, password: string): Promise<void> {
-    const token = Buffer.concat([
-      Buffer.from('', 'utf-8'),
-      Buffer.from([0]),
-      Buffer.from(email, 'utf-8'),
-      Buffer.from([0]),
-      Buffer.from(password, 'utf-8'),
-    ]).toString('base64')
-    const resp = await this.command('AUTHENTICATE', ['PLAIN', token])
-    if (resp.status !== 'OK') {
-      throw new SieveError('AUTH_FAILED', 'Authentification refusée par le serveur ManageSieve', resp.message ?? undefined)
+  /**
+   * AUTHENTICATE avec réponse initiale (RFC 5804 §2.1). Public pour les tests de trame
+   * (`fromSocket`) ; `connect()` l'appelle après STARTTLS.
+   */
+  async login(creds: SieveCredentials): Promise<void> {
+    if (creds.kind === 'plain') {
+      await this.authenticate('PLAIN', plainToken(creds.authzid ?? '', creds.user, creds.password), '*')
+      return
+    }
+    if (creds.kind === 'xoauth2') {
+      // Échec XOAUTH2 : défi porteur d'une erreur JSON, auquel on répond par une chaîne vide.
+      await this.authenticate('XOAUTH2', xoauth2Token(creds.user, creds.accessToken), '')
+      return
+    }
+    const host = this.config.servername || this.config.host
+    await this.authenticate('OAUTHBEARER', oauthbearerToken(creds.user, creds.accessToken, host, this.config.port), OAUTHBEARER_ABORT)
+  }
+
+  private async authenticate(mechanism: string, initialResponse: string, abortResponse: string): Promise<void> {
+    this.write(buildCommand('AUTHENTICATE', [mechanism, initialResponse]))
+    const first = await this.nextLine()
+    let final: { status: 'OK' | 'NO' | 'BYE'; message: string | null }
+    if (isFinalLine(first)) {
+      final = toFinal(first)
+    } else {
+      // Défi du serveur (erreur OAuth en JSON base64, ou demande inattendue) : on termine
+      // l'échange SASL comme le prévoit le mécanisme, le serveur répond alors NO.
+      this.write(Buffer.concat([encodeArg(abortResponse), Buffer.from('\r\n', 'ascii')]))
+      final = await this.readResponse()
+    }
+    if (final.status !== 'OK') {
+      throw new SieveError('AUTH_FAILED', 'Authentification refusée par le serveur ManageSieve', final.message ?? undefined)
     }
   }
 

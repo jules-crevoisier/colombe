@@ -43,6 +43,22 @@ async function checkLastLogin() {
 watch(isAuthedArea, (active) => {
   if (active) void checkLastLogin()
 }, { immediate: true })
+
+// ─── SSO (OIDC) : début ───
+// Retour d'une réauthentification chez l'établissement (ConfirmIdentityDialog) :
+// GET /api/auth/oidc/callback ramène sur la page d'origine avec ?reauth=ok|failed.
+function onReauthResult(reauth: unknown): void {
+  if (reauth !== 'ok' && reauth !== 'failed') return
+  if (reauth === 'ok') toast.success('Identité confirmée. Enregistrez à nouveau votre modification.')
+  else toast.error('La confirmation d’identité a échoué. Réessayez.')
+  const query = { ...route.query }
+  delete query.reauth
+  void navigateTo({ path: route.path, query, hash: route.hash }, { replace: true })
+}
+// Après le montage : le Toaster doit exister pour afficher le message.
+onMounted(() => onReauthResult(route.query.reauth))
+watch(() => route.query.reauth, onReauthResult)
+// ─── SSO (OIDC) : fin ───
 </script>
 
 <template>

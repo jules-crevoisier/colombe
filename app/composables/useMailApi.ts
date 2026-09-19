@@ -113,10 +113,17 @@ export function useMailApi() {
     send: (payload: ComposePayload) => call<null>('/api/send', { method: 'POST', body: payload }),
     saveDraft: (payload: ComposePayload) => call<DraftSaveResult>('/api/drafts', { method: 'POST', body: payload }),
     async logout() {
-      await $fetch('/api/auth/logout', { method: 'POST' }).catch(() => null)
+      // 204 (rien à suivre) ou { redirect } : déconnexion chez le fournisseur d'identité
+      // (connexion unique) ou portail de l'établissement (COLOMBE_PORTAL_URL).
+      const res = await $fetch<{ redirect?: string | null } | null>('/api/auth/logout', { method: 'POST' }).catch(() => null)
       // Aucun identifiant/contenu de mail ne doit survivre en mémoire après déconnexion.
       useMailCacheStore().clear()
       await session.clear()
+      const redirect = res && typeof res.redirect === 'string' && /^https?:\/\//i.test(res.redirect) ? res.redirect : null
+      if (redirect) {
+        window.location.assign(redirect)
+        return
+      }
       await navigateTo('/login')
     },
   }

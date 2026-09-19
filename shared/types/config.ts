@@ -23,7 +23,20 @@ export interface PublicConfig {
     domains: string[]
     /** Domaine ajouté quand l'utilisateur ne saisit que son identifiant (sans @), ou null. */
     defaultDomain: string | null
+    // ─── SSO (OIDC) : début ───
+    /** Méthodes de connexion proposées (AUTH_METHODS), dans l'ordre de la configuration. */
+    methods: LoginMethod[]
+    /** Connexion unique OpenID Connect : null si désactivée. */
+    oidc: null | {
+      /** Libellé du bouton (OIDC_BUTTON_LABEL). */
+      label: string
+    }
+    // ─── SSO (OIDC) : fin ───
   }
+  // ─── SSO (OIDC) : début ───
+  /** Lien « Retour à l'ENT » (COLOMBE_PORTAL_URL), ou null. */
+  portalUrl: string | null
+  // ─── SSO (OIDC) : fin ───
   limits: {
     /** Total des pièces jointes d'un message, en octets (COLOMBE_MAX_ATTACHMENTS_MB). */
     attachmentsBytes: number
@@ -41,6 +54,11 @@ export interface PublicConfig {
     directory: boolean
   }
 }
+
+// ─── SSO (OIDC) : début ───
+/** Méthode de connexion proposée sur la page de connexion (AUTH_METHODS). */
+export type LoginMethod = 'password' | 'oidc'
+// ─── SSO (OIDC) : fin ───
 
 /** Sécurité d'une connexion côté client de messagerie. */
 export type ClientSecurity = 'ssl' | 'starttls'

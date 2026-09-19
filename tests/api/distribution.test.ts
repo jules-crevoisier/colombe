@@ -78,7 +78,7 @@ describe('config publique', () => {
       expect(raw).not.toContain(secret)
     }
     const body = JSON.parse(raw) as Record<string, unknown>
-    expect(Object.keys(body).sort()).toEqual(['demo', 'features', 'hasLogo', 'limits', 'login', 'loginMessage', 'orgName', 'passwordResetUrl', 'productName', 'supportEmail', 'supportUrl'].sort())
+    expect(Object.keys(body).sort()).toEqual(['demo', 'features', 'hasLogo', 'limits', 'login', 'loginMessage', 'orgName', 'passwordResetUrl', 'portalUrl', 'productName', 'supportEmail', 'supportUrl'].sort())
     expect(body).toMatchObject({
       productName: 'Colombe',
       orgName: 'Université Exemple',
@@ -88,8 +88,9 @@ describe('config publique', () => {
       demo: null,
       // Pas de LDAP_URL dans global-setup.ts : annuaire désactivé par défaut.
       features: { directory: false },
+      portalUrl: null,
     })
-    expect(body.login).toEqual({ domains: ['universite.example'], defaultDomain: 'universite.example' })
+    expect(body.login).toEqual({ domains: ['universite.example'], defaultDomain: 'universite.example', methods: ['password'], oidc: null })
     expect(body.limits).toEqual({ attachmentsBytes: 10 * 1024 * 1024 })
   })
 })

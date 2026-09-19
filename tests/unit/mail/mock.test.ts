@@ -428,7 +428,7 @@ describe('MockBackend', () => {
     it('accepts correct dev credentials', async () => {
       const result = await verifyMockCredentials({
         email: 'dev@universite.example',
-        password: 'dev-password',
+        auth: { kind: 'password', password: 'dev-password' },
       })
       expect(result).toBe(true)
     })
@@ -436,7 +436,7 @@ describe('MockBackend', () => {
     it('accepts correct alice credentials', async () => {
       const result = await verifyMockCredentials({
         email: 'alice@universite.example',
-        password: 'alice-password',
+        auth: { kind: 'password', password: 'alice-password' },
       })
       expect(result).toBe(true)
     })
@@ -444,7 +444,7 @@ describe('MockBackend', () => {
     it('rejects incorrect password', async () => {
       const result = await verifyMockCredentials({
         email: 'dev@universite.example',
-        password: 'wrong-password',
+        auth: { kind: 'password', password: 'wrong-password' },
       })
       expect(result).toBe(false)
     })
@@ -452,7 +452,7 @@ describe('MockBackend', () => {
     it('rejects unknown email', async () => {
       const result = await verifyMockCredentials({
         email: 'unknown@example.com',
-        password: 'password',
+        auth: { kind: 'password', password: 'password' },
       })
       expect(result).toBe(false)
     })

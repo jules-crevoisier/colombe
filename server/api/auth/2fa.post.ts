@@ -50,7 +50,13 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
   }
   loginLimiter.reset(emailKey)
   recordLoginEvent(useDb(), creds.email, ip, userAgent, true)
-  const sid = credentialsStore.create(creds.email, creds.password, ip, userAgent)
-  await replaceUserSession(event, { user: { email: creds.email }, secure: { sid }, loggedInAt: Date.now() })
+  const sid = credentialsStore.create(creds.email, creds.auth, ip, userAgent, creds.sso)
+  await replaceUserSession(event, {
+    user: { email: creds.email },
+    secure: { sid },
+    loggedInAt: Date.now(),
+    // Connexion unique OIDC suivie du code Colombe : la session reste une session SSO.
+    ...(creds.sso ? { authMethod: 'oidc' as const } : {}),
+  })
   return { user: { email: creds.email } }
 })

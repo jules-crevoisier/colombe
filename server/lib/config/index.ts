@@ -7,9 +7,40 @@
  */
 import { existsSync } from 'node:fs'
 import { isAbsolute, resolve } from 'node:path'
-import type { ClientSecurity, ClientServerSettings, PublicConfig } from '#shared/types/config'
+import type { ClientSecurity, ClientServerSettings, LoginMethod, PublicConfig } from '#shared/types/config'
 
 export type Env = Record<string, string | undefined>
+
+// ─── SSO (OIDC) : début ───
+/** Connexion unique OpenID Connect (AUTH_METHODS contient « oidc »). */
+export interface OidcConfig {
+  /** URL de l'émetteur (découverte : <issuer>/.well-known/openid-configuration). */
+  issuer: string
+  clientId: string
+  clientSecret: string
+  /** Portées demandées, séparées par des espaces. */
+  scopes: string
+  /** Revendication (claim) qui porte l'adresse de messagerie. */
+  emailClaim: string
+  buttonLabel: string
+  /** Déconnexion initiée par Colombe chez le fournisseur d'identité (end_session_endpoint). */
+  logout: boolean
+  /** URL de retour imposée, ou null (déduite de la requête). */
+  redirectUrl: string | null
+}
+
+/** Mécanisme SASL qui présente le jeton d'accès OIDC à Dovecot/Postfix. */
+export type MailOAuthMechanism = 'xoauth2' | 'oauthbearer'
+
+/**
+ * Accès à la messagerie après une connexion unique (Colombe n'a pas le mot de passe) :
+ *   - oauth2 : le jeton d'accès OIDC est présenté au serveur (Dovecot `oauth2 { }`) ;
+ *   - master : utilisateur maître Dovecot (accès à toutes les boîtes, déconseillé).
+ */
+export type MailSsoConfig =
+  | { mode: 'oauth2'; mechanism: MailOAuthMechanism }
+  | { mode: 'master'; masterUser: string; masterPassword: string; separator: string }
+// ─── SSO (OIDC) : fin ───
 
 export interface TlsEndpoint {
   host: string
@@ -77,12 +108,20 @@ export interface ColombeConfig {
     /** Lien « Découvrir le projet » affiché dans la démo, ou null. */
     projectUrl: string | null
   }
-  // ─── LDAP (annuaire de l'établissement) — bloc ajouté par l'agent « annuaire » ───
-  // Fusion : un autre agent ajoute le SSO dans ce même fichier en parallèle ; ce bloc
-  // (interface, validation, retour) est délimité pour rester facile à isoler/fusionner.
+  // ─── LDAP (annuaire de l'établissement) ───
   /** null : fonctionnalité désactivée (LDAP_URL absent). */
   ldap: LdapConfig | null
   // ─── fin LDAP ───
+  // ─── SSO (OIDC) : début ───
+  /** Méthodes de connexion (AUTH_METHODS), au moins une. */
+  authMethods: LoginMethod[]
+  /** null si « oidc » n'est pas dans AUTH_METHODS. */
+  oidc: OidcConfig | null
+  /** Accès IMAP/SMTP/ManageSieve des sessions OIDC ; null si OIDC désactivé. */
+  mailSso: MailSsoConfig | null
+  /** Lien « Retour à l'ENT » (COLOMBE_PORTAL_URL), ou null. */
+  portalUrl: string | null
+  // ─── SSO (OIDC) : fin ───
 }
 
 /** Recherche dans l'annuaire LDAP de l'établissement (schéma SupAnn / inetOrgPerson). */
@@ -315,7 +354,7 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
   const demoMaxAccounts = count('COLOMBE_DEMO_MAX_ACCOUNTS', 200, 5000)
   const demoProjectUrl = url('COLOMBE_PROJECT_URL')
 
-  // ─── LDAP (annuaire de l'établissement) — bloc ajouté par l'agent « annuaire » ───
+  // ─── LDAP (annuaire de l'établissement) ───
   const ldapUrlRaw = pick(env, 'LDAP_URL')
   let ldap: LdapConfig | null = null
   if (ldapUrlRaw) {
@@ -380,6 +419,83 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
     }
   }
   // ─── fin LDAP ───
+  // ─── SSO (OIDC) : début ───
+  const authMethods: LoginMethod[] = []
+  for (const m of list(pick(env, 'AUTH_METHODS') ?? 'password')) {
+    if (m !== 'password' && m !== 'oidc') problems.push(`AUTH_METHODS : « ${m} » n'est pas une méthode connue (password, oidc).`)
+    else if (!authMethods.includes(m)) authMethods.push(m)
+  }
+  if (authMethods.length === 0 && !problems.some(p => p.startsWith('AUTH_METHODS'))) problems.push('AUTH_METHODS doit contenir au moins une méthode (password, oidc).')
+  const oidcEnabled = authMethods.includes('oidc')
+
+  let oidc: OidcConfig | null = null
+  if (oidcEnabled) {
+    if (demoEnabled) problems.push('AUTH_METHODS=oidc est incompatible avec COLOMBE_DEMO=true (la démo n\'a pas de fournisseur d\'identité).')
+    const issuerRaw = pick(env, 'OIDC_ISSUER')
+    let issuer = ''
+    if (!issuerRaw) problems.push('OIDC_ISSUER est obligatoire avec AUTH_METHODS=oidc : l\'URL de l\'émetteur OpenID Connect (ex. https://idp.univ-exemple.fr/realms/univ).')
+    else {
+      try {
+        const u = new URL(issuerRaw)
+        // http toléré uniquement en boucle locale (fournisseur sur la même machine, tests).
+        if (u.protocol === 'https:' || (u.protocol === 'http:' && isLoopback(u.hostname))) issuer = issuerRaw.replace(/\/+$/, '')
+        else problems.push(`OIDC_ISSUER doit être une URL https (reçu « ${issuerRaw} »).`)
+        if (u.search || u.hash) problems.push('OIDC_ISSUER ne doit contenir ni « ? » ni « # ».')
+      }
+      catch {
+        problems.push(`OIDC_ISSUER doit être une URL https complète (reçu « ${issuerRaw} »).`)
+      }
+    }
+    const clientId = pick(env, 'OIDC_CLIENT_ID') ?? ''
+    if (!clientId) problems.push('OIDC_CLIENT_ID est obligatoire avec AUTH_METHODS=oidc (identifiant du client déclaré chez le fournisseur d\'identité).')
+    const clientSecret = pick(env, 'OIDC_CLIENT_SECRET') ?? ''
+    if (!clientSecret) problems.push('OIDC_CLIENT_SECRET est obligatoire avec AUTH_METHODS=oidc (secret du client confidentiel).')
+    const scopes = (pick(env, 'OIDC_SCOPES') ?? 'openid email profile offline_access').split(/[\s,]+/).filter(Boolean)
+    if (!scopes.includes('openid')) problems.push('OIDC_SCOPES doit contenir « openid ».')
+    const emailClaim = pick(env, 'OIDC_EMAIL_CLAIM') ?? 'email'
+    if (!/^[\w.:/-]{1,128}$/.test(emailClaim)) problems.push(`OIDC_EMAIL_CLAIM n'est pas un nom de revendication valide (« ${emailClaim} »).`)
+    const redirectUrl = url('OIDC_REDIRECT_URL')
+    if (redirectUrl && !/\/api\/auth\/oidc\/callback$/.test(new URL(redirectUrl).pathname)) {
+      problems.push('OIDC_REDIRECT_URL doit se terminer par /api/auth/oidc/callback.')
+    }
+    oidc = {
+      issuer,
+      clientId,
+      clientSecret,
+      scopes: scopes.join(' '),
+      emailClaim,
+      buttonLabel: pick(env, 'OIDC_BUTTON_LABEL') ?? 'Se connecter avec mon compte de l\'établissement',
+      logout: bool(['OIDC_LOGOUT'], true),
+      redirectUrl,
+    }
+  }
+
+  let mailSso: MailSsoConfig | null = null
+  const ssoAuthRaw = pick(env, 'MAIL_SSO_AUTH')?.toLowerCase()
+  if (ssoAuthRaw !== undefined && ssoAuthRaw !== 'oauth2' && ssoAuthRaw !== 'master') {
+    problems.push(`MAIL_SSO_AUTH doit valoir oauth2 ou master (reçu « ${ssoAuthRaw} »).`)
+  }
+  if (ssoAuthRaw === 'master' && !oidcEnabled) problems.push('MAIL_SSO_AUTH=master n\'a de sens qu\'avec AUTH_METHODS=oidc : retirez MAIL_MASTER_PASSWORD de la configuration.')
+  const mechanismRaw = (pick(env, 'MAIL_OAUTH_MECHANISM') ?? 'xoauth2').toLowerCase()
+  if (mechanismRaw !== 'xoauth2' && mechanismRaw !== 'oauthbearer') problems.push(`MAIL_OAUTH_MECHANISM doit valoir xoauth2 ou oauthbearer (reçu « ${mechanismRaw} »).`)
+  if (oidcEnabled) {
+    if (ssoAuthRaw === 'master') {
+      const masterUser = pick(env, 'MAIL_MASTER_USER') ?? ''
+      const masterPassword = env.MAIL_MASTER_PASSWORD ?? ''
+      const separator = pick(env, 'MAIL_MASTER_SEPARATOR') ?? '*'
+      if (!masterUser) problems.push('MAIL_MASTER_USER est obligatoire avec MAIL_SSO_AUTH=master (utilisateur maître Dovecot).')
+      else if (/[\s@]/.test(masterUser)) problems.push('MAIL_MASTER_USER ne doit contenir ni espace ni @.')
+      if (masterPassword.length < 24) problems.push('MAIL_MASTER_PASSWORD doit contenir au moins 24 caractères (openssl rand -base64 32) : il ouvre TOUTES les boîtes.')
+      if (!/^[^\s\w@.-]$/.test(separator)) problems.push(`MAIL_MASTER_SEPARATOR doit être un seul caractère spécial, comme dans auth_master_user_separator (reçu « ${separator} »).`)
+      if (mock || demoEnabled) problems.push('MAIL_SSO_AUTH=master est interdit avec le backend mock ou la démo.')
+      mailSso = { mode: 'master', masterUser, masterPassword, separator }
+    }
+    else {
+      mailSso = { mode: 'oauth2', mechanism: mechanismRaw === 'oauthbearer' ? 'oauthbearer' : 'xoauth2' }
+    }
+  }
+  const portalUrl = url('COLOMBE_PORTAL_URL')
+  // ─── SSO (OIDC) : fin ───
 
   if (problems.length) throw new ConfigError(problems)
 
@@ -417,6 +533,12 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
     dataDir: resolve(cwd, pick(env, 'WEBMAIL_DATA_DIR') ?? '.data'),
     demo: { enabled: demoEnabled, ttlHours: demoTtlHours, maxAccounts: demoMaxAccounts, projectUrl: demoProjectUrl },
     ldap,
+    // ─── SSO (OIDC) : début ───
+    authMethods,
+    oidc,
+    mailSso,
+    portalUrl,
+    // ─── SSO (OIDC) : fin ───
   }
 }
 
@@ -466,11 +588,31 @@ export function publicConfig(config: ColombeConfig): PublicConfig {
     supportEmail: b.supportEmail,
     passwordResetUrl: b.passwordResetUrl,
     hasLogo: b.logoFile !== null,
-    login: { domains: config.login.domains, defaultDomain: config.login.defaultDomain },
+    login: {
+      domains: config.login.domains,
+      defaultDomain: config.login.defaultDomain,
+      // ─── SSO (OIDC) : début ───
+      methods: [...config.authMethods],
+      oidc: config.oidc ? { label: config.oidc.buttonLabel } : null,
+      // ─── SSO (OIDC) : fin ───
+    },
     limits: { attachmentsBytes: config.limits.attachmentsBytes },
     demo: config.demo.enabled ? { ttlHours: config.demo.ttlHours, projectUrl: config.demo.projectUrl } : null,
     // ─── LDAP (annuaire de l'établissement) ───
     features: { directory: config.ldap !== null },
     // ─── fin LDAP ───
+    // ─── SSO (OIDC) : début ───
+    portalUrl: config.portalUrl,
+    // ─── SSO (OIDC) : fin ───
   }
 }
+
+// ─── SSO (OIDC) : début ───
+/**
+ * Identifiant IMAP d'un utilisateur maître Dovecot : `<utilisateur><séparateur><maître>`
+ * (auth_master_user_separator, `*` par défaut) — ex. `jean.dupont@univ.fr*colombe`.
+ */
+export function masterLogin(user: string, masterUser: string, separator: string): string {
+  return `${user}${separator}${masterUser}`
+}
+// ─── SSO (OIDC) : fin ───

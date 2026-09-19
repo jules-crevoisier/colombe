@@ -19,6 +19,14 @@ export default defineNitroPlugin(() => {
   try {
     const config = getConfig()
     if (config.demo.enabled) demoAccounts.startSweep(config.demo.ttlHours)
+    // ─── SSO (OIDC) : début ───
+    if (config.mailSso?.mode === 'master') {
+      console.warn(
+        `[colombe] ATTENTION : MAIL_SSO_AUTH=master — Colombe se connecte à la messagerie avec l'utilisateur maître Dovecot « ${config.mailSso.masterUser} », qui ouvre TOUTES les boîtes. `
+        + 'Protégez MAIL_MASTER_PASSWORD comme un secret d\'administration et préférez MAIL_SSO_AUTH=oauth2 dès que Dovecot valide les jetons OIDC.'
+      )
+    }
+    // ─── SSO (OIDC) : fin ───
   }
   catch (err) {
     if (err instanceof ConfigError) {
