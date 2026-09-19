@@ -4,7 +4,11 @@
 # utilisateur non privilégié). Voir aussi scripts/build-release.mjs pour
 # l'archive de release destinée à une installation systemd/Apache/Nginx.
 
-FROM node:24-bookworm-slim AS build
+# Étape de build sur l'architecture de la MACHINE de build ($BUILDPLATFORM), jamais
+# émulée : la sortie Nitro est du JavaScript pur (aucun module natif, `node:sqlite` est
+# intégré à Node), identique pour amd64 et arm64. Seule l'étape finale est par
+# architecture. Sans cela, l'image arm64 se construit sous QEMU en plus d'une heure.
+FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS build
 WORKDIR /app
 
 # Corepack lit le champ "packageManager" de package.json et installe cette

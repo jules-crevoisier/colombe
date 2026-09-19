@@ -7,6 +7,8 @@ remplacer Roundcube (et RainLoop) sans toucher au serveur de messagerie.
 Interface inspirée de Gmail, pensée d'abord pour le mobile, sécurisée par défaut. En
 production dans un institut universitaire depuis septembre 2026.
 
+**Site : <https://colombe.srko.fr>** · **Démo en ligne : <https://demo.colombe.srko.fr>** (un compte jetable, aucun e-mail ne sort)
+
 *English summary: Colombe is a self-hosted webmail (Nuxt + Node 24) for organisations
 running their own IMAP/SMTP server, designed as a Roundcube replacement. Configured
 entirely through environment variables; Docker image and release tarball; imports

@@ -19,7 +19,7 @@ function envUrl(name: string, fallback: string): string {
   return (value || fallback).replace(/\/+$/, '')
 }
 
-const demoUrl = envUrl('COLOMBE_DEMO_URL', 'https://demo.colombe.example')
+const demoUrl = envUrl('COLOMBE_DEMO_URL', 'https://demo.colombe.srko.fr')
 const repoUrl = envUrl('COLOMBE_REPO_URL', 'https://github.com/jules-crevoisier/colombe')
 const siteUrl = process.env.COLOMBE_SITE_URL?.trim().replace(/\/+$/, '') || ''
 

@@ -22,7 +22,7 @@
 # une variante distroless ici (le site n'a pas les mêmes contraintes de
 # surface d'attaque que l'application, qui gère des identifiants).
 
-FROM node:24-bookworm-slim AS build
+FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS build
 WORKDIR /app
 RUN corepack enable
 RUN pnpm config set store-dir /pnpm-store --global
