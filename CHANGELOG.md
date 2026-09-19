@@ -82,4 +82,4 @@ d'environnement. En production à l'IUT de Troyes (département MMI) depuis le
 - Intégration continue (tests et vérification des types à chaque changement,
   publication de la release en brouillon sur les tags de version)
 
-[1.0.0-rc.1]: https://github.com/jules-crevoisier/courrielle/releases/tag/v1.0.0-rc.1
+[1.0.0-rc.1]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.1
