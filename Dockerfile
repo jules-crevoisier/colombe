@@ -87,7 +87,8 @@ WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000 \
     HOST=0.0.0.0 \
-    WEBMAIL_DATA_DIR=/data \n    PATH=/nodejs/bin:/usr/local/bin:/usr/bin:/bin
+    WEBMAIL_DATA_DIR=/data \
+    PATH=/nodejs/bin:/usr/local/bin:/usr/bin:/bin
 
 ARG IMAGE_VERSION=0.0.0-dev
 ARG IMAGE_REVISION=unknown
