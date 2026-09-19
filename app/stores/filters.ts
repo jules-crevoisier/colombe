@@ -12,7 +12,7 @@ export interface FilterDialogPrefill {
 
 /**
  * État partagé de la boîte de dialogue « Nouveau filtre » / « Modifier le
- * filtre » (docs/PLAN-v4.md F.2), montée une fois dans app.vue
+ * filtre » (docs/dev/PLAN-v4.md F.2), montée une fois dans app.vue
  * (<FiltersFilterDialog />) et pilotée depuis n'importe quel point d'entrée :
  * Paramètres → Filtres, panneau de recherche, lecture d'un message.
  */

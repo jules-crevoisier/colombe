@@ -1,7 +1,7 @@
 /**
  * Tests E2E boîte noire pour la vague R1 : actions sur messages, recherche, rédaction.
  * Sélecteurs accessibles uniquement (getByRole/getByLabel/getByText avec libellés contractuels).
- * Voir docs/PLAN-v3.md sections R1.1-R1.5.
+ * Voir docs/dev/PLAN-v3.md sections R1.1-R1.5.
  *
  * STRICT ASSERTIONS: Contractual UI elements MUST exist (no guard clauses).
  * Failures indicate missing or broken R1 features.

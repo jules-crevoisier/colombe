@@ -21,7 +21,7 @@ const searchInput = ref<HTMLInputElement | null>(null)
 const search = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const searchOptionsOpen = ref(false)
 
-// Options de recherche avancée (docs/PLAN-v3.md R1.2), synchronisées avec l'URL.
+// Options de recherche avancée (docs/dev/PLAN-v3.md R1.2), synchronisées avec l'URL.
 const SEARCH_FIELDS: readonly SearchField[] = ['subject', 'from', 'to', 'cc', 'body']
 function isSearchField(v: string): v is SearchField {
   return (SEARCH_FIELDS as readonly string[]).includes(v)
@@ -86,7 +86,7 @@ function resetSearchOptions() {
   clearSearch()
 }
 
-/** « Créer un filtre » (docs/PLAN-v4.md F.2) : prérempli depuis les critères de recherche saisis. */
+/** « Créer un filtre » (docs/dev/PLAN-v4.md F.2) : prérempli depuis les critères de recherche saisis. */
 function createFilterFromSearch() {
   const filters = useFiltersStore()
   const q = search.value.trim()

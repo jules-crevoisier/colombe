@@ -1,7 +1,7 @@
 /**
  * Tests boîte noire pour la vague R2 : identités, réponses types, carnet complet,
  * dossiers, réglages, volet de lecture, compte et sécurité.
- * Voir docs/PLAN-v3.md sections R2.1-R2.8 et docs/ROADMAP.md (R2.1b, R2.7).
+ * Voir docs/dev/PLAN-v3.md sections R2.1-R2.8 et docs/dev/ROADMAP.md (R2.1b, R2.7).
  * Chaque test repart du jeu de données initial (POST /api/__mock/reset).
  *
  * Testeur aveugle : aucune lecture de app/, server/, shared/. Le contrat vient

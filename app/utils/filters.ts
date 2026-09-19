@@ -1,6 +1,6 @@
 import type { FilterAction, FilterCondition, FilterField, FilterOp, FilterRule } from '#shared/types/mail'
 
-/** Libellés contractuels (docs/PLAN-v4.md section F « Interface »). */
+/** Libellés contractuels (docs/dev/PLAN-v4.md section F « Interface »). */
 export const FIELD_LABELS: Record<FilterField, string> = {
   'from': 'De',
   'to-cc': 'À ou Cc',
@@ -27,7 +27,7 @@ export const OP_LABELS: Record<FilterOp, string> = {
   'after': 'après le',
 }
 
-/** Opérateurs proposés selon le champ (docs/PLAN-v4.md section F « Interface »). */
+/** Opérateurs proposés selon le champ (docs/dev/PLAN-v4.md section F « Interface »). */
 export const OPS_BY_FIELD: Record<FilterField, FilterOp[]> = {
   'from': ['contains', 'not-contains', 'is', 'is-not', 'starts-with', 'matches'],
   'to-cc': ['contains', 'not-contains', 'is', 'is-not', 'starts-with', 'matches'],

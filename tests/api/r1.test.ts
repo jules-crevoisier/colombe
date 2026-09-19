@@ -1,6 +1,6 @@
 /**
  * Tests boîte noire pour la vague R1 : actions sur messages, recherche, rédaction.
- * Voir docs/PLAN-v3.md sections R1.1-R1.5 (contrat API, codes de statut, libellés).
+ * Voir docs/dev/PLAN-v3.md sections R1.1-R1.5 (contrat API, codes de statut, libellés).
  * Chaque test repart du jeu de données initial (POST /api/__mock/reset).
  */
 import { beforeEach, describe, expect, inject, it } from 'vitest'

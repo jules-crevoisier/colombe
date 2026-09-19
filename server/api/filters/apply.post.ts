@@ -1,6 +1,6 @@
 /**
  * POST /api/filters/apply : « Appliquer aussi aux messages existants »
- * (docs/PLAN-v4.md F.2). Cherche dans la boîte de réception les messages qui
+ * (docs/dev/PLAN-v4.md F.2). Cherche dans la boîte de réception les messages qui
  * correspondent à `rule` (mêmes critères que la recherche, voir
  * server/lib/sieve/apply-match.ts) et applique uniquement des actions sûres
  * sur du courrier déjà livré : déplacer, copier, marquer comme lu, suivre,

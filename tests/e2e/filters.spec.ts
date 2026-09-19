@@ -1,7 +1,7 @@
 /**
  * Tests E2E boîte noire pour la vague F : filtres « à la Gmail », réponse
- * automatique, transfert (Sieve). Écrits à l'aveugle depuis docs/PLAN-v4.md
- * (sections F et F.2) et docs/PLAN-v3.md (R2.8), sans lecture de app/ server/
+ * automatique, transfert (Sieve). Écrits à l'aveugle depuis docs/dev/PLAN-v4.md
+ * (sections F et F.2) et docs/dev/PLAN-v3.md (R2.8), sans lecture de app/ server/
  * shared/. Sélecteurs accessibles uniquement (getByRole/getByLabel).
  *
  * Le backend mémoire expose un faux serveur ManageSieve : les filtres sont
@@ -19,7 +19,7 @@ import { resetMock } from '../support/reset'
 const DEV = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
 const ALICE = { email: 'alice@mmi-troyes.fr', password: 'alice-password' }
 
-// Données de test (docs/PLAN-v3.md R1 / R2.8) : message reçu dans la boîte de
+// Données de test (docs/dev/PLAN-v3.md R1 / R2.8) : message reçu dans la boîte de
 // réception de dev@mmi-troyes.fr, envoyé par « Scolarité IUT ».
 const GRADES = 'Relevé de notes — semestre 4'
 const SCOLARITE = 'scolarite@mmi-troyes.fr'

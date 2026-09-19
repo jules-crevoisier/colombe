@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Inactivité (docs/PLAN-v3.md R2.6) : après `prefs.idleMinutes` sans activité,
+ * Inactivité (docs/dev/PLAN-v3.md R2.6) : après `prefs.idleMinutes` sans activité,
  * demande « Toujours là ? ». Sans réponse dans les 60 s, déconnexion.
  */
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel', 'scroll'] as const

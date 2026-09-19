@@ -311,7 +311,7 @@ async function forwardAsAttachment() {
   await compose.openForwardAsAttachment(msg.value)
 }
 
-/** « Créer un filtre… » (docs/PLAN-v4.md F « Interface ») : De = expéditeur, Objet = objet. */
+/** « Créer un filtre… » (docs/dev/PLAN-v4.md F « Interface ») : De = expéditeur, Objet = objet. */
 function createFilterFromMessage() {
   if (!msg.value) return
   const filters = useFiltersStore()

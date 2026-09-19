@@ -2,7 +2,7 @@
 import type { SecurityConfirmation, TwoFactorStatus } from '#shared/types/mail'
 
 /**
- * « Confirmez votre identité » (docs/PLAN-v4.md section F) : demandée avant toute
+ * « Confirmez votre identité » (docs/dev/PLAN-v4.md section F) : demandée avant toute
  * redirection, notification, transfert ou script modifié à la main. Le mot de
  * passe (ou code TOTP) ne sert qu'à la requête relancée par l'appelant : il
  * n'est jamais conservé au-delà (pas de localStorage/sessionStorage/Pinia).

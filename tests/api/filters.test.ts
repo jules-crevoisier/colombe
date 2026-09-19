@@ -1,6 +1,6 @@
 /**
  * Tests boîte noire pour la vague F : filtres Sieve, réponse automatique, transfert.
- * Voir docs/PLAN-v4.md section F (contrat, types, API) et docs/ROADMAP.md section F
+ * Voir docs/dev/PLAN-v4.md section F (contrat, types, API) et docs/dev/ROADMAP.md section F
  * (contexte de sécurité). Contre le faux serveur ManageSieve en mémoire
  * (MAIL_BACKEND=mock) : capacités fileinto, vacation, copy, imap4flags, date,
  * relational, body, reject, editheader, variables, enotify.

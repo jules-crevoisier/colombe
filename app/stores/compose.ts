@@ -284,7 +284,7 @@ export const useComposeStore = defineStore('compose', {
       this.touch()
     },
 
-    /** Insère le texte d'une réponse type à la position du curseur (docs/PLAN-v3.md R2.2). */
+    /** Insère le texte d'une réponse type à la position du curseur (docs/dev/PLAN-v3.md R2.2). */
     insertCannedResponse(html: string, editor: { insertAtCursor: (content: string) => void } | null) {
       editor?.insertAtCursor(html)
       this.touch()

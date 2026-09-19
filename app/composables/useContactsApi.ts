@@ -10,7 +10,7 @@ import type {
 type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
 /**
- * Client typé du carnet d'adresses (docs/PLAN-v3.md R2.3). Même politique 401 que useMailApi.
+ * Client typé du carnet d'adresses (docs/dev/PLAN-v3.md R2.3). Même politique 401 que useMailApi.
  */
 export function useContactsApi() {
   const session = useUserSession()
@@ -49,7 +49,7 @@ export function useContactsApi() {
       call<ContactSearchResult>('/api/contacts', { query: { q, limit, withGroups: 1 } }),
     get: (id: number) => call<ContactDetail>(`/api/contacts/${id}`),
     /**
-     * Création : le contrat gelé (docs/PLAN-v3.md R2.3) n'expose que
+     * Création : le contrat gelé (docs/dev/PLAN-v3.md R2.3) n'expose que
      * `GET`/`PUT /api/contacts/:id` pour `ContactDetail`/`ContactDetailInput` ;
      * la création reste l'ancien `POST /api/contacts` (`ContactInput`).
      * On crée avec le nom affiché calculé, puis on complète aussitôt via `PUT`.

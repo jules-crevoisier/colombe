@@ -12,7 +12,7 @@ type Method = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
 /**
  * Client typé des routes /api/filters/* (filtres, réponse automatique,
- * transfert — docs/PLAN-v4.md section F). Même politique qu'useMailApi :
+ * transfert — docs/dev/PLAN-v4.md section F). Même politique qu'useMailApi :
  * un 401 renvoie vers /login.
  */
 export function useFiltersApi() {

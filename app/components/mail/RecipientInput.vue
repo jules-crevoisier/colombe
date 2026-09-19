@@ -7,7 +7,7 @@ import type { Contact } from '#shared/types/mail'
  * Champ destinataires en « puces » avec autocomplétion (motif ARIA combobox).
  * Entrée, virgule, point-virgule ou sortie du champ valident une adresse saisie.
  * Les groupes de contacts apparaissent dans la liste (« {nom} ({n} membres) ») ;
- * en choisir un ajoute une puce par membre (docs/PLAN-v3.md R2.3 / R2.8).
+ * en choisir un ajoute une puce par membre (docs/dev/PLAN-v3.md R2.3 / R2.8).
  */
 const props = defineProps<{ label: string; id: string; autofocus?: boolean }>()
 const model = defineModel<string[]>({ required: true })

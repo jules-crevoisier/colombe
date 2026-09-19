@@ -6,7 +6,7 @@
 import { SieveError } from './client'
 import { tokenizeSieve } from './scan'
 
-/** Capacités annoncées : voir docs/PLAN-v4.md section F. */
+/** Capacités annoncées : voir docs/dev/PLAN-v4.md section F. */
 export const SIEVE_MOCK_CAPABILITIES = [
   'fileinto',
   'vacation',

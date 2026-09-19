@@ -1,6 +1,6 @@
 /**
  * Évalue un `FilterRule` contre des `MessageSummary` déjà en mémoire, pour
- * `POST /api/filters/apply` (docs/PLAN-v4.md F.2 : « Appliquer aussi aux
+ * `POST /api/filters/apply` (docs/dev/PLAN-v4.md F.2 : « Appliquer aussi aux
  * messages existants »).
  *
  * `MessageSummary` ne porte pas tout ce que Sieve peut tester : pas de Cc, pas

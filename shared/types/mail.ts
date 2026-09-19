@@ -400,7 +400,7 @@ export interface ActiveSession {
   current: boolean
 }
 
-// ─── F : filtres, réponse automatique, transfert (docs/PLAN-v4.md section F) ───
+// ─── F : filtres, réponse automatique, transfert (docs/dev/PLAN-v4.md section F) ───
 
 export type FilterField = 'from' | 'to-cc' | 'subject' | 'size' | 'header' | 'body' | 'date' | 'spam'
 
@@ -488,7 +488,7 @@ export interface SecurityConfirmation {
   totpCode?: string
 }
 
-/** POST /api/filters/apply : filtre appliqué aux messages déjà présents (docs/PLAN-v4.md F.2). */
+/** POST /api/filters/apply : filtre appliqué aux messages déjà présents (docs/dev/PLAN-v4.md F.2). */
 export interface FilterApplyResult {
   applied: number
 }

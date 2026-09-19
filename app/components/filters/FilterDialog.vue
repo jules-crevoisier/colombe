@@ -156,7 +156,7 @@ const classifyFolder = computed({
   },
 })
 
-/** Case « Classer dans le dossier » (docs/PLAN-v4.md F.2) : révèle la liste des dossiers. */
+/** Case « Classer dans le dossier » (docs/dev/PLAN-v4.md F.2) : révèle la liste des dossiers. */
 const classifyOpen = ref(false)
 const classifyChecked = computed({
   get: () => classifyOpen.value || !!classifyFolder.value,

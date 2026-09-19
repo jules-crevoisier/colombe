@@ -2,7 +2,7 @@
  * Tests E2E boîte noire pour la vague R2 : identités, réponses types, carnet
  * complet, dossiers, réglages, volet de lecture, compte et sécurité.
  * Sélecteurs accessibles uniquement (getByRole/getByLabel/getByText avec les
- * libellés contractuels). Voir docs/PLAN-v3.md (R2.1-R2.8) et docs/ROADMAP.md
+ * libellés contractuels). Voir docs/dev/PLAN-v3.md (R2.1-R2.8) et docs/dev/ROADMAP.md
  * (R2.1b images, R2.7 fils/sélection/liste de diffusion).
  *
  * STRICT ASSERTIONS : les éléments contractuels DOIVENT exister (pas de garde
@@ -22,7 +22,7 @@ import type { Page } from '@playwright/test'
 const DEV = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
 const ALICE = { email: 'alice@mmi-troyes.fr', password: 'alice-password' }
 
-// Données de test R2 (docs/PLAN-v3.md section R2.8)
+// Données de test R2 (docs/dev/PLAN-v3.md section R2.8)
 const LIST_MESSAGE = 'Liste MMI : réunion de rentrée'
 const VCARD_MESSAGE = 'Carte de visite de Léa'
 

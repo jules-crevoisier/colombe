@@ -156,7 +156,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 
     <form v-show="!compose.minimized" class="relative flex min-h-0 flex-1 flex-col" @submit.prevent="onSend" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
       <div class="px-4 lg:px-5">
-        <!-- Sélecteur d'identité : affiché seulement si plusieurs identités existent (docs/PLAN-v3.md R2.1). -->
+        <!-- Sélecteur d'identité : affiché seulement si plusieurs identités existent (docs/dev/PLAN-v3.md R2.1). -->
         <div v-if="compose.showIdentityPicker" class="flex min-h-12 items-center gap-1.5 border-b border-border py-1">
           <label for="compose-from" class="w-9 shrink-0 text-sm text-muted-foreground">De</label>
           <Select :model-value="`${compose.identityId}`" @update:model-value="(v) => compose.setIdentity(Number(v))">
@@ -233,7 +233,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
         </Button>
         <input ref="fileInput" type="file" multiple class="sr-only" tabindex="-1" aria-hidden="true" @change="onFiles">
         <MailIconButton :icon="Paperclip" label="Joindre des fichiers" @click="fileInput?.click()" />
-        <!-- Réponses types (docs/PLAN-v3.md R2.2) -->
+        <!-- Réponses types (docs/dev/PLAN-v3.md R2.2) -->
         <DropdownMenu @update:open="(open: boolean) => { if (open) loadCannedResponses() }">
           <MailMenuButton :icon="FileText" label="Insérer une réponse type" />
           <DropdownMenuContent align="start" class="w-64">

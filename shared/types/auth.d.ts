@@ -1,6 +1,6 @@
 // Typage de la session nuxt-auth-utils.
 // `secure` n'est jamais envoyé au client : il ne contient que des identifiants
-// opaques côté serveur — jamais le mot de passe (voir docs/PLAN.md).
+// opaques côté serveur — jamais le mot de passe (voir docs/dev/PLAN.md).
 declare module '#auth-utils' {
   interface User {
     email: string

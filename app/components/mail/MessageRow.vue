@@ -95,7 +95,7 @@ function onLinkClick(e: MouseEvent) {
           <span class="block truncate text-muted-foreground @3xl:inline"><span class="hidden @3xl:inline" aria-hidden="true"> — </span>{{ message.preview }}</span>
         </NuxtLink>
 
-        <!-- Indicateurs : pièce jointe, répondu, transféré, priorité (libellés contractuels, docs/PLAN-v3.md) -->
+        <!-- Indicateurs : pièce jointe, répondu, transféré, priorité (libellés contractuels, docs/dev/PLAN-v3.md) -->
         <div class="flex shrink-0 items-center gap-1.5 text-muted-foreground">
           <Paperclip v-if="message.hasAttachments" class="mt-0.5 size-4 @3xl:mt-0" role="img" aria-label="Pièce jointe" />
           <Reply v-if="message.answered" class="size-4" role="img" aria-label="Répondu" />

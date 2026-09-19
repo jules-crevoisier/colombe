@@ -165,7 +165,9 @@ describe('GET /api/devices/apple.mobileconfig', () => {
     expect(body).toContain('mail.univ-exemple.fr')
     expect(body).toContain('993')
     expect(body).toContain('587')
-    for (const bad of ['dev-password', 'IncomingPassword', 'OutgoingPassword']) {
+    // Clés Apple qui porteraient un mot de passe. `OutgoingPasswordSameAsIncomingPassword`
+    // (booléen, sans valeur secrète) est autorisée.
+    for (const bad of ['dev-password', '<key>IncomingPassword</key>', '<key>OutgoingPassword</key>']) {
       expect(body).not.toContain(bad)
     }
   })

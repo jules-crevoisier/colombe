@@ -1,7 +1,7 @@
 /**
  * Intégration réelle : filtres Sieve et réponse automatique contre Dovecot 2.4.1 +
- * Pigeonhole (docker compose up -d dovecot). Voir docs/PLAN-v4.md section F et
- * docs/ROADMAP.md section F. C'est la seule preuve qui compte : un filtre réellement
+ * Pigeonhole (docker compose up -d dovecot). Voir docs/dev/PLAN-v4.md section F et
+ * docs/dev/ROADMAP.md section F. C'est la seule preuve qui compte : un filtre réellement
  * exécuté à la livraison, et une réponse automatique réellement renvoyée.
  *
  * Ce fichier démarre lui-même un serveur Nitro construit (.output) en backend IMAP

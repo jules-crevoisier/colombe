@@ -10,7 +10,7 @@ import type { Component } from 'vue'
  * Éditeur riche (TipTap). Ne produit que ce que le serveur accepte ensuite
  * (sanitizeOutgoingHtml) : gras, italique, souligné, barré, listes, citations,
  * liens http(s)/mailto, et des images `data:image/(png|jpeg|gif)` insérées
- * localement (docs/ROADMAP.md R2.1b). Pas de styles libres, jamais d'URL distante.
+ * localement (docs/dev/ROADMAP.md R2.1b). Pas de styles libres, jamais d'URL distante.
  *
  * `@tiptap/extension-image` n'est pas une dépendance du projet : on définit ici
  * un nœud minimal (via l'API `@tiptap/core`, ré-exportée par `@tiptap/vue-3`)

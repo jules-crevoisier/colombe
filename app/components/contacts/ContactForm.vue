@@ -3,7 +3,7 @@ import { Plus, X } from '@lucide/vue'
 import type { ContactDetailInput, EmailLabel, PhoneLabel } from '#shared/types/mail'
 
 /**
- * Formulaire de contact (création ET modification), docs/PLAN-v3.md R2.3.
+ * Formulaire de contact (création ET modification), docs/dev/PLAN-v3.md R2.3.
  * Champs contractuels : Prénom, Nom, Nom affiché, e-mails/téléphones libellés
  * et répétables, Organisation, Fonction, Adresse, Date de naissance, Notes.
  */

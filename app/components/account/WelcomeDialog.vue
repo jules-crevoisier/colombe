@@ -2,7 +2,7 @@
 import { toast } from 'vue-sonner'
 
 /**
- * Première connexion (docs/PLAN-v3.md R2.1) : demande le nom affiché de
+ * Première connexion (docs/dev/PLAN-v3.md R2.1) : demande le nom affiché de
  * l'identité par défaut, tant que prefs.welcomed est faux. Ne se ferme
  * qu'en validant « Continuer ».
  */

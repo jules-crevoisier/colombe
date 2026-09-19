@@ -13,7 +13,7 @@ onMounted(() => { void loadSiteConfig() })
 const route = useRoute()
 const { loggedIn } = useUserSession()
 
-// Boîtes « Bienvenue » et « Toujours là ? » (docs/PLAN-v3.md R2.1 / R2.6) : uniquement
+// Boîtes « Bienvenue » et « Toujours là ? » (docs/dev/PLAN-v3.md R2.1 / R2.6) : uniquement
 // sur les pages authentifiées (messagerie et paramètres), jamais sur /login.
 const isAuthedArea = computed(() => loggedIn.value && (route.path.startsWith('/mail') || route.path.startsWith('/settings')))
 
