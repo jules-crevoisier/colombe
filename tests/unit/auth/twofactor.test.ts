@@ -51,7 +51,7 @@ describe('pending logins', () => {
     expect(peekPending(id, 1000)).toEqual({ email: DEV })
     expect(peekPending(id, 5 * 60 * 1000 + 1)).toBeNull()
     const id2 = createPending(DEV, 'pw', 0)
-    expect(consumePending(id2, 1000)).toEqual({ email: DEV, password: 'pw' })
+    expect(consumePending(id2, 1000)).toEqual({ email: DEV, auth: { kind: 'password', password: 'pw' }, sso: null })
     expect(consumePending(id2, 1000)).toBeNull()
   })
 

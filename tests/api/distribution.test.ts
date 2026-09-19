@@ -78,7 +78,7 @@ describe('config publique', () => {
       expect(raw).not.toContain(secret)
     }
     const body = JSON.parse(raw) as Record<string, unknown>
-    expect(Object.keys(body).sort()).toEqual(['demo', 'hasLogo', 'limits', 'login', 'loginMessage', 'orgName', 'passwordResetUrl', 'productName', 'supportEmail', 'supportUrl'].sort())
+    expect(Object.keys(body).sort()).toEqual(['demo', 'hasLogo', 'limits', 'login', 'loginMessage', 'orgName', 'passwordResetUrl', 'portalUrl', 'productName', 'supportEmail', 'supportUrl'].sort())
     expect(body).toMatchObject({
       productName: 'Colombe',
       orgName: 'Université Exemple',
@@ -86,8 +86,9 @@ describe('config publique', () => {
       supportUrl: null,
       hasLogo: false,
       demo: null,
+      portalUrl: null,
     })
-    expect(body.login).toEqual({ domains: ['universite.example'], defaultDomain: 'universite.example' })
+    expect(body.login).toEqual({ domains: ['universite.example'], defaultDomain: 'universite.example', methods: ['password'], oidc: null })
     expect(body.limits).toEqual({ attachmentsBytes: 10 * 1024 * 1024 })
   })
 })

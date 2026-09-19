@@ -8,15 +8,30 @@
  * exerce exactement le même chemin de rendu que la prod.
  */
 import type { Folder, FolderSize, MessageSummary, QuotaInfo, SearchField, SortKey } from '#shared/types/mail'
+import type { MailSsoConfig } from '../config'
 
 /** Options de `listFolders` : `all: true` inclut les dossiers non abonnés (R2.4). */
 export interface ListFoldersOptions {
   all?: boolean
 }
 
+/**
+ * Comment Colombe s'authentifie auprès d'IMAP/SMTP/ManageSieve pour une session.
+ * Jamais envoyé au navigateur : vit uniquement en mémoire serveur (credentials.ts).
+ *   - password : connexion par mot de passe (comportement historique) ;
+ *   - oauth2   : connexion unique OIDC, jeton d'accès présenté en SASL XOAUTH2/OAUTHBEARER.
+ *                L'objet est MUTÉ en place au rafraîchissement (credentials.ts) : un backend
+ *                qui garde une référence reconnecte toujours avec le jeton courant ;
+ *   - master   : connexion unique OIDC, utilisateur maître Dovecot (config MAIL_MASTER_*).
+ */
+export type MailAuth =
+  | { kind: 'password'; password: string }
+  | { kind: 'oauth2'; accessToken: string; refreshToken?: string; expiresAt: number }
+  | { kind: 'master' }
+
 export interface MailCredentials {
   email: string
-  password: string
+  auth: MailAuth
 }
 
 export interface ListOptions {
@@ -142,6 +157,8 @@ export interface MailServerConfig {
   tlsRejectUnauthorized?: boolean
   /** Identifiant présenté au serveur : l'adresse complète ou la partie avant @ (voir ColombeConfig.login.username). */
   loginUsername: 'email' | 'localpart'
+  /** Accès des sessions OIDC (ColombeConfig.mailSso) ; absent/null : sessions par mot de passe uniquement. */
+  mailSso?: MailSsoConfig | null
 }
 
 /**

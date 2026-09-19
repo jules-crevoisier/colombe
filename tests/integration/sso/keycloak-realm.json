@@ -1,0 +1,63 @@
+{
+  "realm": "colombe",
+  "enabled": true,
+  "sslRequired": "none",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "clients": [
+    {
+      "clientId": "colombe",
+      "name": "Colombe (webmail)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "colombe-sso-test-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:39321/api/auth/oidc/callback"],
+      "webOrigins": [],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:39321/login",
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "dovecot",
+      "name": "Dovecot (introspection des jetons)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "dovecot-introspection-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "dev",
+      "email": "dev@universite.example",
+      "emailVerified": true,
+      "realmRoles": ["default-roles-colombe"],
+      "enabled": true,
+      "firstName": "Dev",
+      "lastName": "Webmail",
+      "credentials": [{ "type": "password", "value": "dev-sso-password", "temporary": false }]
+    },
+    {
+      "username": "alice",
+      "email": "alice@universite.example",
+      "emailVerified": true,
+      "realmRoles": ["default-roles-colombe"],
+      "enabled": true,
+      "firstName": "Alice",
+      "lastName": "Martin",
+      "credentials": [{ "type": "password", "value": "alice-sso-password", "temporary": false }]
+    }
+  ]
+}

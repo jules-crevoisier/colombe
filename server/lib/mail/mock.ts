@@ -86,7 +86,11 @@ export function deleteMockMailbox(email: string): void {
 
 export async function verifyMockCredentials(creds: MailCredentials): Promise<boolean> {
   const user = MOCK_USERS.find(u => u.email === creds.email)
-  return user ? user.password === creds.password : false
+  if (!user) return false
+  // Session OIDC (jeton d'accès ou utilisateur maître) : l'identité a déjà été prouvée par
+  // le fournisseur d'identité ; le backend mémoire accepte ses comptes connus.
+  if (creds.auth.kind !== 'password') return true
+  return user.password === creds.auth.password
 }
 
 export class MockBackend implements MailBackend {

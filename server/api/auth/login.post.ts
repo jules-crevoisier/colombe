@@ -18,6 +18,12 @@ const loginSchema = z.object({
 
 export default defineEventHandler(async (event): Promise<LoginResult> => {
   const config = getConfig()
+  // ─── SSO (OIDC) : début ───
+  // Connexion par mot de passe désactivée (AUTH_METHODS=oidc) : la route n'existe pas.
+  if (!config.authMethods.includes('password')) {
+    throw createError({ statusCode: 404, statusMessage: 'Not found' })
+  }
+  // ─── SSO (OIDC) : fin ───
   // Démo publique : les comptes dev/alice partagés ne doivent jamais être joignables
   // depuis Internet. Seul POST /api/auth/demo peut ouvrir une session en démo.
   if (config.demo.enabled) {
@@ -43,7 +49,7 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
 
   let valid: boolean
   try {
-    valid = await verifyCredentials(kind, { email, password: body.password }, server)
+    valid = await verifyCredentials(kind, { email, auth: { kind: 'password', password: body.password } }, server)
   }
   catch (err) {
     // Serveur injoignable : ce n'est pas un échec d'authentification, on ne pénalise pas.

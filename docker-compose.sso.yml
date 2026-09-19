@@ -1,0 +1,55 @@
+# Banc d'essai de la connexion unique OIDC, jamais exposé hors de la machine :
+#   Keycloak (fournisseur OIDC) + Dovecot 2.4 (IMAP, ManageSieve, soumission SMTP)
+#   qui valide les jetons par introspection + Mailpit (relais SMTP de la soumission).
+#
+# Usage : docker compose -f docker-compose.sso.yml up -d --wait
+#         pnpm test:sso
+#         docker compose -f docker-compose.sso.yml down
+#
+# Comptes Keycloak (royaume « colombe ») : dev / dev-sso-password, alice / alice-sso-password.
+# Utilisateur maître Dovecot : colombe / colombe-master-password-for-tests-only.
+name: colombe-sso
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.3
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # Émetteur fixe (« iss ») quel que soit le nom utilisé pour joindre Keycloak : le
+      # navigateur et Colombe passent par localhost:8180, Dovecot par keycloak:8080.
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./tests/integration/sso/keycloak-realm.json:/opt/keycloak/data/import/colombe.json:ro
+    ports:
+      - "127.0.0.1:8180:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "127.0.0.1:18025:8025"   # API/interface web (lecture des messages relayés)
+
+  dovecot-sso:
+    image: dovecot/dovecot:2.4.1
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      USER_PASSWORD: dovecot-sso-unused-password
+    volumes:
+      - ./tests/integration/sso/dovecot-sso.conf:/etc/dovecot/conf.d/auth.conf:ro
+      - ./tests/integration/sso/master-users:/etc/dovecot/master-users:ro
+    ports:
+      - "127.0.0.1:3145:31143"   # IMAP (STARTTLS)
+      - "127.0.0.1:4191:34190"   # ManageSieve (STARTTLS)
+      - "127.0.0.1:3587:31587"   # Soumission SMTP (STARTTLS)

@@ -4,7 +4,7 @@ import type { MailBackend, MailServerConfig } from '../lib/mail/backend'
 import { MailError } from '../lib/mail/backend'
 import type { BackendKind } from '../lib/mail/index'
 import { getConfig } from '../lib/config'
-import { credentialsStore } from '../lib/session/credentials'
+import { freshCredentials } from '../lib/auth/oidc/session'
 import { backendPool } from '../lib/session/pool'
 
 export interface MailSession {
@@ -35,6 +35,7 @@ export function mailConfig(_event: H3Event): ResolvedMailConfig {
       smtpServername: c.smtp.servername,
       tlsRejectUnauthorized: c.tlsRejectUnauthorized,
       loginUsername: c.login.username,
+      mailSso: c.mailSso,
     },
   }
 }
@@ -66,7 +67,8 @@ export function logSafe(value: string): string {
  */
 export async function requireMail(event: H3Event): Promise<MailSession> {
   const { user, secure } = await requireUserSession(event)
-  const creds = secure?.sid ? credentialsStore.get(secure.sid) : null
+  // Session OIDC : jeton d'accès rafraîchi ici si besoin ; null si expiré sans renouvellement.
+  const creds = secure?.sid ? await freshCredentials(secure.sid) : null
 
   if (!user?.email || !secure?.sid || !creds || creds.email !== user.email) {
     await clearUserSession(event)

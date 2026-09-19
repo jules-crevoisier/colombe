@@ -31,7 +31,7 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
   const userAgent = getRequestHeader(event, 'user-agent') ?? ''
   // Pas de mot de passe réel côté démo (le backend mémoire ne le revérifie jamais
   // après la création de session) : une valeur aléatoire suffit au stockage.
-  const sid = credentialsStore.create(email, randomUUID(), ip, userAgent)
+  const sid = credentialsStore.create(email, { kind: 'password', password: randomUUID() }, ip, userAgent)
   // replaceUserSession régénère le cookie : même protection anti-fixation que /api/auth/login.
   await replaceUserSession(event, { user: { email }, secure: { sid }, loggedInAt: Date.now() })
   return { user: { email } }

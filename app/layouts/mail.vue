@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SearchField } from '#shared/types/mail'
 import { onKeyStroke, useColorMode, useDocumentVisibility, useIntervalFn } from '@vueuse/core'
-import { Keyboard, LogOut, Menu, Moon, PenLine, Search, Settings, Sun, X, Sliders } from '@lucide/vue'
+import { House, Keyboard, LogOut, Menu, Moon, PenLine, Search, Settings, Sun, X, Sliders } from '@lucide/vue'
 import type { MessageQuery } from '#shared/types/mail'
 
 const mail = useMailStore()
@@ -287,6 +287,12 @@ useHead({
                 Raccourcis clavier
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuItem v-if="siteConfig.portalUrl" as-child>
+                <a :href="siteConfig.portalUrl">
+                  <House class="size-4" aria-hidden="true" />
+                  Retour à l’ENT
+                </a>
+              </DropdownMenuItem>
               <DropdownMenuItem @select="api.logout()">
                 <LogOut class="size-4" aria-hidden="true" />
                 Se déconnecter

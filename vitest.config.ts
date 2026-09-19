@@ -29,7 +29,7 @@ export default defineConfig({
           // Backend IMAP réel contre GreenMail (docker compose up -d greenmail)
           name: 'integration',
           include: ['tests/integration/**/*.test.ts'],
-          exclude: ['tests/integration/filters.dovecot.test.ts'],
+          exclude: ['tests/integration/filters.dovecot.test.ts', 'tests/integration/sso.dovecot.test.ts'],
           environment: 'node',
           testTimeout: 30_000,
           fileParallelism: false,
@@ -44,6 +44,20 @@ export default defineConfig({
           // (construit .output d'abord, comme test:api).
           name: 'integration-dovecot',
           include: ['tests/integration/filters.dovecot.test.ts'],
+          environment: 'node',
+          testTimeout: 60_000,
+          hookTimeout: 300_000,
+          fileParallelism: false,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          // Connexion unique OIDC contre Keycloak + Dovecot 2.4 (oauth2) + Mailpit réels :
+          // docker compose -f docker-compose.sso.yml up -d --wait, puis `pnpm test:sso`
+          // (construit .output d'abord : le fichier démarre aussi un serveur Colombe).
+          name: 'integration-sso',
+          include: ['tests/integration/sso.dovecot.test.ts'],
           environment: 'node',
           testTimeout: 60_000,
           hookTimeout: 300_000,

@@ -1,11 +1,52 @@
 <script setup lang="ts">
-import { ArrowLeft, Eye, EyeOff, LoaderCircle, ShieldCheck } from '@lucide/vue'
+import { ArrowLeft, ChevronDown, Eye, EyeOff, KeyRound, LoaderCircle, ShieldCheck } from '@lucide/vue'
 import type { LoginResult } from '#shared/types/mail'
 
 definePageMeta({ layout: 'auth' })
 
-const { config, addressExample } = useSiteConfig()
+const { config, addressExample, load: loadSiteConfig } = useSiteConfig()
 useHead({ title: computed(() => `Connexion — ${config.value.productName}`) })
+
+// ─── SSO (OIDC) : début ───
+const route = useRoute()
+/** Méthodes connues seulement une fois /api/config chargé : évite d'afficher un formulaire à tort. */
+const methodsReady = ref(false)
+const oidcLabel = computed(() => config.value.login.oidc?.label ?? '')
+const oidcEnabled = computed(() => config.value.login.oidc !== null)
+const passwordEnabled = computed(() => config.value.login.methods.includes('password'))
+/** Les deux méthodes : le formulaire par mot de passe est replié derrière une divulgation discrète. */
+const passwordOpen = ref(false)
+const ssoLoading = ref(false)
+const ssoHref = computed(() => apiUrl('/api/auth/oidc/start'))
+
+/** Messages de GET /api/auth/oidc/callback → /login?error=<code>. */
+const SSO_ERRORS: Record<string, string> = {
+  expired: 'La connexion a expiré. Recommencez.',
+  cancelled: 'Connexion annulée.',
+  idp: 'Le service d’authentification de l’établissement a refusé la connexion.',
+  invalid: 'La réponse du service d’authentification est invalide. Recommencez.',
+  claim: 'Votre compte ne fournit pas d’adresse de messagerie. Contactez le support.',
+  domain: 'Ce compte n’a pas d’adresse de messagerie acceptée ici.',
+  mailbox: 'Votre boîte aux lettres n’est pas accessible avec ce compte. Contactez le support.',
+  unavailable: 'Service d’authentification ou de messagerie indisponible. Réessayez plus tard.',
+  rate: 'Trop de tentatives. Réessayez dans quelques minutes.',
+}
+
+onMounted(async () => {
+  const code = typeof route.query.error === 'string' ? route.query.error : ''
+  const twoFactor = route.query.step === '2fa'
+  if (code || twoFactor) void navigateTo({ path: '/login', query: {} }, { replace: true })
+  if (code) error.value = SSO_ERRORS[code] ?? 'Connexion impossible pour le moment. Réessayez plus tard.'
+  if (twoFactor) {
+    // Connexion unique réussie, code de double authentification Colombe attendu.
+    step.value = 'code'
+    await nextTick()
+    codeInput.value?.$el.focus()
+  }
+  await loadSiteConfig()
+  methodsReady.value = true
+})
+// ─── SSO (OIDC) : fin ───
 
 const emailLabel = computed(() => (config.value.login.defaultDomain ? 'Adresse e-mail ou identifiant' : 'Adresse e-mail'))
 const emailInputType = computed(() => (config.value.login.defaultDomain ? 'text' : 'email'))
@@ -165,6 +206,59 @@ function backToPassword() {
       </Button>
     </div>
 
+    <div v-else-if="step === 'password' && !methodsReady" class="flex flex-col gap-5" aria-busy="true">
+      <div class="h-12 w-full animate-pulse rounded-lg bg-muted" />
+      <span class="sr-only">Chargement…</span>
+    </div>
+
+    <div v-else-if="step === 'password' && oidcEnabled" class="flex flex-col gap-5">
+      <p id="login-error" class="min-h-5 text-sm text-destructive" role="alert" aria-live="assertive">{{ error }}</p>
+      <!-- Libellé configurable et long : il passe à la ligne plutôt que de déborder à 320 px. -->
+      <Button as-child class="h-auto min-h-12 w-full rounded-lg px-4 py-3 text-center text-base leading-snug font-semibold whitespace-normal">
+        <a :href="ssoHref" :aria-busy="ssoLoading || undefined" @click="ssoLoading = true">
+          <LoaderCircle v-if="ssoLoading" class="size-5 shrink-0 animate-spin" aria-hidden="true" />
+          <KeyRound v-else class="size-5 shrink-0" aria-hidden="true" />
+          <span class="min-w-0">{{ oidcLabel }}</span>
+        </a>
+      </Button>
+
+      <template v-if="passwordEnabled">
+        <button
+          type="button"
+          class="inline-flex h-11 items-center gap-1.5 self-center rounded-lg px-3 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          :aria-expanded="passwordOpen"
+          aria-controls="password-login"
+          @click="passwordOpen = !passwordOpen"
+        >
+          Se connecter avec un mot de passe
+          <ChevronDown class="size-4 transition-transform" :class="{ 'rotate-180': passwordOpen }" aria-hidden="true" />
+        </button>
+
+        <form v-if="passwordOpen" id="password-login" class="flex flex-col gap-5 border-t border-border pt-5" novalidate @submit.prevent="submitPassword">
+          <div class="flex flex-col gap-2">
+            <Label for="email">{{ emailLabel }}</Label>
+            <Input id="email" v-model="email" :type="emailInputType" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" :placeholder="addressExample" required class="h-12 rounded-lg text-base" :aria-invalid="!!error || undefined" aria-describedby="login-error" />
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <Label for="password">Mot de passe</Label>
+            <div class="relative">
+              <Input id="password" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required class="h-12 rounded-lg pr-12 text-base" :aria-invalid="!!error || undefined" aria-describedby="login-error" />
+              <button type="button" class="absolute top-0.5 right-0.5 grid size-11 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring" :aria-label="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'" :aria-pressed="showPassword" @click="showPassword = !showPassword">
+                <component :is="showPassword ? EyeOff : Eye" class="size-5" aria-hidden="true" />
+              </button>
+            </div>
+            <a v-if="config.passwordResetUrl" :href="config.passwordResetUrl" target="_blank" rel="noopener noreferrer" class="self-start text-sm font-medium text-primary hover:underline">Mot de passe oublié ?</a>
+          </div>
+
+          <Button type="submit" variant="outline" class="h-12 w-full rounded-lg text-base font-semibold" :disabled="loading || !email || !password">
+            <LoaderCircle v-if="loading" class="size-5 animate-spin" aria-hidden="true" />
+            {{ loading ? 'Connexion…' : 'Se connecter' }}
+          </Button>
+        </form>
+      </template>
+    </div>
+
     <form v-else-if="step === 'password'" class="flex flex-col gap-5" novalidate @submit.prevent="submitPassword">
       <div class="flex flex-col gap-2">
         <Label for="email">{{ emailLabel }}</Label>
@@ -236,6 +330,11 @@ function backToPassword() {
 
     <p v-if="supportHref" class="mt-4 text-center text-xs">
       <a :href="supportHref" target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-foreground hover:underline">Besoin d'aide ?</a>
+    </p>
+    <p v-if="config.portalUrl" class="mt-2 text-center text-sm">
+      <a :href="config.portalUrl" class="inline-flex h-11 items-center gap-1.5 rounded-lg px-3 font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+        <ArrowLeft class="size-4" aria-hidden="true" /> Retour à l’ENT
+      </a>
     </p>
    </div>
   </main>

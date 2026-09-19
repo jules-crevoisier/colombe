@@ -58,7 +58,7 @@ function createFakeClient(): FakeImapFlow {
   return client
 }
 
-const testCreds: MailCredentials = { email: 'dev@universite.example', password: 'dev-password' }
+const testCreds: MailCredentials = { email: 'dev@universite.example', auth: { kind: 'password', password: 'dev-password' } }
 const testConfig: MailServerConfig = {
   imapHost: '127.0.0.1',
   imapPort: 3143,
