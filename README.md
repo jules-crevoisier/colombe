@@ -19,6 +19,7 @@ Roundcube's configuration and user data. The interface is in French for now.*
 - Lecture, écriture, réponse, transfert, brouillons automatiques, pièces jointes
 - Recherche, dossiers, glisser-déposer, vue conversation, éditeur riche
 - Identités et signatures (avec images), réponses types, contacts et groupes (vCard)
+- **Connexion unique** de l’établissement (OpenID Connect : CAS, Shibboleth, Keycloak, Entra…) et **annuaire LDAP** (SupAnn)
 - Filtres façon Gmail, réponse automatique, transfert (Sieve / ManageSieve)
 - Nouveaux messages en direct, notifications du bureau, annuler l'envoi
 - **Autres applications** : réglages et pas-à-pas pour Gmail, iPhone/iPad (profil de

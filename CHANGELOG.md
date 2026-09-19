@@ -3,6 +3,30 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Colombe suit un schéma de version proche de [SemVer](https://semver.org/lang/fr/).
 
+## [1.0.0-rc.4] — 2026-09-19
+
+### Ajouté
+
+- **Connexion unique OpenID Connect** (`AUTH_METHODS=oidc`) : bouton « Se connecter avec mon
+  compte de l'établissement », compatible CAS 6+, Shibboleth (module OIDC ou passerelle
+  SAML), Keycloak, Microsoft Entra, Google Workspace. Accès à la messagerie par **jeton**
+  (XOAUTH2 / OAUTHBEARER, validé par Dovecot : aucun mot de passe stocké) ou, en option,
+  par utilisateur maître Dovecot. Rafraîchissement des jetons, déconnexion chez le
+  fournisseur, ré-authentification pour les actions sensibles, double authentification
+  Colombe toujours possible. Testé de bout en bout avec Keycloak 26 et Dovecot 2.4.
+- **Annuaire LDAP de l'établissement** (`LDAP_URL`, schéma SupAnn / inetOrgPerson) :
+  suggestions dans le champ « À », onglet « Annuaire de l'établissement » dans Contacts,
+  ajout aux contacts. Recherche en lecture seule, filtres échappés (RFC 4515), résultats
+  limités aux domaines de l'établissement.
+- Lien « Retour à l'ENT » (`COLOMBE_PORTAL_URL`).
+- Documentation : « Connexion unique » et « Annuaire » (administration), sections
+  utilisateur correspondantes.
+
+### Modifié
+
+- Image Docker multi-architecture : étape de compilation native (plus d'émulation arm64),
+  construction en quelques minutes.
+
 ## [1.0.0-rc.3] — 2026-09-19
 
 ### Corrigé
@@ -121,6 +145,7 @@ d'environnement. En production dans un institut universitaire depuis le
 - Intégration continue (tests et vérification des types à chaque changement,
   publication de la release en brouillon sur les tags de version)
 
+[1.0.0-rc.4]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.4
 [1.0.0-rc.3]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.3
 [1.0.0-rc.2]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.1
