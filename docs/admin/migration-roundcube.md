@@ -112,7 +112,7 @@ automatiquement.
 
 Le transfert est limité aux domaines de `MAIL_FORWARD_DOMAINS`. Si Roundcube autorisait
 des redirections vers l'extérieur, décidez-en avant la bascule (voir
-[CONFIGURATION.md](CONFIGURATION.md)).
+[Configuration](/admin/configuration#filtres-reponse-automatique-transfert-sieve)).
 
 ## 4. Bascule
 

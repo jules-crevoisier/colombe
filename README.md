@@ -29,7 +29,7 @@ Roundcube's configuration and user data. The interface is in French for now.*
 HTML des e-mails assaini et isolé dans une `iframe sandbox`, images distantes bloquées,
 mot de passe jamais envoyé au navigateur ni écrit sur disque, aucune ressource externe,
 limites de débit, transfert limité aux domaines autorisés avec alerte. Détails :
-[docs/admin/SECURITE.md](docs/admin/SECURITE.md). Signaler une faille :
+[docs/admin/securite.md](docs/admin/securite.md). Signaler une faille :
 [SECURITY.md](SECURITY.md).
 
 ## Installer
@@ -45,11 +45,15 @@ node scripts/colombe-doctor.mjs
 
 | Guide | Contenu |
 |---|---|
-| [Installation](docs/admin/INSTALLATION.md) | Docker ou systemd, proxy Apache/Nginx, configuration automatique, fail2ban, sauvegardes, mises à jour |
-| [Configuration](docs/admin/CONFIGURATION.md) | toutes les variables d'environnement |
-| [Migration depuis Roundcube](docs/admin/MIGRATION-ROUNDCUBE.md) | configuration, contacts, identités, signatures, réponses types, bascule |
-| [Sécurité](docs/admin/SECURITE.md) | modèle de sécurité, recommandations |
-| [Guide utilisateur : Gmail et autres applications](docs/guide/AUTRES-APPLICATIONS.md) | à diffuser aux utilisateurs |
+| [Vue d'ensemble](docs/admin/index.md) | architecture, prérequis, démarrage en 10 minutes |
+| [Installation Docker](docs/admin/installation-docker.md) | image, volume, contrat |
+| [Installation par archive](docs/admin/installation-archive.md) | Node 24, systemd |
+| [Proxy inverse](docs/admin/proxy-inverse.md) | Apache/Nginx, sous-chemin, HTTPS, SSE |
+| [Configuration](docs/admin/configuration.md) | toutes les variables d'environnement |
+| [Migration depuis Roundcube](docs/admin/migration-roundcube.md) | configuration, contacts, identités, signatures, réponses types, bascule |
+| [Sécurité](docs/admin/securite.md) | modèle de sécurité, recommandations |
+| [Exploitation](docs/admin/exploitation.md) | sauvegardes, mises à jour, supervision |
+| [Guide utilisateur](docs/guide/index.md) | à diffuser aux utilisateurs |
 
 Prérequis : Node.js 24 (ou Docker), un serveur IMAP/SMTP avec TLS ; ManageSieve pour les
 filtres.

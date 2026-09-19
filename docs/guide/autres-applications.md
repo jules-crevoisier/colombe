@@ -2,11 +2,17 @@
 
 Votre boîte de l'établissement fonctionne avec n'importe quel logiciel de messagerie.
 Dans Colombe, ouvrez **Paramètres → Autres applications** : vous y trouverez vos réglages
-exacts (serveur, port, identifiant) avec un bouton pour copier chaque valeur, et les
-étapes pour chaque application.
+exacts (serveur, port, identifiant), un pas-à-pas pour chaque application, et un QR code
+pour rouvrir cette page directement sur votre téléphone.
 
 Le mot de passe à saisir est **celui de votre messagerie**. La double authentification de
-Colombe ne s'applique qu'au webmail.
+Colombe ne s'applique qu'au webmail : voir
+[Sécurité de votre compte](/guide/securite#double-authentification-totp).
+
+::: tip Page pas encore disponible ?
+Si votre établissement n'a pas encore publié ces réglages, l'onglet l'indique : votre
+messagerie reste utilisable dans Colombe en attendant.
+:::
 
 ## Gmail
 
@@ -29,25 +35,34 @@ possibilités :
 - utiliser l'application Gmail sur téléphone (ci-dessus) ;
 - **faire suivre** votre courrier vers votre adresse Gmail : **Paramètres → Transfert**.
   Cette option n'est disponible que si votre établissement autorise les adresses Gmail ;
-  la page indique les domaines autorisés. Par sécurité, on vous redemande votre mot de
-  passe et un e-mail vous prévient de chaque modification.
+  l'onglet indique les domaines autorisés. Par sécurité, on vous redemande votre mot de
+  passe (ou votre code de double authentification) et un e-mail vous prévient de chaque
+  modification — voir [Filtres, réponse automatique, transfert](/guide/filtres).
 
-Pour **répondre depuis Gmail avec votre adresse de l'établissement** : gmail.com →
-Paramètres → Comptes → **Envoyer des e-mails en tant que** → Ajouter une adresse, puis le
-serveur SMTP, le port et l'identifiant indiqués dans **Autres applications**.
+Pour **répondre depuis Gmail avec votre adresse de l'établissement** (« Envoyer des
+e-mails en tant que ») : dépliez **Répondre depuis Gmail avec votre adresse**, dans
+l'onglet Gmail des paramètres, pour les étapes détaillées avec vos propres valeurs de
+serveur SMTP.
 
 ## iPhone et iPad (Mail)
 
-Dans **Autres applications → iPhone / iPad**, touchez **Télécharger le profil de
-configuration** depuis Safari, puis : Réglages → **Profil téléchargé** → Installer. Le
-profil ne contient pas votre mot de passe : il vous est demandé à l'installation. iOS
-l'affiche comme « Non signé », c'est normal.
+Dans **Autres applications → iPhone / iPad**, cliquez sur **Télécharger le profil de
+configuration**, puis : Réglages → **Profil téléchargé** → Installer. Le profil ne
+contient pas votre mot de passe : il vous est demandé à l'installation. iOS l'affiche
+comme « Non signé », c'est normal. Un pas-à-pas pour une configuration manuelle est aussi
+disponible, si vous préférez ne pas installer de profil.
 
 ## Outlook, Thunderbird
 
 Ajoutez un compte avec votre adresse et votre mot de passe : si votre établissement a
 activé la configuration automatique, tout est rempli seul. Sinon, choisissez IMAP et
-reprenez les valeurs de **Autres applications**.
+reprenez les valeurs de l'onglet **Autres applications**, section correspondante.
+
+## Une autre application
+
+L'onglet **Autre** donne la marche à suivre générale (choisir IMAP en réception, SMTP en
+envoi) et le tableau complet de vos paramètres de connexion, pour tout logiciel non listé
+ci-dessus.
 
 ## En cas de problème
 

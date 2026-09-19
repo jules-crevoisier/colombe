@@ -1,8 +1,9 @@
 # Sécurité
 
-Colombe est né d'un incident réel : un serveur universitaire utilisé comme relais de spam
-après le vol des identifiants de 79 comptes, avec un webmail exposé sans correctif depuis
-des années. Les choix ci-dessous en découlent.
+Colombe est né d'un incident réel : un serveur de messagerie utilisé comme relais de spam
+après le vol d'identifiants d'utilisateurs, avec un webmail abandonné, exposé sur
+Internet sans correctif de sécurité depuis des années. La sécurité n'est pas ici une
+option de style : les choix ci-dessous en découlent directement.
 
 ## Ce que Colombe fait
 
@@ -59,12 +60,17 @@ des années. Les choix ci-dessous en découlent.
   processus : pas de répartition de charge entre plusieurs instances, déconnexion de tous
   au redémarrage.
 
-## Recommandations d'exploitation
+## Recommandations
 
 1. Mettre à jour Colombe à chaque version (les dépendances de sécurité sont suivies ;
    `pnpm audit` fait partie de la revue avant publication).
 2. `MAIL_TRUST_PROXY=true` seulement si le port de Colombe n'est joignable que par le proxy
    (`HOST=127.0.0.1`), sinon un client pourrait choisir l'IP inscrite dans les journaux.
 3. Sauvegarder `WEBMAIL_DATA_KEY` hors du serveur.
-4. Garder `MAIL_FORWARD_DOMAINS` au plus juste (voir [CONFIGURATION.md](CONFIGURATION.md)).
+4. Garder `MAIL_FORWARD_DOMAINS` au plus juste (voir [Configuration](/admin/configuration#filtres-reponse-automatique-transfert-sieve)).
 5. Signaler une vulnérabilité : voir `SECURITY.md` à la racine du projet.
+
+## Et ensuite
+
+- [Exploitation](/admin/exploitation) : mises à jour, sauvegardes, supervision.
+- [Dépannage](/admin/depannage).
