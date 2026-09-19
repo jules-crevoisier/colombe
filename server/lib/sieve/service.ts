@@ -58,6 +58,7 @@ export interface SieveRuntimeConfig {
   host: string
   port: number
   rejectUnauthorized: boolean
+  servername: string
   forwardDomains: string[]
 }
 
@@ -68,6 +69,8 @@ export function sieveRuntimeConfig(event: H3Event): SieveRuntimeConfig {
   return {
     kind,
     host: String((c as { sieveHost?: unknown }).sieveHost || c.host),
+    // ManageSieve en local (127.0.0.1) : le certificat est celui du serveur de messagerie.
+    servername: String((c as { sieveTlsServername?: unknown }).sieveTlsServername || c.host),
     port: Number((c as { sievePort?: unknown }).sievePort || 4190),
     rejectUnauthorized: !(rejectRaw === false || String(rejectRaw) === 'false'),
     forwardDomains: String((c as { forwardDomains?: unknown }).forwardDomains || 'mmi-troyes.fr')
@@ -93,7 +96,7 @@ export async function openSieveSession(
   }
   try {
     const client = await SieveClient.connect(
-      { host: cfg.host, port: cfg.port, rejectUnauthorized: cfg.rejectUnauthorized },
+      { host: cfg.host, port: cfg.port, rejectUnauthorized: cfg.rejectUnauthorized, servername: cfg.servername },
       creds
     )
     return { available: true, session: client, capabilities: client.sieveExtensions() }

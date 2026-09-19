@@ -65,6 +65,8 @@ export default defineNuxtConfig({
       // NUXT_MAIL_HOST est redéfini au démarrage (sans NUXT_MAIL_SIEVE_HOST).
       sieveHost: process.env.MAIL_SIEVE_HOST || '',
       sievePort: Number(process.env.MAIL_SIEVE_PORT || 4190),
+      // Nom attendu dans le certificat TLS de ManageSieve (défaut : MAIL_HOST).
+      sieveTlsServername: process.env.MAIL_SIEVE_TLS_SERVERNAME || '',
       // Domaines autorisés pour tout transfert/redirection/notification (liste séparée par des virgules).
       forwardDomains: process.env.MAIL_FORWARD_DOMAINS || 'mmi-troyes.fr',
       // false uniquement en dev, contre le certificat auto-signé du conteneur Dovecot.
