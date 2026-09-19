@@ -98,7 +98,7 @@ async function chooseOption(page: Page, combobox: ReturnType<Page['getByRole']>,
 }
 
 test.beforeEach(async ({ request }) => {
-  const res = await request.post('/api/__mock/reset', { headers: { origin: 'http://localhost:3000' } })
+  const res = await request.post('/api/__mock/reset', { headers: { origin: new URL(process.env.E2E_BASE_URL ?? 'http://localhost:3000').origin } })
   expect(res.status()).toBe(204)
 })
 

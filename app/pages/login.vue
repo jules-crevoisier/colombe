@@ -113,7 +113,14 @@ function backToPassword() {
       <span v-if="step === 'code'" class="grid size-12 place-items-center rounded-xl bg-primary text-xl font-bold text-primary-foreground" aria-hidden="true">
         <ShieldCheck class="size-6" />
       </span>
-      <BrandLogo v-else class="size-12 lg:hidden" label="Colombe" />
+      <div v-else class="flex items-center gap-3 lg:hidden">
+        <BrandLogo class="size-12 shrink-0" :label="config.productName" />
+        <!-- Sur mobile, le panneau de gauche est masqué : l'établissement reste identifiable. -->
+        <div v-if="config.hasLogo || config.orgName" class="flex min-w-0 items-center gap-2 border-l border-border pl-3 text-sm text-muted-foreground">
+          <img v-if="config.hasLogo" :src="apiUrl('/api/branding/logo')" :alt="config.orgName || config.productName" class="h-6 w-auto shrink-0">
+          <span v-if="config.orgName" class="min-w-0">{{ config.orgName }}</span>
+        </div>
+      </div>
       <div>
         <h1 class="font-heading text-[34px] leading-[1.1] font-medium tracking-[-0.02em] sm:text-[40px]">{{ step === 'code' ? 'Validation en deux étapes' : 'Connexion' }}</h1>
         <p class="mt-3 text-base text-muted-foreground">

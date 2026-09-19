@@ -43,9 +43,9 @@ async function compose(page: Page, to: string, subject: string, body: string) {
 
 /** Envoie un message de alice vers dev via l'API, depuis un contexte séparé. */
 async function aliceSends(browser: Browser, subject: string) {
-  const ctx = await browser.newContext({ baseURL: 'http://localhost:3000' })
+  const ctx = await browser.newContext({ baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000' })
   const req = ctx.request
-  const headers = { origin: 'http://localhost:3000' }
+  const headers = { origin: new URL(process.env.E2E_BASE_URL ?? 'http://localhost:3000').origin }
   expect((await req.post('/api/auth/login', { data: ALICE, headers })).status()).toBe(200)
   expect((await req.post('/api/send', { data: { to: [DEV.email], cc: [], bcc: [], subject, text: 'Coucou' }, headers })).status()).toBe(204)
   await ctx.close()

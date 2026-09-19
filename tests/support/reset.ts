@@ -9,7 +9,8 @@
 import { expect } from '@playwright/test'
 import type { APIRequestContext } from '@playwright/test'
 
-const ORIGIN = 'http://localhost:3000'
+// Même origine que l'application testée (E2E_BASE_URL), sinon le contrôle CSRF répond 403.
+const ORIGIN = new URL(process.env.E2E_BASE_URL ?? 'http://localhost:3000').origin
 const ACCOUNTS = [
   { email: 'dev@mmi-troyes.fr', password: 'dev-password' },
   { email: 'alice@mmi-troyes.fr', password: 'alice-password' },
