@@ -1,0 +1,243 @@
+/*
+ * Identité « Pli » appliquée au thème par défaut de VitePress.
+ *
+ * Même métaphore que l'application : en clair, un bureau couleur papier sur lequel
+ * sont posées des feuilles (blocs de code, fenêtres) ; l'encre est le bleu nuit du logo.
+ * En sombre, la nuit : bleu nuit profond, texte couleur papier, bleu pâle pour l'encre.
+ * L'orange du bec reste un accent rare (italiques des titres, coin replié du bouton
+ * principal).
+ *
+ * Contrastes (WCAG AA) — clair : texte/papier 14,1 · atténué/papier 5,6 · discret/papier
+ * 4,8 · encre/papier 9,4 · orange foncé (titres ≥ 24 px)/papier 4,4.
+ * Sombre : papier/nuit 15,1 · atténué/nuit 7,9 · discret/nuit 6,2 · bleu pâle/nuit 9,2.
+ */
+
+:root {
+  --colombe-serif: 'Newsreader Variable', ui-serif, Georgia, 'Times New Roman', serif;
+  --colombe-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --colombe-paper: #f4f1ea;
+  --colombe-sheet: #fdfcf8;
+  --colombe-ink: #1f3a8a;
+  --colombe-night: #0d1324;
+  --colombe-beak: #f59e6b;
+  /* Orange lisible sur papier, réservé aux grands titres (≥ 24 px, contraste 4,4). */
+  --colombe-accent-text: #b4541a;
+  --colombe-line: #e2dccf;
+  --colombe-line-strong: #cfc8b8;
+
+  --dove-1: #ffffff;
+  --dove-2: #eef3fd;
+  --dove-3: #dbe5fb;
+  --dove-4: #c9d7f7;
+  --dove-5: #9fb6f0;
+  --dove-trail: #bdb4a1;
+  --beak: #f59e6b;
+
+  --colombe-shadow-sheet: 0 1px 0 rgb(26 34 51 / 0.04), 0 12px 32px -18px rgb(26 34 51 / 0.22);
+  --colombe-shadow-float: 0 1px 2px rgb(26 34 51 / 0.06), 0 24px 60px -24px rgb(26 34 51 / 0.34);
+
+  --vp-font-family-base: var(--colombe-sans);
+  --vp-font-family-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --vp-c-bg: #f4f1ea;
+  --vp-c-bg-alt: #efebe2;
+  --vp-c-bg-elv: #fdfcf8;
+  --vp-c-bg-soft: #ece7dc;
+
+  --vp-c-text-1: #1a2233;
+  --vp-c-text-2: #5a6070;
+  --vp-c-text-3: #666a75;
+
+  --vp-c-border: #bdb4a1;
+  --vp-c-divider: #e2dccf;
+  --vp-c-gutter: #e2dccf;
+
+  --vp-c-brand-1: #1f3a8a;
+  --vp-c-brand-2: #2c4db0;
+  --vp-c-brand-3: #1f3a8a;
+  --vp-c-brand-soft: rgb(31 58 138 / 0.1);
+
+  --vp-c-default-soft: rgb(90 96 112 / 0.1);
+
+  --vp-code-bg: #ece7dc;
+  --vp-code-color: #1f3a8a;
+  /* Blanc pur : les couleurs de github-light-default y atteignent toutes 4,5:1. */
+  --vp-code-block-bg: #ffffff;
+  --vp-code-block-divider-color: #e2dccf;
+  --vp-code-copy-copied-text-content: 'Copié';
+  --vp-code-tab-bg: #ffffff;
+
+  --vp-button-brand-bg: #1f3a8a;
+  --vp-button-brand-hover-bg: #2c4db0;
+  --vp-button-brand-active-bg: #172c6b;
+
+  --vp-home-hero-name-color: #1f3a8a;
+
+  --vp-nav-bg-color: #f4f1ea;
+  --vp-sidebar-bg-color: #efebe2;
+  --vp-local-search-bg: #f4f1ea;
+  --vp-local-search-result-bg: #fdfcf8;
+}
+
+.dark {
+  --colombe-paper: #0d1324;
+  --colombe-sheet: #141c32;
+  --colombe-accent-text: #f59e6b;
+  --colombe-line: #242d47;
+  --colombe-line-strong: #34405f;
+
+  --dove-1: #ece8de;
+  --dove-2: #c9d7f7;
+  --dove-3: #9fb6f0;
+  --dove-4: #7d97d8;
+  --dove-5: #4f68b0;
+  --dove-trail: #4a5677;
+
+  --colombe-shadow-sheet: 0 1px 0 rgb(0 0 0 / 0.2), 0 12px 32px -18px rgb(0 0 0 / 0.6);
+  --colombe-shadow-float: 0 1px 2px rgb(0 0 0 / 0.3), 0 24px 60px -20px rgb(0 0 0 / 0.75);
+
+  --vp-c-bg: #0d1324;
+  --vp-c-bg-alt: #0a0f1d;
+  --vp-c-bg-elv: #172038;
+  --vp-c-bg-soft: #141c32;
+
+  --vp-c-text-1: #ece8de;
+  --vp-c-text-2: #a9b1c4;
+  --vp-c-text-3: #8d95ab;
+
+  --vp-c-border: #4a5677;
+  --vp-c-divider: #242d47;
+  --vp-c-gutter: #070b16;
+
+  --vp-c-brand-1: #9fb6f0;
+  --vp-c-brand-2: #bccbf6;
+  --vp-c-brand-3: #9fb6f0;
+  --vp-c-brand-soft: rgb(159 182 240 / 0.14);
+
+  --vp-c-default-soft: rgb(162 170 190 / 0.12);
+
+  --vp-code-bg: #1d2744;
+  --vp-code-color: #bccbf6;
+  --vp-code-block-bg: #141c32;
+  --vp-code-block-divider-color: #242d47;
+  --vp-code-tab-bg: #141c32;
+
+  --vp-button-brand-text: #0d1324;
+  --vp-button-brand-bg: #9fb6f0;
+  --vp-button-brand-hover-text: #0d1324;
+  --vp-button-brand-hover-bg: #bccbf6;
+  --vp-button-brand-active-text: #0d1324;
+  --vp-button-brand-active-bg: #86a0e4;
+
+  --vp-home-hero-name-color: #9fb6f0;
+
+  --vp-nav-bg-color: #0d1324;
+  --vp-sidebar-bg-color: #0a0f1d;
+  --vp-local-search-bg: #0d1324;
+  --vp-local-search-result-bg: #141c32;
+}
+
+/* ─── Barre de navigation : le nom en serif, comme dans l'application ─── */
+.VPNavBarTitle .title {
+  gap: 10px;
+  font-family: var(--colombe-serif);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.VPNavBarTitle .logo {
+  height: 30px;
+  width: 30px;
+  border-radius: 8px;
+}
+
+/* ─── Pages de documentation : titres éditoriaux, feuilles de code posées sur le papier ─── */
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3 {
+  font-family: var(--colombe-serif);
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+.vp-doc h1 {
+  font-size: 2.25rem;
+  line-height: 1.12;
+}
+.vp-doc h2 {
+  font-size: 1.75rem;
+  line-height: 1.2;
+  border-top-color: var(--colombe-line);
+}
+.vp-doc h3 {
+  font-size: 1.375rem;
+  line-height: 1.3;
+}
+@media (min-width: 768px) {
+  .vp-doc h1 {
+    font-size: 2.75rem;
+  }
+}
+
+.vp-doc p,
+.vp-doc li {
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.vp-doc a {
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.vp-doc div[class*='language-'],
+.vp-doc .vp-code-group .tabs {
+  border: 1px solid var(--colombe-line);
+}
+.vp-doc .vp-code-group .tabs {
+  border-bottom: 0;
+}
+.vp-doc .vp-code-group div[class*='language-'] {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+@media (min-width: 640px) {
+  .vp-doc div[class*='language-'] {
+    box-shadow: var(--colombe-shadow-sheet);
+  }
+}
+
+.vp-doc table {
+  font-size: 0.9375rem;
+}
+.vp-doc tr:nth-child(2n) {
+  background-color: color-mix(in srgb, var(--vp-c-bg-soft) 55%, transparent);
+}
+
+/* Barre latérale : le dossier courant marqué d'un signet d'encre, comme dans l'application. */
+.VPSidebarItem.level-1.is-active > .item > .indicator,
+.VPSidebarItem.level-0.is-active > .item > .indicator {
+  background-color: var(--vp-c-brand-1);
+}
+
+/* Focus clavier toujours visible. */
+:where(a, button, [role='button'], input, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: rgb(245 158 107 / 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
