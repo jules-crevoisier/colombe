@@ -1,0 +1,7 @@
+# Les CLI admin (scripts/colombe-setup.mjs, colombe-doctor.mjs, import-roundcube.mjs,
+# scripts/lib/*.mjs) et les scripts shell d'export Roundcube tournent sur des serveurs
+# Linux dans l'archive de release. Un CRLF dans le shebang d'un .sh casse son exécution
+# (« bad interpreter »). Sur ce poste de dev Windows, core.autocrlf=true convertirait
+# sinon ces fichiers en CRLF à chaque checkout.
+scripts/**/*.sh text eol=lf
+scripts/**/*.mjs text eol=lf
