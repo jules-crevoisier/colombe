@@ -18,6 +18,9 @@ const SECTIONS = [
   { value: 'display', label: 'Affichage' },
   { value: 'compose', label: 'Rédaction' },
   { value: 'folders', label: 'Dossiers' },
+  { value: 'filters', label: 'Filtres' },
+  { value: 'vacation', label: 'Réponse automatique' },
+  { value: 'forward', label: 'Transfert' },
   { value: 'server', label: 'Serveur' },
   { value: 'security', label: 'Sécurité' },
   { value: 'contacts', label: 'Contacts' },
@@ -107,6 +110,18 @@ useHead({
             <TabsContent value="folders" class="outline-none">
               <h2 class="mb-4 text-lg font-medium">{{ sectionLabel('folders') }}</h2>
               <SettingsFoldersSettings />
+            </TabsContent>
+            <TabsContent value="filters" class="outline-none">
+              <h2 class="mb-4 text-lg font-medium">{{ sectionLabel('filters') }}</h2>
+              <SettingsFiltersSettings />
+            </TabsContent>
+            <TabsContent value="vacation" class="outline-none">
+              <h2 class="mb-4 text-lg font-medium">{{ sectionLabel('vacation') }}</h2>
+              <SettingsVacationSettings />
+            </TabsContent>
+            <TabsContent value="forward" class="outline-none">
+              <h2 class="mb-4 text-lg font-medium">{{ sectionLabel('forward') }}</h2>
+              <SettingsForwardSettings />
             </TabsContent>
             <TabsContent value="server" class="outline-none">
               <h2 class="mb-4 text-lg font-medium">{{ sectionLabel('server') }}</h2>
