@@ -3,6 +3,20 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Colombe suit un schéma de version proche de [SemVer](https://semver.org/lang/fr/).
 
+## [1.0.0-rc.3] — 2026-09-19
+
+### Corrigé
+
+- **Archive de release** : les liens symboliques de dépendances créés par Nitro étaient
+  réécrits en chemins absolus de la machine de build ; l'archive ne démarrait pas une fois
+  installée sur un serveur Linux. Ils restent désormais relatifs, et la construction de
+  l'archive échoue si un lien absolu ou cassé s'y trouve. L'image Docker n'était pas concernée.
+- Site de la démo (Dokploy) : adresse de la démo et du site transmises au build.
+
+### Ajouté
+
+- Déclenchement manuel des workflows CI et release (`workflow_dispatch`).
+
 ## [1.0.0-rc.2] — 2026-09-19
 
 ### Ajouté
@@ -107,5 +121,6 @@ d'environnement. En production dans un institut universitaire depuis le
 - Intégration continue (tests et vérification des types à chaque changement,
   publication de la release en brouillon sur les tags de version)
 
+[1.0.0-rc.3]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.3
 [1.0.0-rc.2]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.1
