@@ -14,6 +14,8 @@ playwright-report
 # scripts/build-release.mjs qui applique la même exclusion à la release tarball).
 # Docker ne permet pas de ré-inclure un enfant d'un dossier ignoré : on exclut
 # donc les fichiers un par un plutôt que tout "docs/" + négation.
+docs/site-mmi-troyes
+docs/dev
 docs/AUDIT*
 docs/PLAN*
 docs/ROADMAP.md

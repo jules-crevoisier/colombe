@@ -12,9 +12,13 @@ WORKDIR /app
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+# Scripts d'installation ignorés ici : le postinstall (`nuxt prepare`) a besoin des
+# sources, copiées juste après. Cette étape seule reste en cache tant que le
+# lockfile ne change pas.
+RUN pnpm fetch --frozen-lockfile
 
 COPY . .
+RUN pnpm install --frozen-lockfile --offline
 
 # Aucun secret ni variable MAIL_*/NUXT_*/WEBMAIL_*/COLOMBE_* n'est fourni à cette
 # étape : le build ne doit dépendre d'aucune configuration d'exécution (une
