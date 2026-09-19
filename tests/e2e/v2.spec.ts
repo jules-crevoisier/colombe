@@ -7,8 +7,8 @@ import type { Browser, Page } from '@playwright/test'
 import { totpAt } from '../../server/lib/auth/totp'
 import { resetMock } from '../support/reset'
 
-const DEV = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
-const ALICE = { email: 'alice@mmi-troyes.fr', password: 'alice-password' }
+const DEV = { email: 'dev@universite.example', password: 'dev-password' }
+const ALICE = { email: 'alice@universite.example', password: 'alice-password' }
 const GRADES = 'Relevé de notes — semestre 4'
 const isMobile = (page: Page) => (page.viewportSize()?.width ?? 1440) < 1024
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -118,7 +118,7 @@ test('v2-4. autocomplétion des contacts déjà écrits', async ({ page }) => {
   await page.getByRole('button', { name: 'Nouveau message', exact: true }).first().click()
   const next = page.getByRole('dialog')
   await next.getByRole('combobox', { name: 'À' }).fill('ali')
-  await expect(next.getByRole('option', { name: /alice@mmi-troyes\.fr/ })).toBeVisible()
+  await expect(next.getByRole('option', { name: /alice@universite.example/ })).toBeVisible()
   await next.getByRole('combobox', { name: 'À' }).press('Enter')
   await expect(next.getByRole('button', { name: `Retirer ${ALICE.email}` })).toBeVisible()
 })

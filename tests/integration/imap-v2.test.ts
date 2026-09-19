@@ -22,7 +22,7 @@ const config: MailServerConfig = {
   smtpServername: '127.0.0.1',
   loginUsername: 'email',
 }
-const dev = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
+const dev = { email: 'dev@universite.example', password: 'dev-password' }
 
 const reachable = await new Promise<boolean>((resolve) => {
   const socket = net.connect(3143, '127.0.0.1')
@@ -36,7 +36,7 @@ const reachable = await new Promise<boolean>((resolve) => {
 const folder = `V2-${Date.now()}`
 
 async function raw(subject: string, extra: Partial<ComposePayload> = {}): Promise<Buffer> {
-  return buildRawMessage('bob@mmi-troyes.fr', { to: [dev.email], cc: [], bcc: [], subject, text: `Corps de ${subject}`, ...extra })
+  return buildRawMessage('bob@universite.example', { to: [dev.email], cc: [], bcc: [], subject, text: `Corps de ${subject}`, ...extra })
 }
 
 describe.skipIf(!reachable)('ImapBackend v2', () => {
@@ -59,7 +59,7 @@ describe.skipIf(!reachable)('ImapBackend v2', () => {
     const messageId3 = '<msg-thread-003@example.com>'
 
     // First message (root)
-    await backend.append(folder, await buildRawMessage('bob@mmi-troyes.fr', {
+    await backend.append(folder, await buildRawMessage('bob@universite.example', {
       to: [dev.email],
       cc: [],
       bcc: [],
@@ -68,7 +68,7 @@ describe.skipIf(!reachable)('ImapBackend v2', () => {
     }, { messageId: messageId1 }), [])
 
     // Reply to first message
-    await backend.append(folder, await buildRawMessage('bob@mmi-troyes.fr', {
+    await backend.append(folder, await buildRawMessage('bob@universite.example', {
       to: [dev.email],
       cc: [],
       bcc: [],
@@ -79,7 +79,7 @@ describe.skipIf(!reachable)('ImapBackend v2', () => {
     }, { messageId: messageId2 }), [])
 
     // Reply to second message
-    await backend.append(folder, await buildRawMessage('bob@mmi-troyes.fr', {
+    await backend.append(folder, await buildRawMessage('bob@universite.example', {
       to: [dev.email],
       cc: [],
       bcc: [],

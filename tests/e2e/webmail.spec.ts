@@ -6,9 +6,9 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { resetMock } from '../support/reset'
 
-const DEV = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
-const ALICE = { email: 'alice@mmi-troyes.fr', password: 'alice-password' }
-const NEWSLETTER = 'La lettre du département — septembre'
+const DEV = { email: 'dev@universite.example', password: 'dev-password' }
+const ALICE = { email: 'alice@universite.example', password: 'alice-password' }
+const NEWSLETTER = 'La lettre du campus — septembre'
 const TRAP = 'Facture impayée — action requise'
 const GRADES = 'Relevé de notes — semestre 4'
 
@@ -125,7 +125,7 @@ test('7. répondre préremplit le destinataire et l’objet', async ({ page }) =
   await messageLink(page, GRADES).click()
   await page.getByRole('button', { name: 'Répondre', exact: true }).click()
   const dialog = page.getByRole('dialog')
-  await expect(dialog.getByRole('button', { name: 'Retirer scolarite@mmi-troyes.fr' })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Retirer scolarite@universite.example' })).toBeVisible()
   await expect(dialog.getByLabel('Objet')).toHaveValue(`Re: ${GRADES}`)
 })
 

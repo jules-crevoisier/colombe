@@ -139,7 +139,23 @@ useHead({
 </script>
 
 <template>
-  <div class="flex min-h-[100dvh] bg-surface-app lg:h-[100dvh]">
+  <div class="flex min-h-[100dvh] flex-col lg:h-[100dvh]">
+    <div
+      v-if="siteConfig.demo"
+      role="note"
+      class="flex shrink-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-border bg-amber-50 px-3 py-2 text-center text-xs text-amber-900 sm:text-sm dark:bg-amber-950/40 dark:text-amber-100"
+    >
+      <span>Démo de Colombe : aucun e-mail ne quitte ce serveur, vos données sont effacées au bout de {{ siteConfig.demo.ttlHours }} heures.</span>
+      <a
+        v-if="siteConfig.demo.projectUrl"
+        :href="siteConfig.demo.projectUrl"
+        target="_blank"
+        rel="noopener"
+        class="font-semibold underline underline-offset-2 hover:no-underline"
+      >Découvrir le projet</a>
+    </div>
+
+  <div class="flex min-h-0 flex-1 bg-surface-app">
     <a href="#contenu" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2.5 focus:text-primary-foreground">
       Aller au contenu
     </a>
@@ -317,5 +333,6 @@ useHead({
 
     <MailComposeWindow />
     <MailShortcutsDialog v-model:open="shortcutsOpen" />
+  </div>
   </div>
 </template>

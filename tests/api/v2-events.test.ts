@@ -41,7 +41,7 @@ function client(): Client {
   return c
 }
 
-async function login(email = 'dev@mmi-troyes.fr', password = email.startsWith('dev') ? 'dev-password' : 'alice-password'): Promise<Client> {
+async function login(email = 'dev@universite.example', password = email.startsWith('dev') ? 'dev-password' : 'alice-password'): Promise<Client> {
   const c = client()
   const res = await c.request('/api/auth/login', { method: 'POST', body: { email, password } })
   expect(res.status).toBe(200)
@@ -102,8 +102,8 @@ describe('GET /api/events (SSE)', () => {
   })
 
   it('should push mailbox events when a message is sent', async () => {
-    const dev = await login('dev@mmi-troyes.fr', 'dev-password')
-    const alice = await login('alice@mmi-troyes.fr', 'alice-password')
+    const dev = await login('dev@universite.example', 'dev-password')
+    const alice = await login('alice@universite.example', 'alice-password')
 
     // Open event stream for dev
     const devEvents = await dev.request('/api/events')
@@ -120,7 +120,7 @@ describe('GET /api/events (SSE)', () => {
     const sendRes = await alice.request('/api/send', {
       method: 'POST',
       body: {
-        to: ['dev@mmi-troyes.fr'],
+        to: ['dev@universite.example'],
         cc: [],
         bcc: [],
         subject: 'Test event',

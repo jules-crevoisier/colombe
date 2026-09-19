@@ -27,7 +27,7 @@ const config: MailServerConfig = {
   smtpServername: '127.0.0.1',
   loginUsername: 'email',
 }
-const dev = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
+const dev = { email: 'dev@universite.example', password: 'dev-password' }
 
 const reachable = await new Promise<boolean>((resolve) => {
   const socket = net.connect(3143, '127.0.0.1')
@@ -44,7 +44,7 @@ const TOTAL = 300
 const BODY_ONLY_MARKER = 'ZQXBODYONLYMARKER'
 
 async function raw(subject: string, extra: Partial<ComposePayload> = {}): Promise<Buffer> {
-  return buildRawMessage('bob@mmi-troyes.fr', { to: [dev.email], cc: [], bcc: [], subject, text: `Corps de ${subject}`, ...extra })
+  return buildRawMessage('bob@universite.example', { to: [dev.email], cc: [], bcc: [], subject, text: `Corps de ${subject}`, ...extra })
 }
 
 describe.skipIf(!reachable)('ImapBackend.listMessages against GreenMail — tri, filtres, recherche', () => {
@@ -65,7 +65,7 @@ describe.skipIf(!reachable)('ImapBackend.listMessages against GreenMail — tri,
     }
     // Message dont le marqueur n'apparaît que dans le corps, jamais dans le sujet — sert à
     // vérifier qu'une recherche restreinte à `fields: ['subject']` ne le trouve pas.
-    await backend.append(folder, await buildRawMessage('bob@mmi-troyes.fr', {
+    await backend.append(folder, await buildRawMessage('bob@universite.example', {
       to: [dev.email],
       cc: [],
       bcc: [],

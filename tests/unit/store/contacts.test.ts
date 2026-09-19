@@ -253,10 +253,10 @@ describe('contacts — orchestrator review', () => {
     const { openDatabase } = await import('../../../server/lib/store/db')
     const { addContact, listContacts, recordRecipients } = await import('../../../server/lib/store/contacts')
     const db = openDatabase(':memory:')
-    recordRecipients(db, 'dev@mmi-troyes.fr', [{ email: 'lea.dubois@mmi-troyes.fr', name: 'Léa' }])
-    recordRecipients(db, 'dev@mmi-troyes.fr', [{ email: 'lea.dubois@mmi-troyes.fr' }])
-    const before = listContacts(db, 'dev@mmi-troyes.fr')[0]
-    const added = addContact(db, 'dev@mmi-troyes.fr', { email: 'Lea.Dubois@mmi-troyes.fr', name: '' })
+    recordRecipients(db, 'dev@universite.example', [{ email: 'lea.dubois@universite.example', name: 'Léa' }])
+    recordRecipients(db, 'dev@universite.example', [{ email: 'lea.dubois@universite.example' }])
+    const before = listContacts(db, 'dev@universite.example')[0]
+    const added = addContact(db, 'dev@universite.example', { email: 'Lea.Dubois@universite.example', name: '' })
     expect(added).toMatchObject({ id: before?.id, manual: true, timesContacted: 2, name: 'Léa' })
   })
 
@@ -264,7 +264,7 @@ describe('contacts — orchestrator review', () => {
     const { openDatabase } = await import('../../../server/lib/store/db')
     const { addContact, listContacts } = await import('../../../server/lib/store/contacts')
     const db = openDatabase(':memory:')
-    addContact(db, 'dev@mmi-troyes.fr', { email: 'a@mmi-troyes.fr', name: 'A' })
-    expect(listContacts(db, 'dev@mmi-troyes.fr', { q: String.fromCharCode(92) })).toEqual([])
+    addContact(db, 'dev@universite.example', { email: 'a@universite.example', name: 'A' })
+    expect(listContacts(db, 'dev@universite.example', { q: String.fromCharCode(92) })).toEqual([])
   })
 })

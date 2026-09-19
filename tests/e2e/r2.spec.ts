@@ -19,11 +19,11 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
-const DEV = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
-const ALICE = { email: 'alice@mmi-troyes.fr', password: 'alice-password' }
+const DEV = { email: 'dev@universite.example', password: 'dev-password' }
+const ALICE = { email: 'alice@universite.example', password: 'alice-password' }
 
 // Données de test R2 (docs/dev/PLAN-v3.md section R2.8)
-const LIST_MESSAGE = 'Liste MMI : réunion de rentrée'
+const LIST_MESSAGE = 'Liste Promo 2026 : réunion de rentrée'
 const VCARD_MESSAGE = 'Carte de visite de Léa'
 
 const TINY_PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
@@ -112,10 +112,10 @@ test('R2.1.1 — Onglet Identités : ajouter une identité et la choisir en réd
   await expect(page.getByRole('heading', { name: 'Identités', level: 2 })).toBeVisible()
 
   await page.getByRole('button', { name: 'Ajouter une identité' }).click()
-  await page.getByLabel('Nom affiché').fill('Support MMI')
-  await page.getByLabel('Répondre à').fill('support@mmi-troyes.fr')
+  await page.getByLabel('Nom affiché').fill('Support Campus')
+  await page.getByLabel('Répondre à').fill('support@universite.example')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
-  await expect(page.getByText('Support MMI')).toBeVisible()
+  await expect(page.getByText('Support Campus')).toBeVisible()
 
   await page.goto('/mail/INBOX')
   await page.getByRole('button', { name: 'Nouveau message', exact: true }).first().click()
@@ -124,8 +124,8 @@ test('R2.1.1 — Onglet Identités : ajouter une identité et la choisir en réd
 
   const fromSelector = dialog.getByRole('combobox', { name: 'De' })
   await expect(fromSelector).toBeVisible()
-  await chooseOption(page, fromSelector, /Support MMI/)
-  await expect(fromSelector).toContainText('Support MMI')
+  await chooseOption(page, fromSelector, /Support Campus/)
+  await expect(fromSelector).toContainText('Support Campus')
 
   await dialog.getByRole('button', { name: 'Supprimer le brouillon' }).click()
 })
@@ -190,10 +190,10 @@ test('R2.1b.1 — Insérer une image dans la signature de l\'identité', async (
 
   const insertImageDialog = page.getByRole('dialog', { name: 'Insérer une image' })
   await expect(insertImageDialog).toBeVisible()
-  await insertImageDialog.getByLabel('Texte alternatif').fill('Logo IUT de Troyes')
+  await insertImageDialog.getByLabel('Texte alternatif').fill('Logo Université Exemple')
   await insertImageDialog.getByRole('button', { name: 'Insérer' }).click()
 
-  await expect(signatureEditor.locator('img[alt="Logo IUT de Troyes"]')).toBeVisible()
+  await expect(signatureEditor.locator('img[alt="Logo Université Exemple"]')).toBeVisible()
   await page.getByRole('button', { name: 'Enregistrer', exact: true }).click()
 })
 
@@ -264,7 +264,7 @@ test('R2.3.2 — Nouveau groupe, ajout d\'un contact au groupe', async ({ page }
   await page.getByRole('button', { name: 'Nouveau contact' }).click()
   await page.getByLabel('Prénom').fill('Léa')
   await page.getByLabel('Nom', { exact: true }).fill('Dubois')
-  await page.getByLabel('E-mail').first().fill('lea.dubois@mmi-troyes.fr')
+  await page.getByLabel('E-mail').first().fill('lea.dubois@universite.example')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await backToContactsList(page)
   await expect(contactsList(page).getByText('Léa Dubois')).toBeVisible()
@@ -410,7 +410,7 @@ test('R2.7.1 — "Répondre à la liste" sur un message de liste de diffusion', 
   await expect(dialog).toBeVisible()
   // Les destinataires sont des puces à côté du champ « À » : le champ texte lui-même
   // reste vide, on cherche donc l'adresse dans l'ensemble de la boîte de dialogue.
-  await expect(dialog).toContainText('liste-mmi@mmi-troyes.fr')
+  await expect(dialog).toContainText('liste-promo2026@universite.example')
   await dialog.getByRole('button', { name: 'Supprimer le brouillon' }).click()
 })
 

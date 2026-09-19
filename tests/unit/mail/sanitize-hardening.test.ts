@@ -77,8 +77,8 @@ describe('parseMessage — attachments with Content-ID (orchestrator review)', (
     const MailComposer = (await import('nodemailer/lib/mail-composer')).default
     const raw = await new Promise<Buffer>((resolve, reject) => {
       new MailComposer({
-        from: 'a@mmi-troyes.fr',
-        to: 'b@mmi-troyes.fr',
+        from: 'a@universite.example',
+        to: 'b@universite.example',
         subject: 'cid',
         html: '<p>Bonjour <img src="cid:logo@x"></p>',
         attachments: [
@@ -98,17 +98,17 @@ describe('parseMessage — attachments with Content-ID (orchestrator review)', (
 })
 
 describe('buildRawMessage — Bcc handling (orchestrator review)', () => {
-  const payload = { to: ['b@mmi-troyes.fr'], cc: [], bcc: ['secret@mmi-troyes.fr'], subject: 'x', text: 'y' }
+  const payload = { to: ['b@universite.example'], cc: [], bcc: ['secret@universite.example'], subject: 'x', text: 'y' }
 
   it('should never put Bcc in the message sent over SMTP', async () => {
     const { buildRawMessage } = await import('../../../server/lib/mail/compose')
-    expect((await buildRawMessage('a@mmi-troyes.fr', payload)).toString()).not.toContain('secret@')
+    expect((await buildRawMessage('a@universite.example', payload)).toString()).not.toContain('secret@')
   })
 
   it('should keep Bcc in stored copies when asked', async () => {
     const { buildRawMessage } = await import('../../../server/lib/mail/compose')
-    const raw = await buildRawMessage('a@mmi-troyes.fr', payload, { keepBcc: true, messageId: '<fixed@mmi-troyes.fr>' })
-    expect(raw.toString()).toMatch(/^Bcc: secret@mmi-troyes\.fr/m)
-    expect(raw.toString()).toContain('Message-ID: <fixed@mmi-troyes.fr>')
+    const raw = await buildRawMessage('a@universite.example', payload, { keepBcc: true, messageId: '<fixed@universite.example>' })
+    expect(raw.toString()).toMatch(/^Bcc: secret@universite.example/m)
+    expect(raw.toString()).toContain('Message-ID: <fixed@universite.example>')
   })
 })

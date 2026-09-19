@@ -42,7 +42,7 @@ function client(): Client {
   return c
 }
 
-async function login(email = 'dev@mmi-troyes.fr', password = email.startsWith('dev') ? 'dev-password' : 'alice-password'): Promise<Client> {
+async function login(email = 'dev@universite.example', password = email.startsWith('dev') ? 'dev-password' : 'alice-password'): Promise<Client> {
   const c = client()
   const res = await c.request('/api/auth/login', { method: 'POST', body: { email, password } })
   expect(res.status).toBe(200)
@@ -78,15 +78,16 @@ describe('config publique', () => {
       expect(raw).not.toContain(secret)
     }
     const body = JSON.parse(raw) as Record<string, unknown>
-    expect(Object.keys(body).sort()).toEqual(['hasLogo', 'limits', 'login', 'loginMessage', 'orgName', 'passwordResetUrl', 'productName', 'supportEmail', 'supportUrl'].sort())
+    expect(Object.keys(body).sort()).toEqual(['demo', 'hasLogo', 'limits', 'login', 'loginMessage', 'orgName', 'passwordResetUrl', 'productName', 'supportEmail', 'supportUrl'].sort())
     expect(body).toMatchObject({
       productName: 'Colombe',
       orgName: 'Université Exemple',
       passwordResetUrl: 'https://mdp.univ-exemple.fr/',
       supportUrl: null,
       hasLogo: false,
+      demo: null,
     })
-    expect(body.login).toEqual({ domains: ['mmi-troyes.fr'], defaultDomain: 'mmi-troyes.fr' })
+    expect(body.login).toEqual({ domains: ['universite.example'], defaultDomain: 'universite.example' })
     expect(body.limits).toEqual({ attachmentsBytes: 10 * 1024 * 1024 })
   })
 })
@@ -104,24 +105,24 @@ describe('connexion : normalisation et refus', () => {
     const res = await c.request('/api/auth/login', { method: 'POST', body: { email: 'dev', password: 'dev-password' } })
     expect(res.status).toBe(200)
     const body = await res.json() as { user: { email: string } }
-    expect(body.user.email).toBe('dev@mmi-troyes.fr')
+    expect(body.user.email).toBe('dev@universite.example')
     expect((await c.request('/api/folders')).status).toBe(200)
   })
 
   it('normalise casse et espaces autour de l\'adresse', async () => {
-    const res = await client().request('/api/auth/login', { method: 'POST', body: { email: '  DEV@MMI-TROYES.FR ', password: 'dev-password' } })
+    const res = await client().request('/api/auth/login', { method: 'POST', body: { email: '  DEV@UNIVERSITE.EXAMPLE ', password: 'dev-password' } })
     expect(res.status).toBe(200)
     const body = await res.json() as { user: { email: string } }
-    expect(body.user.email).toBe('dev@mmi-troyes.fr')
+    expect(body.user.email).toBe('dev@universite.example')
   })
 
   it('refuse un domaine étranger (403), y compris un sous-domaine piégé', async () => {
     expect((await client().request('/api/auth/login', { method: 'POST', body: { email: 'dev@gmail.com', password: 'x' } })).status).toBe(403)
-    expect((await client().request('/api/auth/login', { method: 'POST', body: { email: 'dev@mmi-troyes.fr.evil.com', password: 'x' } })).status).toBe(403)
+    expect((await client().request('/api/auth/login', { method: 'POST', body: { email: 'dev@universite.example.evil.com', password: 'x' } })).status).toBe(403)
   })
 
   it('refuse un mauvais mot de passe pour un compte du domaine (401)', async () => {
-    const res = await client().request('/api/auth/login', { method: 'POST', body: { email: 'dev@mmi-troyes.fr', password: 'mauvais' } })
+    const res = await client().request('/api/auth/login', { method: 'POST', body: { email: 'dev@universite.example', password: 'mauvais' } })
     expect(res.status).toBe(401)
   })
 })
@@ -135,11 +136,11 @@ describe('GET /api/devices/settings', () => {
     const c = await login()
     const body = await c.json<Record<string, unknown>>('/api/devices/settings')
     expect(body).toEqual({
-      email: 'dev@mmi-troyes.fr',
-      username: 'dev@mmi-troyes.fr',
+      email: 'dev@universite.example',
+      username: 'dev@universite.example',
       imap: { host: 'mail.univ-exemple.fr', port: 993, security: 'ssl' },
       smtp: { host: 'mail.univ-exemple.fr', port: 587, security: 'starttls' },
-      forwardDomains: ['mmi-troyes.fr'],
+      forwardDomains: ['universite.example'],
       productName: 'Colombe',
     })
   })
@@ -161,7 +162,7 @@ describe('GET /api/devices/apple.mobileconfig', () => {
     const body = await res.text()
     expect(body).toContain('<plist')
     expect(body).toContain('EmailTypeIMAP')
-    expect(body).toContain('dev@mmi-troyes.fr')
+    expect(body).toContain('dev@universite.example')
     expect(body).toContain('mail.univ-exemple.fr')
     expect(body).toContain('993')
     expect(body).toContain('587')
@@ -179,7 +180,7 @@ describe('GET /api/devices/apple.mobileconfig', () => {
     const extractUuids = (xml: string) => xml.match(/<key>PayloadUUID<\/key>\s*<string>([^<]+)<\/string>/g)
     expect(extractUuids(first)).toEqual(extractUuids(second))
 
-    const alice = await login('alice@mmi-troyes.fr')
+    const alice = await login('alice@universite.example')
     const aliceBody = await (await alice.request('/api/devices/apple.mobileconfig')).text()
     expect(aliceBody).not.toBe(first)
   })
@@ -193,7 +194,7 @@ describe('autoconfig Thunderbird', () => {
     expect(res.headers.get('x-content-type-options')).toBe('nosniff')
     const body = await res.text()
     expect(body).toContain('<clientConfig')
-    expect(body).toContain('<domain>mmi-troyes.fr</domain>')
+    expect(body).toContain('<domain>universite.example</domain>')
     expect(body).toMatch(/<incomingServer[^>]*type="imap"/)
     expect(body).toContain('<hostname>mail.univ-exemple.fr</hostname>')
     expect(body).toContain('<port>993</port>')
@@ -206,12 +207,12 @@ describe('autoconfig Thunderbird', () => {
   })
 
   it('GET /.well-known/autoconfig/mail/config-v1.1.xml (avec emailaddress) → 200 XML', async () => {
-    const res = await fetch(url('/.well-known/autoconfig/mail/config-v1.1.xml?emailaddress=dev%40mmi-troyes.fr'))
+    const res = await fetch(url('/.well-known/autoconfig/mail/config-v1.1.xml?emailaddress=dev%40universite.example'))
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('xml')
     const body = await res.text()
     expect(body).toContain('<clientConfig')
-    expect(body).toContain('<domain>mmi-troyes.fr</domain>')
+    expect(body).toContain('<domain>universite.example</domain>')
     expect(body).toContain('<hostname>mail.univ-exemple.fr</hostname>')
   })
 })
@@ -221,7 +222,7 @@ describe('autodiscover Outlook', () => {
     const res = await fetch(url('/autodiscover/autodiscover.xml'), {
       method: 'POST',
       headers: { 'content-type': 'text/xml' },
-      body: OUTLOOK_REQUEST('dev@mmi-troyes.fr'),
+      body: OUTLOOK_REQUEST('dev@universite.example'),
     })
     expect(res.status).toBe(200)
     const body = await res.text()
@@ -229,14 +230,14 @@ describe('autodiscover Outlook', () => {
     expect(body).toContain('<Type>SMTP</Type>')
     expect(body).toContain('<Server>mail.univ-exemple.fr</Server>')
     expect(body).toContain('<Port>993</Port>')
-    expect(body).toContain('<LoginName>dev@mmi-troyes.fr</LoginName>')
+    expect(body).toContain('<LoginName>dev@universite.example</LoginName>')
   })
 
   it('fonctionne aussi sur la casse historique /Autodiscover/Autodiscover.xml', async () => {
     const res = await fetch(url('/Autodiscover/Autodiscover.xml'), {
       method: 'POST',
       headers: { 'content-type': 'text/xml' },
-      body: OUTLOOK_REQUEST('dev@mmi-troyes.fr'),
+      body: OUTLOOK_REQUEST('dev@universite.example'),
     })
     expect(res.status).toBe(200)
   })
@@ -256,7 +257,7 @@ describe('autodiscover Outlook', () => {
     const escaped = await fetch(url('/autodiscover/autodiscover.xml'), {
       method: 'POST',
       headers: { 'content-type': 'text/xml' },
-      body: OUTLOOK_REQUEST('a&lt;x&gt;"@mmi-troyes.fr'),
+      body: OUTLOOK_REQUEST('a&lt;x&gt;"@universite.example'),
     })
     expect(escaped.status).toBe(200)
     const escapedBody = await escaped.text()
@@ -266,7 +267,7 @@ describe('autodiscover Outlook', () => {
     const injection = await fetch(url('/autodiscover/autodiscover.xml'), {
       method: 'POST',
       headers: { 'content-type': 'text/xml' },
-      body: OUTLOOK_REQUEST('x</LoginName><Evil>@mmi-troyes.fr'),
+      body: OUTLOOK_REQUEST('x</LoginName><Evil>@universite.example'),
     })
     expect(injection.status).toBe(200)
     const injectionBody = await injection.text()

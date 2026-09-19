@@ -124,6 +124,13 @@ export class CredentialsStore {
     this.store.delete(sid)
   }
 
+  /** Révoque toutes les sessions d'une adresse (éviction d'un compte démo). */
+  revokeByOwner(email: string): void {
+    for (const [sid, creds] of this.store.entries()) {
+      if (creds.email === email) this.store.delete(sid)
+    }
+  }
+
   destroy(): void {
     if (this.sweepInterval) {
       clearInterval(this.sweepInterval)

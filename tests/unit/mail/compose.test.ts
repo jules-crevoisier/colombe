@@ -110,9 +110,9 @@ describe('buildRawMessage', () => {
       subject: 'Test',
       text: 'Body',
     }
-    const raw = await buildRawMessage('alice@mmi-troyes.fr', payload)
+    const raw = await buildRawMessage('alice@universite.example', payload)
     const str = raw.toString()
-    expect(str).toContain('mmi-troyes.fr')
+    expect(str).toContain('universite.example')
   })
 
   it('includes inReplyTo when provided', async () => {

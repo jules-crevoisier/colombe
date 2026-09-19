@@ -24,8 +24,8 @@ const config: MailServerConfig = {
   smtpServername: '127.0.0.1',
   loginUsername: 'email',
 }
-const dev = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
-const alice = { email: 'alice@mmi-troyes.fr', password: 'alice-password' }
+const dev = { email: 'dev@universite.example', password: 'dev-password' }
+const alice = { email: 'alice@universite.example', password: 'alice-password' }
 
 const reachable = await new Promise<boolean>((resolve) => {
   const socket = net.connect(3143, '127.0.0.1')
@@ -39,7 +39,7 @@ const reachable = await new Promise<boolean>((resolve) => {
 const folder = `IT-${Date.now()}`
 
 async function raw(subject: string, extra: Partial<ComposePayload> = {}): Promise<Buffer> {
-  return buildRawMessage('bob@mmi-troyes.fr', { to: [dev.email], cc: [], bcc: [], subject, text: `Corps de ${subject}`, ...extra })
+  return buildRawMessage('bob@universite.example', { to: [dev.email], cc: [], bcc: [], subject, text: `Corps de ${subject}`, ...extra })
 }
 
 describe.skipIf(!reachable)('ImapBackend against GreenMail', () => {
@@ -86,7 +86,7 @@ describe.skipIf(!reachable)('ImapBackend against GreenMail', () => {
     expect(page1.items.map(m => m.subject)).toEqual(['Message 7', 'Message 6', 'Message 5', 'Message 4', 'Message 3'])
     expect(page1.items[0]).toMatchObject({ hasAttachments: true, seen: false, folder })
     expect(page1.items[0]?.preview).toContain('Corps de Message 7')
-    expect(page1.items[0]?.from?.address).toBe('bob@mmi-troyes.fr')
+    expect(page1.items[0]?.from?.address).toBe('bob@universite.example')
     const page2 = await backend.listMessages(folder, { page: 2, pageSize: 5 })
     expect(page2.items.map(m => m.subject)).toEqual(['Message 2', 'Message 1'])
     expect(page2.items[0]?.seen).toBe(true)

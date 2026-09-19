@@ -9,7 +9,10 @@ import { useDb } from '../../lib/store/db'
  * backend lui-même interdit en production (plugin startup-guard).
  */
 export default defineEventHandler((event) => {
-  if (getConfig().backend !== 'mock') {
+  const config = getConfig()
+  // Démo publique : le jeu de données de chaque visiteur lui est propre (server/lib/demo/accounts.ts) ;
+  // une remise à zéro globale n'a pas de sens et effacerait les comptes des autres visiteurs.
+  if (config.backend !== 'mock' || config.demo.enabled) {
     throw createError({ statusCode: 404, statusMessage: 'Not found' })
   }
   resetMockStore()

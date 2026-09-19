@@ -8,7 +8,7 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
 async function login(page: Page) {
   await resetMock(page.request)
   await page.goto('/login')
-  await page.getByLabel('Adresse e-mail').fill('dev@mmi-troyes.fr')
+  await page.getByLabel('Adresse e-mail').fill('dev@universite.example')
   await page.getByLabel('Mot de passe', { exact: true }).fill('dev-password')
   await page.getByRole('button', { name: 'Se connecter' }).click()
   await expect(page.getByRole('list', { name: 'Messages' })).toBeVisible()

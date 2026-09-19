@@ -84,3 +84,6 @@ export const ipLoginLimiter = new RateLimiter({ maxHits: () => getConfig().limit
 
 /** Envois par compte : COLOMBE_SEND_LIMIT (défaut 20) / 15 min, à aligner sur la limite Postfix. */
 export const sendLimiter = new RateLimiter({ maxHits: () => getConfig().limits.sendPer15Min, windowMs: FIFTEEN_MINUTES })
+
+/** Comptes démo créés par IP : 10 / 15 min (POST /api/auth/demo). Fixe, pas de compte à cranter. */
+export const demoLimiter = new RateLimiter({ maxHits: 10, windowMs: FIFTEEN_MINUTES })

@@ -1,6 +1,6 @@
 # Serveur mail de test local (IMAP + SMTP), jamais exposé hors de la machine.
 # Usage : docker compose up -d greenmail
-# Comptes : dev@mmi-troyes.fr / dev-password, alice@mmi-troyes.fr / alice-password
+# Comptes : dev@universite.example / dev-password, alice@universite.example / alice-password
 services:
   greenmail:
     image: greenmail/standalone:2.1.5
@@ -10,7 +10,7 @@ services:
         -Dgreenmail.setup.test.imap
         -Dgreenmail.hostname=0.0.0.0
         -Dgreenmail.users.login=email
-        -Dgreenmail.users=dev:dev-password@mmi-troyes.fr,alice:alice-password@mmi-troyes.fr
+        -Dgreenmail.users=dev:dev-password@universite.example,alice:alice-password@universite.example
     ports:
       - "127.0.0.1:3025:3025"   # SMTP
       - "127.0.0.1:3143:3143"   # IMAP
@@ -18,7 +18,7 @@ services:
   # Dovecot + Pigeonhole (Sieve, ManageSieve) : le logiciel du serveur de production.
   # Sert aux filtres (vague F) et aux tests d'intégration IMAP au plus près de la prod.
   # Usage : docker compose up -d dovecot
-  # Tout utilisateur @mmi-troyes.fr se connecte avec le mot de passe ci-dessous.
+  # Tout utilisateur @universite.example se connecte avec le mot de passe ci-dessous.
   # STARTTLS obligatoire (certificat auto-signé de l'image) : comme en production.
   dovecot:
     image: dovecot/dovecot:2.4.1

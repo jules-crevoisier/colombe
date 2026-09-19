@@ -11,6 +11,8 @@ const emailLabel = computed(() => (config.value.login.defaultDomain ? 'Adresse e
 const emailInputType = computed(() => (config.value.login.defaultDomain ? 'text' : 'email'))
 const loginMessage = computed(() => config.value.loginMessage || (config.value.orgName ? `Messagerie ${config.value.orgName}` : ''))
 const supportHref = computed(() => config.value.supportUrl ?? (config.value.supportEmail ? `mailto:${config.value.supportEmail}` : null))
+const demo = computed(() => config.value.demo)
+const demoDescription = computed(() => `Un compte de démonstration est créé pour vous, avec des messages d'exemple. Il est effacé au bout de ${demo.value?.ttlHours ?? 4} heures. Aucun e-mail ne quitte ce serveur.`)
 
 const step = ref<'password' | 'code'>('password')
 const email = ref('')
@@ -36,6 +38,28 @@ async function finish() {
   code.value = ''
   await refreshSession()
   await navigateTo('/mail/INBOX', { replace: true })
+}
+
+function describeDemo(err: unknown): string {
+  const status = statusOf(err)
+  if (status === 429) return errorText(err)
+  return 'Impossible de créer la démonstration pour le moment. Réessayez plus tard.'
+}
+
+async function tryDemo() {
+  if (loading.value) return
+  loading.value = true
+  error.value = ''
+  try {
+    await $fetch<LoginResult>('/api/auth/demo', { method: 'POST' })
+    await finish()
+  }
+  catch (err) {
+    error.value = describeDemo(err)
+  }
+  finally {
+    loading.value = false
+  }
 }
 
 async function submitPassword() {
@@ -132,7 +156,16 @@ function backToPassword() {
       </div>
     </div>
 
-    <form v-if="step === 'password'" class="flex flex-col gap-5" novalidate @submit.prevent="submitPassword">
+    <div v-if="demo && step === 'password'" class="flex flex-col gap-5">
+      <p class="text-sm text-muted-foreground">{{ demoDescription }}</p>
+      <p id="login-error" class="min-h-5 text-sm text-destructive" role="alert" aria-live="assertive">{{ error }}</p>
+      <Button type="button" class="h-12 w-full rounded-lg text-base font-semibold" :disabled="loading" @click="tryDemo">
+        <LoaderCircle v-if="loading" class="size-5 animate-spin" aria-hidden="true" />
+        {{ loading ? 'Création de la démo…' : 'Essayer la démo' }}
+      </Button>
+    </div>
+
+    <form v-else-if="step === 'password'" class="flex flex-col gap-5" novalidate @submit.prevent="submitPassword">
       <div class="flex flex-col gap-2">
         <Label for="email">{{ emailLabel }}</Label>
         <Input id="email" v-model="email" :type="emailInputType" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" :placeholder="addressExample" required class="h-12 rounded-lg text-base" :aria-invalid="!!error || undefined" aria-describedby="login-error" />

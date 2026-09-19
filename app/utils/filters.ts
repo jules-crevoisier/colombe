@@ -64,7 +64,7 @@ function describeAction(a: FilterAction, folderName: (path: string) => string): 
   }
 }
 
-/** Ligne lisible d'un filtre, ex. « De : scolarite@mmi-troyes.fr → Classer dans Projets, Marquer comme lu ». */
+/** Ligne lisible d'un filtre, ex. « De : scolarite@universite.example → Classer dans Projets, Marquer comme lu ». */
 export function describeRule(rule: FilterRule, folderName: (path: string) => string): string {
   const conditions = rule.conditions.length
     ? rule.conditions.map(describeCondition).join(rule.match === 'any' ? ' ou ' : ', ')

@@ -17,8 +17,13 @@ const loginSchema = z.object({
 })
 
 export default defineEventHandler(async (event): Promise<LoginResult> => {
-  const body = await readValidatedBody(event, b => loginSchema.parse(b))
   const config = getConfig()
+  // Démo publique : les comptes dev/alice partagés ne doivent jamais être joignables
+  // depuis Internet. Seul POST /api/auth/demo peut ouvrir une session en démo.
+  if (config.demo.enabled) {
+    throw createError({ statusCode: 403, statusMessage: 'Connexion désactivée', message: 'La connexion par mot de passe est désactivée dans la démo.' })
+  }
+  const body = await readValidatedBody(event, b => loginSchema.parse(b))
   const { kind, server } = mailConfig(event)
 
   const email = normalizeLoginEmail(body.email, config)

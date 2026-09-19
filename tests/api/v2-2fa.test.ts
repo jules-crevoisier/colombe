@@ -24,7 +24,7 @@ class Client {
   }
 
   async login(): Promise<LoginResult> {
-    const res = await this.req('/api/auth/login', 'POST', { email: 'dev@mmi-troyes.fr', password: 'dev-password' })
+    const res = await this.req('/api/auth/login', 'POST', { email: 'dev@universite.example', password: 'dev-password' })
     expect(res.status).toBe(200)
     return (await res.json()) as LoginResult
   }
@@ -80,7 +80,7 @@ describe('2FA', () => {
     // Le code d'activation (pas courant) est déjà consommé : on prend le pas suivant, toléré (±1).
     const good = await c.req('/api/auth/2fa', 'POST', { code: totpAt(secret, now() + 30) })
     expect(good.status).toBe(200)
-    expect((await good.json()) as LoginResult).toEqual({ user: { email: 'dev@mmi-troyes.fr' } })
+    expect((await good.json()) as LoginResult).toEqual({ user: { email: 'dev@universite.example' } })
     expect((await c.req('/api/folders')).status).toBe(200)
 
     // Rejeu du même code sur une nouvelle connexion : refusé.
@@ -126,6 +126,6 @@ describe('2FA', () => {
     const { recoveryCodes } = await enroll(c)
     expect((await c.req('/api/account/2fa/disable', 'POST', { code: '000000' })).status).toBe(400)
     expect((await c.req('/api/account/2fa/disable', 'POST', { code: recoveryCodes[1] })).status).toBe(204)
-    expect(await new Client().login()).toEqual({ user: { email: 'dev@mmi-troyes.fr' } })
+    expect(await new Client().login()).toEqual({ user: { email: 'dev@universite.example' } })
   })
 })

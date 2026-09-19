@@ -56,7 +56,7 @@ function client(): Client {
   return c
 }
 
-async function login(email = 'dev@mmi-troyes.fr', password = email.startsWith('dev') ? 'dev-password' : 'alice-password'): Promise<Client> {
+async function login(email = 'dev@universite.example', password = email.startsWith('dev') ? 'dev-password' : 'alice-password'): Promise<Client> {
   const c = client()
   const res = await c.request('/api/auth/login', { method: 'POST', body: { email, password } })
   expect(res.status).toBe(200)
@@ -93,7 +93,7 @@ describe('R2.1 — identité par défaut créée automatiquement', () => {
   })
 
   it('le nom par défaut dérive de la partie locale de chaque compte', async () => {
-    const alice = await login('alice@mmi-troyes.fr')
+    const alice = await login('alice@universite.example')
     const identities = await alice.json<any[]>('/api/identities')
     expect(identities[0].name).toBe('alice')
   })
@@ -105,13 +105,13 @@ describe('R2.1 — création, 20 identités maximum', () => {
     await c.json('/api/identities') // déclenche la création de l'identité par défaut
     const res = await c.request('/api/identities', {
       method: 'POST',
-      body: { name: 'Support MMI', replyTo: 'support@mmi-troyes.fr', bcc: 'archives@mmi-troyes.fr', organization: 'IUT de Troyes' },
+      body: { name: 'Support Campus', replyTo: 'support@universite.example', bcc: 'archives@universite.example', organization: 'Université Exemple' },
     })
     expect(res.status).toBe(201)
     const identity = (await res.json()) as any
-    expect(identity.name).toBe('Support MMI')
-    expect(identity.replyTo).toBe('support@mmi-troyes.fr')
-    expect(identity.organization).toBe('IUT de Troyes')
+    expect(identity.name).toBe('Support Campus')
+    expect(identity.replyTo).toBe('support@universite.example')
+    expect(identity.organization).toBe('Université Exemple')
     expect(identity.isDefault).toBe(false)
   })
 
@@ -136,12 +136,12 @@ describe('R2.1 — modification et suppression', () => {
     const created = (await (await c.request('/api/identities', { method: 'POST', body: { name: 'Pro' } })).json()) as any
     const res = await c.request(`/api/identities/${created.id}`, {
       method: 'PATCH',
-      body: { name: 'Pro Renommé', organization: 'IUT de Troyes' },
+      body: { name: 'Pro Renommé', organization: 'Université Exemple' },
     })
     expect(res.status).toBe(200)
     const updated = (await res.json()) as any
     expect(updated.name).toBe('Pro Renommé')
-    expect(updated.organization).toBe('IUT de Troyes')
+    expect(updated.organization).toBe('Université Exemple')
   })
 
   it('DELETE de la dernière identité → 400', async () => {
@@ -169,7 +169,7 @@ describe('R2.1 — modification et suppression', () => {
   it('404 en modifiant ou supprimant l\'identité d\'un autre utilisateur', async () => {
     const dev = await login()
     const identity = (await (await dev.request('/api/identities', { method: 'POST', body: { name: 'Perso' } })).json()) as any
-    const alice = await login('alice@mmi-troyes.fr')
+    const alice = await login('alice@universite.example')
     expect(await alice.status(`/api/identities/${identity.id}`, { method: 'PATCH', body: { name: 'Hack' } })).toBe(404)
     expect(await alice.status(`/api/identities/${identity.id}`, { method: 'DELETE' })).toBe(404)
   })
@@ -181,10 +181,10 @@ describe('R2.1 / R2.8 — envoi avec identité : From, Reply-To, image de signat
     await c.json('/api/identities')
     const identity = (await (await c.request('/api/identities', {
       method: 'POST',
-      body: { name: 'Support MMI', replyTo: 'support@mmi-troyes.fr' },
+      body: { name: 'Support Campus', replyTo: 'support@universite.example' },
     })).json()) as any
 
-    const signatureHtml = `<p>Cordialement,<br>Support MMI</p><img src="${TINY_PNG_DATA_URI}" alt="logo">`
+    const signatureHtml = `<p>Cordialement,<br>Support Campus</p><img src="${TINY_PNG_DATA_URI}" alt="logo">`
     const patched = await c.request(`/api/identities/${identity.id}`, { method: 'PATCH', body: { signatureHtml } })
     expect(patched.status).toBe(200)
 
@@ -192,7 +192,7 @@ describe('R2.1 / R2.8 — envoi avec identité : From, Reply-To, image de signat
     const sendRes = await c.request('/api/send', {
       method: 'POST',
       body: {
-        to: ['alice@mmi-troyes.fr'],
+        to: ['alice@universite.example'],
         cc: [],
         bcc: [],
         subject,
@@ -207,8 +207,8 @@ describe('R2.1 / R2.8 — envoi avec identité : From, Reply-To, image de signat
     const raw = await rawOf(c, 'INBOX.Envoyés', sent!.uid)
 
     // Guillemets facultatifs autour d'un nom sans caractère spécial (RFC 5322).
-    expect(raw).toMatch(/^From: "?Support MMI"? <dev@mmi-troyes\.fr>/m)
-    expect(raw).toMatch(/Reply-To:.*support@mmi-troyes\.fr/i)
+    expect(raw).toMatch(/^From: "?Support Campus"? <dev@universite.example>/m)
+    expect(raw).toMatch(/Reply-To:.*support@universite.example/i)
     expect(raw).not.toMatch(/data:image/i)
     expect(raw).toMatch(/Content-ID:/i)
   })
@@ -217,10 +217,10 @@ describe('R2.1 / R2.8 — envoi avec identité : From, Reply-To, image de signat
     const c = await login()
     await c.json('/api/identities')
     const subject = `Sans identité ${Date.now()}`
-    await c.request('/api/send', { method: 'POST', body: { to: ['alice@mmi-troyes.fr'], cc: [], bcc: [], subject, text: 'Corps' } })
+    await c.request('/api/send', { method: 'POST', body: { to: ['alice@universite.example'], cc: [], bcc: [], subject, text: 'Corps' } })
     const sent = await findBySubject(c, 'INBOX.Envoyés', subject)
     const raw = await rawOf(c, 'INBOX.Envoyés', sent!.uid)
-    expect(raw).toContain('<dev@mmi-troyes.fr>')
+    expect(raw).toContain('<dev@universite.example>')
   })
 })
 
@@ -245,7 +245,7 @@ describe('R2.8 — assainissement des images sortantes', () => {
     const c = await login()
     const subject = `Assainissement envoi ${Date.now()}`
     const html = `<p>Texte</p><img src="https://tracker.example/pixel.png" alt="t"><img src="data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=" alt="svg"><img src="${TINY_PNG_DATA_URI}" alt="ok">`
-    const res = await c.request('/api/send', { method: 'POST', body: { to: ['alice@mmi-troyes.fr'], cc: [], bcc: [], subject, html } })
+    const res = await c.request('/api/send', { method: 'POST', body: { to: ['alice@universite.example'], cc: [], bcc: [], subject, html } })
     expect(res.status).toBeLessThan(400)
 
     const sent = await findBySubject(c, 'INBOX.Envoyés', subject)
@@ -321,7 +321,7 @@ describe('R2.2 — réponses types (CRUD et limites)', () => {
     const dev = await login()
     const created = (await (await dev.request('/api/responses', { method: 'POST', body: { name: 'Privée', html: '<p>A</p>' } })).json()) as any
     expect(await dev.status('/api/responses/999999', { method: 'PATCH', body: { name: 'x' } })).toBe(404)
-    const alice = await login('alice@mmi-troyes.fr')
+    const alice = await login('alice@universite.example')
     expect(await alice.status(`/api/responses/${created.id}`, { method: 'DELETE' })).toBe(404)
   })
 
@@ -343,18 +343,18 @@ describe('R2.2 — réponses types (CRUD et limites)', () => {
 describe('R2.3 — fiche contact complète', () => {
   it('PUT /api/contacts/:id enregistre tous les champs de ContactDetail', async () => {
     const c = await login()
-    const created = (await (await c.request('/api/contacts', { method: 'POST', body: { email: 'lea.dubois@mmi-troyes.fr', name: 'Léa Dubois' } })).json()) as Contact
+    const created = (await (await c.request('/api/contacts', { method: 'POST', body: { email: 'lea.dubois@universite.example', name: 'Léa Dubois' } })).json()) as Contact
     const detailInput = {
       firstName: 'Léa',
       lastName: 'Dubois',
       displayName: 'Léa Dubois',
       // Contrat typé (PLAN-v3 R2.8) : libellés home | work | other, champ « address ».
       emails: [
-        { label: 'work', address: 'lea.dubois@mmi-troyes.fr' },
+        { label: 'work', address: 'lea.dubois@universite.example' },
         { label: 'home', address: 'lea.perso@example.com' },
       ],
       phones: [{ label: 'mobile', number: '+33 6 12 34 56 78' }],
-      organization: 'IUT de Troyes',
+      organization: 'Université Exemple',
       jobTitle: 'Enseignante',
       address: { street: '10 rue Marie Curie', postalCode: '10000', city: 'Troyes', country: 'France' },
       birthday: '1990-05-12',
@@ -366,11 +366,11 @@ describe('R2.3 — fiche contact complète', () => {
     const detail = await c.json<any>(`/api/contacts/${created.id}`)
     expect(detail.firstName).toBe('Léa')
     expect(detail.lastName).toBe('Dubois')
-    expect(detail.organization).toBe('IUT de Troyes')
+    expect(detail.organization).toBe('Université Exemple')
     expect(detail.jobTitle).toBe('Enseignante')
     expect(detail.notes).toBe('Contact de test R2.3')
     expect(detail.emails).toEqual(expect.arrayContaining([
-      expect.objectContaining({ label: 'work', address: 'lea.dubois@mmi-troyes.fr' }),
+      expect.objectContaining({ label: 'work', address: 'lea.dubois@universite.example' }),
       expect.objectContaining({ label: 'home', address: 'lea.perso@example.com' }),
     ]))
     expect(detail.phones).toEqual(expect.arrayContaining([expect.objectContaining({ label: 'mobile', number: '+33 6 12 34 56 78' })]))
@@ -422,7 +422,7 @@ describe('R2.3 — groupes de contacts', () => {
 
   it('ajoute et retire des membres, avec withGroups=1 dans l\'autocomplétion', async () => {
     const c = await login()
-    const contact = (await (await c.request('/api/contacts', { method: 'POST', body: { email: 'lea.dubois@mmi-troyes.fr', name: 'Léa Dubois' } })).json()) as Contact
+    const contact = (await (await c.request('/api/contacts', { method: 'POST', body: { email: 'lea.dubois@universite.example', name: 'Léa Dubois' } })).json()) as Contact
     const group = (await (await c.request('/api/contact-groups', { method: 'POST', body: { name: 'Enseignants' } })).json()) as any
 
     const added = await c.request(`/api/contact-groups/${group.id}/members`, { method: 'POST', body: { contactIds: [contact.id] } })
@@ -432,27 +432,27 @@ describe('R2.3 — groupes de contacts', () => {
     expect(result.groups.length).toBeGreaterThan(0)
     const found = result.groups.find(g => g.id === group.id)
     expect(found).toBeDefined()
-    expect(found?.emails).toContain('lea.dubois@mmi-troyes.fr')
+    expect(found?.emails).toContain('lea.dubois@universite.example')
 
     const removed = await c.request(`/api/contact-groups/${group.id}/members`, { method: 'DELETE', body: { contactIds: [contact.id] } })
     expect(removed.status).toBe(204)
     const after = await c.json<{ contacts: Contact[]; groups: { id: number; name: string; emails: string[] }[] }>(`/api/contacts?q=Enseignants&withGroups=1`)
     const groupAfter = after.groups.find(g => g.id === group.id)
-    expect(groupAfter?.emails ?? []).not.toContain('lea.dubois@mmi-troyes.fr')
+    expect(groupAfter?.emails ?? []).not.toContain('lea.dubois@universite.example')
   })
 })
 
 describe('R2.3 — export et import vCard/CSV', () => {
   it('GET /api/contacts/export.vcf → vCard 3.0 relisible', async () => {
     const c = await login()
-    await c.request('/api/contacts', { method: 'POST', body: { email: 'lea.dubois@mmi-troyes.fr', name: 'Léa Dubois' } })
+    await c.request('/api/contacts', { method: 'POST', body: { email: 'lea.dubois@universite.example', name: 'Léa Dubois' } })
     const res = await c.request('/api/contacts/export.vcf')
     expect(res.status).toBe(200)
     const text = await res.text()
     expect(text).toContain('BEGIN:VCARD')
     expect(text).toContain('VERSION:3.0')
     expect(text).toContain('END:VCARD')
-    expect(text).toMatch(/EMAIL[^\r\n]*lea\.dubois@mmi-troyes\.fr/)
+    expect(text).toMatch(/EMAIL[^\r\n]*lea\.dubois@universite.example/)
   })
 
   it('POST /api/contacts/import (.vcf) → { imported: 1, skipped: 0 }', async () => {
@@ -462,9 +462,9 @@ describe('R2.3 — export et import vCard/CSV', () => {
       'VERSION:3.0',
       'N:Dubois;Léa;;;',
       'FN:Léa Dubois',
-      'EMAIL;TYPE=WORK:lea.dubois@mmi-troyes.fr',
+      'EMAIL;TYPE=WORK:lea.dubois@universite.example',
       'TEL;TYPE=CELL:+33 6 12 34 56 78',
-      'ORG:IUT de Troyes',
+      'ORG:Université Exemple',
       'TITLE:Enseignante',
       'END:VCARD',
       '',
@@ -478,14 +478,14 @@ describe('R2.3 — export et import vCard/CSV', () => {
     expect(result.skipped).toBe(0)
 
     const found = await c.json<Contact[]>('/api/contacts?q=lea.dubois')
-    expect(found.some(ct => ct.email === 'lea.dubois@mmi-troyes.fr')).toBe(true)
+    expect(found.some(ct => ct.email === 'lea.dubois@universite.example')).toBe(true)
   })
 
   it('POST /api/contacts/import (.csv) : une ligne sans e-mail est ignorée (skipped)', async () => {
     const c = await login()
     const csv = [
       'Prénom,Nom,E-mail,Téléphone,Organisation',
-      'Marc,Petit,marc.petit@example.com,+33 6 00 00 00 00,IUT de Troyes',
+      'Marc,Petit,marc.petit@example.com,+33 6 00 00 00 00,Université Exemple',
       'SansEmail,Personne,,,',
     ].join('\r\n')
     const fd = new FormData()
@@ -714,10 +714,10 @@ describe('R2.8 — données de test dédiées', () => {
 
   it('MessageDetail.listPost expose l\'adresse sans mailto:', async () => {
     const c = await login()
-    const msg = await findBySubject(c, 'INBOX', 'Liste MMI : réunion de rentrée')
+    const msg = await findBySubject(c, 'INBOX', 'Liste Promo 2026 : réunion de rentrée')
     expect(msg).toBeDefined()
     const detail = await c.json<MessageDetail & { listPost?: string | null }>(`/api/messages/${msg!.uid}?folder=INBOX`)
-    expect(detail.listPost).toBe('liste-mmi@mmi-troyes.fr')
+    expect(detail.listPost).toBe('liste-promo2026@universite.example')
   })
 
   it('les autres messages n\'ont pas de listPost', async () => {

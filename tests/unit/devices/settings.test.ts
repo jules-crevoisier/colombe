@@ -25,7 +25,7 @@ describe('paramètres pour les autres logiciels', () => {
   })
 
   it('should return null servers when only a loopback host is configured', () => {
-    const s = deviceSettings('dev@mmi-troyes.fr', loadConfig({ MAIL_BACKEND: 'mock' }))
+    const s = deviceSettings('dev@universite.example', loadConfig({ MAIL_BACKEND: 'mock' }))
     expect(s.imap).toBeNull()
     expect(s.smtp).toBeNull()
   })

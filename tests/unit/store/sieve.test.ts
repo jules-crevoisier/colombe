@@ -6,7 +6,7 @@ import { useSieveStore } from '../../../app/stores/sieve'
 const STATUS: FiltersStatus = { available: true, capabilities: ['fileinto', 'vacation'], sets: [{ name: 'colombe', active: true, managed: true }] }
 const VACATION: VacationSettings = {
   enabled: false, from: null, until: null, subject: '', message: '', days: 7,
-  addresses: [], replyFrom: 'alice@mmi-troyes.fr', incoming: 'keep', incomingAddress: null,
+  addresses: [], replyFrom: 'alice@universite.example', incoming: 'keep', incomingAddress: null,
 }
 const FORWARD: ForwardSettings = { enabled: false, address: '', keepCopy: true }
 

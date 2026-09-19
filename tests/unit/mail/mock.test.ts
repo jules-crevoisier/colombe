@@ -9,14 +9,14 @@ describe('MockBackend', () => {
 
   describe('MOCK_USERS', () => {
     it('has dev user', () => {
-      const dev = MOCK_USERS.find(u => u.email === 'dev@mmi-troyes.fr')
+      const dev = MOCK_USERS.find(u => u.email === 'dev@universite.example')
       expect(dev).toBeDefined()
       expect(dev!.password).toBe('dev-password')
       expect(dev!.name).toBe('Dev Webmail')
     })
 
     it('has alice user', () => {
-      const alice = MOCK_USERS.find(u => u.email === 'alice@mmi-troyes.fr')
+      const alice = MOCK_USERS.find(u => u.email === 'alice@universite.example')
       expect(alice).toBeDefined()
       expect(alice!.password).toBe('alice-password')
       expect(alice!.name).toBe('Alice Martin')
@@ -25,7 +25,7 @@ describe('MockBackend', () => {
 
   describe('listFolders', () => {
     it('returns folders with special uses', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const folders = await backend.listFolders()
 
       const inboxFolder = folders.find(f => f.specialUse === 'inbox')
@@ -43,7 +43,7 @@ describe('MockBackend', () => {
     })
 
     it('has special folders in correct order', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const folders = await backend.listFolders()
 
       const specialOrder = ['inbox', 'sent', 'drafts', 'archive', 'junk', 'trash']
@@ -55,7 +55,7 @@ describe('MockBackend', () => {
     })
 
     it('includes custom folder "Projets"', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const folders = await backend.listFolders()
 
       const projetsFolder = folders.find(f => f.name === 'Projets')
@@ -64,14 +64,14 @@ describe('MockBackend', () => {
     })
 
     it('returns folder delimiter', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const folders = await backend.listFolders()
 
       expect(folders[0].delimiter).toBe('.')
     })
 
     it('includes unread and total counts', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const folders = await backend.listFolders()
 
       expect(folders[0].unread).toBeGreaterThanOrEqual(0)
@@ -81,7 +81,7 @@ describe('MockBackend', () => {
 
   describe('listMessages', () => {
     it('returns messages sorted by date descending', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 50 })
 
       expect(result.items.length).toBeGreaterThan(0)
@@ -89,7 +89,7 @@ describe('MockBackend', () => {
     })
 
     it('paginates messages', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const page1 = await backend.listMessages('INBOX', { page: 1, pageSize: 10 })
       const page2 = await backend.listMessages('INBOX', { page: 2, pageSize: 10 })
 
@@ -99,21 +99,21 @@ describe('MockBackend', () => {
     })
 
     it('includes dev account seed with 60+ messages', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 100 })
 
       expect(result.total).toBeGreaterThanOrEqual(60)
     })
 
     it('filters by query (case-insensitive substring)', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 50, query: 'test' })
 
       expect(result.items.length).toBeGreaterThanOrEqual(0)
     })
 
     it('includes preview and hasAttachments', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 10 })
 
       const msg = result.items[0]
@@ -123,7 +123,7 @@ describe('MockBackend', () => {
     })
 
     it('includes summary fields', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 10 })
 
       const msg = result.items[0]
@@ -138,7 +138,7 @@ describe('MockBackend', () => {
     })
 
     it('throws NOT_FOUND for unknown folder', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
 
       await expect(
         backend.listMessages('UNKNOWN', { page: 1, pageSize: 50 })
@@ -148,7 +148,7 @@ describe('MockBackend', () => {
 
   describe('getRawMessage', () => {
     it('returns raw RFC822 message', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 1 })
       const uid = result.items[0].uid
 
@@ -158,7 +158,7 @@ describe('MockBackend', () => {
     })
 
     it('throws NOT_FOUND for invalid uid', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
 
       await expect(
         backend.getRawMessage('INBOX', 99999)
@@ -166,7 +166,7 @@ describe('MockBackend', () => {
     })
 
     it('throws NOT_FOUND for invalid folder', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
 
       await expect(
         backend.getRawMessage('UNKNOWN', 1)
@@ -176,7 +176,7 @@ describe('MockBackend', () => {
 
   describe('setFlags', () => {
     it('sets seen flag', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 1 })
       const uid = result.items[0].uid
 
@@ -187,7 +187,7 @@ describe('MockBackend', () => {
     })
 
     it('sets flagged flag', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 1 })
       const uid = result.items[0].uid
 
@@ -198,7 +198,7 @@ describe('MockBackend', () => {
     })
 
     it('sets multiple flags at once', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 1 })
       const uid = result.items[0].uid
 
@@ -210,7 +210,7 @@ describe('MockBackend', () => {
     })
 
     it('handles multiple uids', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 5 })
       const uids = result.items.map(m => m.uid)
 
@@ -227,7 +227,7 @@ describe('MockBackend', () => {
 
   describe('move', () => {
     it('moves message to different folder', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 1 })
       const uid = result.items[0].uid
       const originalSubject = result.items[0].subject
@@ -245,7 +245,7 @@ describe('MockBackend', () => {
     })
 
     it('preserves flags when moving', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 1 })
       const uid = result.items[0].uid
 
@@ -259,7 +259,7 @@ describe('MockBackend', () => {
     })
 
     it('assigns new uid in destination', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 1 })
       const originalUid = result.items[0].uid
 
@@ -271,7 +271,7 @@ describe('MockBackend', () => {
     })
 
     it('throws NOT_FOUND for unknown folder', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
 
       await expect(
         backend.move('UNKNOWN', [1], 'INBOX')
@@ -281,7 +281,7 @@ describe('MockBackend', () => {
 
   describe('expunge', () => {
     it('deletes messages permanently', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 1 })
       const uid = result.items[0].uid
 
@@ -293,7 +293,7 @@ describe('MockBackend', () => {
     })
 
     it('handles multiple uids', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 3 })
       const uids = result.items.map(m => m.uid)
 
@@ -309,7 +309,7 @@ describe('MockBackend', () => {
 
   describe('append', () => {
     it('appends message to folder', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const raw = Buffer.from('From: test@example.com\r\nSubject: Test\r\n\r\nBody')
 
       const uid = await backend.append('INBOX', raw, [])
@@ -320,7 +320,7 @@ describe('MockBackend', () => {
     })
 
     it('assigns monotonic uid', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const raw = Buffer.from('From: test@example.com\r\nSubject: Test\r\n\r\nBody')
 
       const uid1 = await backend.append('INBOX', raw, [])
@@ -330,7 +330,7 @@ describe('MockBackend', () => {
     })
 
     it('handles flags on append', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const raw = Buffer.from('From: test@example.com\r\nSubject: Test\r\n\r\nBody')
 
       const uid = await backend.append('INBOX', raw, ['\\Seen', '\\Flagged'])
@@ -344,54 +344,54 @@ describe('MockBackend', () => {
 
   describe('send', () => {
     it('appends copy to recipient INBOX', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
-      const raw = Buffer.from('From: dev@mmi-troyes.fr\r\nTo: alice@mmi-troyes.fr\r\nSubject: Test\r\n\r\nBody')
+      const backend = new MockBackend('dev@universite.example')
+      const raw = Buffer.from('From: dev@universite.example\r\nTo: alice@universite.example\r\nSubject: Test\r\n\r\nBody')
 
       await backend.send(raw, {
-        from: 'dev@mmi-troyes.fr',
-        to: ['alice@mmi-troyes.fr'],
+        from: 'dev@universite.example',
+        to: ['alice@universite.example'],
       })
 
-      const aliceBackend = new MockBackend('alice@mmi-troyes.fr')
+      const aliceBackend = new MockBackend('alice@universite.example')
       const result = await aliceBackend.listMessages('INBOX', { page: 1, pageSize: 100 })
 
       expect(result.items.length).toBeGreaterThan(0)
     })
 
     it('silently accepts unknown recipients', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
-      const raw = Buffer.from('From: dev@mmi-troyes.fr\r\nTo: unknown@example.com\r\nSubject: Test\r\n\r\nBody')
+      const backend = new MockBackend('dev@universite.example')
+      const raw = Buffer.from('From: dev@universite.example\r\nTo: unknown@example.com\r\nSubject: Test\r\n\r\nBody')
 
       await expect(
         backend.send(raw, {
-          from: 'dev@mmi-troyes.fr',
+          from: 'dev@universite.example',
           to: ['unknown@example.com'],
         })
       ).resolves.not.toThrow()
     })
 
     it('handles multiple recipients', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
-      const raw = Buffer.from('From: dev@mmi-troyes.fr\r\nTo: alice@mmi-troyes.fr\r\nSubject: Test\r\n\r\nBody')
+      const backend = new MockBackend('dev@universite.example')
+      const raw = Buffer.from('From: dev@universite.example\r\nTo: alice@universite.example\r\nSubject: Test\r\n\r\nBody')
 
       await backend.send(raw, {
-        from: 'dev@mmi-troyes.fr',
-        to: ['alice@mmi-troyes.fr', 'unknown@example.com'],
+        from: 'dev@universite.example',
+        to: ['alice@universite.example', 'unknown@example.com'],
       })
 
-      const aliceBackend = new MockBackend('alice@mmi-troyes.fr')
+      const aliceBackend = new MockBackend('alice@universite.example')
       const result = await aliceBackend.listMessages('INBOX', { page: 1, pageSize: 100 })
       expect(result.items.length).toBeGreaterThan(0)
     })
 
     it('does not append to Sent folder', async () => {
       // The spec says "Do NOT append to Sent (the API layer does that)"
-      const backend = new MockBackend('dev@mmi-troyes.fr')
-      const raw = Buffer.from('From: dev@mmi-troyes.fr\r\nTo: alice@mmi-troyes.fr\r\nSubject: Test\r\n\r\nBody')
+      const backend = new MockBackend('dev@universite.example')
+      const raw = Buffer.from('From: dev@universite.example\r\nTo: alice@universite.example\r\nSubject: Test\r\n\r\nBody')
 
       await backend.send(raw, {
-        from: 'dev@mmi-troyes.fr',
-        to: ['alice@mmi-troyes.fr'],
+        from: 'dev@universite.example',
+        to: ['alice@universite.example'],
       })
 
       // Verify it only affects the recipient, not sender's Sent
@@ -401,7 +401,7 @@ describe('MockBackend', () => {
 
   describe('resetMockStore', () => {
     it('reseeds all data', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const before = await backend.listMessages('INBOX', { page: 1, pageSize: 1 })
 
       resetMockStore()
@@ -411,12 +411,12 @@ describe('MockBackend', () => {
     })
 
     it('is deterministic', async () => {
-      const backend1 = new MockBackend('dev@mmi-troyes.fr')
+      const backend1 = new MockBackend('dev@universite.example')
       const result1 = await backend1.listMessages('INBOX', { page: 1, pageSize: 5 })
 
       resetMockStore()
 
-      const backend2 = new MockBackend('dev@mmi-troyes.fr')
+      const backend2 = new MockBackend('dev@universite.example')
       const result2 = await backend2.listMessages('INBOX', { page: 1, pageSize: 5 })
 
       expect(result1.items.length).toBe(result2.items.length)
@@ -427,7 +427,7 @@ describe('MockBackend', () => {
   describe('verifyMockCredentials', () => {
     it('accepts correct dev credentials', async () => {
       const result = await verifyMockCredentials({
-        email: 'dev@mmi-troyes.fr',
+        email: 'dev@universite.example',
         password: 'dev-password',
       })
       expect(result).toBe(true)
@@ -435,7 +435,7 @@ describe('MockBackend', () => {
 
     it('accepts correct alice credentials', async () => {
       const result = await verifyMockCredentials({
-        email: 'alice@mmi-troyes.fr',
+        email: 'alice@universite.example',
         password: 'alice-password',
       })
       expect(result).toBe(true)
@@ -443,7 +443,7 @@ describe('MockBackend', () => {
 
     it('rejects incorrect password', async () => {
       const result = await verifyMockCredentials({
-        email: 'dev@mmi-troyes.fr',
+        email: 'dev@universite.example',
         password: 'wrong-password',
       })
       expect(result).toBe(false)
@@ -460,7 +460,7 @@ describe('MockBackend', () => {
 
   describe('seed data', () => {
     it('includes HTML newsletter with remote images', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 100 })
 
       // Should have at least one message with hasAttachments or complex HTML
@@ -468,7 +468,7 @@ describe('MockBackend', () => {
     })
 
     it('includes malicious email in seed', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 100 })
 
       // Should have the malicious message with subject "Facture impayée"
@@ -477,7 +477,7 @@ describe('MockBackend', () => {
     })
 
     it('includes varied messages in seed data', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 100 })
 
       // Just verify we have messages in the seed
@@ -485,21 +485,21 @@ describe('MockBackend', () => {
     })
 
     it('includes message with inline image', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 100 })
 
       expect(result.items.length).toBeGreaterThan(0)
     })
 
     it('includes unicode and emoji subjects', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 100 })
 
       expect(result.items.length).toBeGreaterThan(0)
     })
 
     it('has messages spread over 90 days', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 100 })
 
       const dates = result.items.map(m => new Date(m.date).getTime())
@@ -511,7 +511,7 @@ describe('MockBackend', () => {
     })
 
     it('includes some unread messages', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 100 })
 
       const unread = result.items.filter(m => !m.seen)
@@ -519,7 +519,7 @@ describe('MockBackend', () => {
     })
 
     it('includes some flagged messages', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 100 })
 
       const flagged = result.items.filter(m => m.flagged)
@@ -527,28 +527,28 @@ describe('MockBackend', () => {
     })
 
     it('alice has small inbox', async () => {
-      const backend = new MockBackend('alice@mmi-troyes.fr')
+      const backend = new MockBackend('alice@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 100 })
 
       expect(result.total).toBeLessThan(20)
     })
 
     it('has Drafts folder with messages', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX.Brouillons', { page: 1, pageSize: 100 })
 
       expect(result.items.length).toBeGreaterThanOrEqual(1)
     })
 
     it('has Trash folder with messages', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX.Corbeille', { page: 1, pageSize: 100 })
 
       expect(result.items.length).toBeGreaterThanOrEqual(2)
     })
 
     it('has custom Projets folder with messages', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX.Projets', { page: 1, pageSize: 100 })
 
       expect(result.items.length).toBeGreaterThanOrEqual(3)

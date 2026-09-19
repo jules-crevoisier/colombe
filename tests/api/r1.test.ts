@@ -43,7 +43,7 @@ function client(): Client {
   return c
 }
 
-async function login(email = 'dev@mmi-troyes.fr', password = email.startsWith('dev') ? 'dev-password' : 'alice-password'): Promise<Client> {
+async function login(email = 'dev@universite.example', password = email.startsWith('dev') ? 'dev-password' : 'alice-password'): Promise<Client> {
   const c = client()
   const res = await c.request('/api/auth/login', { method: 'POST', body: { email, password } })
   expect(res.status).toBe(200)
@@ -246,10 +246,10 @@ describe('R1.1 — importer des messages (.eml)', () => {
     const detail = await c.json<MessageDetail>(`/api/messages/${msg.uid}?folder=INBOX`)
 
     // Crée un FormData avec un fichier .eml fictif
-    const eml = `From: test@mmi-troyes.fr
+    const eml = `From: test@universite.example
 Date: Mon, 1 Jan 2024 10:00:00 +0000
 Subject: Message importé
-Message-ID: <test@mmi-troyes.fr>
+Message-ID: <test@universite.example>
 
 Ceci est un message de test.`
 
@@ -302,7 +302,7 @@ describe('R1.2 — fields et scope', () => {
     const subject = `Cherche-moi ${Date.now()}`
     await c.request('/api/send', {
       method: 'POST',
-      body: { to: ['alice@mmi-troyes.fr'], cc: [], bcc: [], subject, text: 'Corps' },
+      body: { to: ['alice@universite.example'], cc: [], bcc: [], subject, text: 'Corps' },
     })
 
     const page = await c.json<MessagePage>(`/api/messages?q=${encodeURIComponent(subject)}&scope=all`)
@@ -451,18 +451,18 @@ describe('R1.4 — rediriger un message', () => {
 
     const res = await c.request(`/api/messages/${msg.uid}/redirect`, {
       method: 'POST',
-      body: { folder: 'INBOX', to: ['alice@mmi-troyes.fr'] },
+      body: { folder: 'INBOX', to: ['alice@universite.example'] },
     })
     expect(res.status).toBe(204)
 
     // Vérifie qu'Alice a reçu le message inchangé avec en-têtes Resent-*
-    const alice = await login('alice@mmi-troyes.fr')
+    const alice = await login('alice@universite.example')
     const aliceMsg = await findBySubject(alice, 'INBOX', msg.subject)
     expect(aliceMsg).toBeDefined()
 
     // Les en-têtes sont exposés par GET /api/messages/:uid/source (spec R1.3).
     const src = await alice.json<{ headers: Array<{ name: string; value: string }> }>(`/api/messages/${aliceMsg!.uid}/source?folder=INBOX`)
-    expect(src.headers.find(h => h.name.toLowerCase() === 'resent-from')?.value).toContain('dev@mmi-troyes.fr')
+    expect(src.headers.find(h => h.name.toLowerCase() === 'resent-from')?.value).toContain('dev@universite.example')
   })
 })
 
@@ -474,7 +474,7 @@ describe('R1.4 — origin et indicateurs répondu/transféré', () => {
     await c.request('/api/send', {
       method: 'POST',
       body: {
-        to: ['alice@mmi-troyes.fr'],
+        to: ['alice@universite.example'],
         cc: [],
         bcc: [],
         subject: `Re: ${msg.subject}`,
@@ -495,7 +495,7 @@ describe('R1.4 — origin et indicateurs répondu/transféré', () => {
     await c.request('/api/send', {
       method: 'POST',
       body: {
-        to: ['alice@mmi-troyes.fr'],
+        to: ['alice@universite.example'],
         cc: [],
         bcc: [],
         subject: `Tr: ${msg.subject}`,
@@ -529,7 +529,7 @@ describe('R1.4 — transférer en pièce jointe', () => {
     const res = await c.request('/api/send', {
       method: 'POST',
       body: {
-        to: ['alice@mmi-troyes.fr'],
+        to: ['alice@universite.example'],
         cc: [],
         bcc: [],
         subject: `Tr: ${msg.subject}`,
@@ -540,7 +540,7 @@ describe('R1.4 — transférer en pièce jointe', () => {
     expect(res.status).toBe(204)
 
     // Vérifie qu'Alice voit une pièce jointe .eml
-    const alice = await login('alice@mmi-troyes.fr')
+    const alice = await login('alice@universite.example')
     const sent = await findBySubject(alice, 'INBOX', `Tr: ${msg.subject}`)
     const detail = await alice.json<MessageDetail>(`/api/messages/${sent!.uid}?folder=INBOX`)
     expect(detail.attachments.some(a => a.filename.endsWith('.eml'))).toBe(true)
@@ -559,7 +559,7 @@ describe('R1.5 — priorité', () => {
     await c.request('/api/send', {
       method: 'POST',
       body: {
-        to: ['alice@mmi-troyes.fr'],
+        to: ['alice@universite.example'],
         cc: [],
         bcc: [],
         subject,
@@ -568,7 +568,7 @@ describe('R1.5 — priorité', () => {
       },
     })
 
-    const alice = await login('alice@mmi-troyes.fr')
+    const alice = await login('alice@universite.example')
     const msg = await findBySubject(alice, 'INBOX', subject)
     const detail = await alice.json<MessageDetail>(`/api/messages/${msg!.uid}?folder=INBOX`)
     expect(detail.priority).toBe('high')
@@ -591,7 +591,7 @@ describe('R1.5 — demander un accusé de lecture', () => {
     await c.request('/api/send', {
       method: 'POST',
       body: {
-        to: ['alice@mmi-troyes.fr'],
+        to: ['alice@universite.example'],
         cc: [],
         bcc: [],
         subject,
@@ -600,11 +600,11 @@ describe('R1.5 — demander un accusé de lecture', () => {
       },
     })
 
-    const alice = await login('alice@mmi-troyes.fr')
+    const alice = await login('alice@universite.example')
     const msg = await findBySubject(alice, 'INBOX', subject)
     const detail = await alice.json<MessageDetail>(`/api/messages/${msg!.uid}?folder=INBOX`)
     expect(detail.readReceiptTo).toBeDefined()
-    expect(detail.readReceiptTo?.address).toBe('dev@mmi-troyes.fr')
+    expect(detail.readReceiptTo?.address).toBe('dev@universite.example')
   })
 
   it('MessageDetail.readReceiptTo=null si pas demandé ou déjà envoyé ($MDNSent)', async () => {

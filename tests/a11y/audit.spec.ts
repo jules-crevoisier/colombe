@@ -28,7 +28,7 @@ async function ensureLoggedIn(page: Page, request: APIRequestContext) {
     const pwdField = page.locator('[aria-label="Mot de passe"]')
     const submitBtn = page.locator('button:has-text("Se connecter")')
 
-    await emailField.fill('dev@mmi-troyes.fr')
+    await emailField.fill('dev@universite.example')
     await pwdField.fill('dev-password')
     await submitBtn.click()
     await page.waitForURL('/mail/**', { timeout: 10000 })

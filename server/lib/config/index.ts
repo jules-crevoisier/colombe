@@ -67,6 +67,16 @@ export interface ColombeConfig {
     attachmentsBytes: number
   }
   dataDir: string
+  /** Démo publique (COLOMBE_DEMO) : comptes visiteurs jetables, base en mémoire. */
+  demo: {
+    enabled: boolean
+    /** Durée de vie d'un compte visiteur, en heures (1..72). */
+    ttlHours: number
+    /** Nombre maximum de comptes visiteurs simultanés (1..5000). */
+    maxAccounts: number
+    /** Lien « Découvrir le projet » affiché dans la démo, ou null. */
+    projectUrl: string | null
+  }
 }
 
 export class ConfigError extends Error {
@@ -82,7 +92,7 @@ export class ConfigError extends Error {
 }
 
 /** Domaine des comptes de démonstration du backend mémoire (server/lib/mail/mock.ts). */
-const MOCK_DOMAIN = 'mmi-troyes.fr'
+const MOCK_DOMAIN = 'universite.example'
 const DOMAIN_RE = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/
 const HOST_RE = /^(?:\[[0-9a-f:.]+\]|[a-z0-9.-]+)$/i
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -152,6 +162,10 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
   const backend: 'imap' | 'mock' = backendRaw === 'mock' ? 'mock' : 'imap'
   const mock = backend === 'mock'
 
+  // --- Démo publique ---
+  const demoEnabled = bool(['COLOMBE_DEMO'], false)
+  if (demoEnabled && !mock) problems.push('COLOMBE_DEMO=true nécessite MAIL_BACKEND=mock (aucun serveur IMAP réel en démo).')
+
   // --- Serveurs ---
   const mainHost = pick(env, 'MAIL_HOST', 'NUXT_MAIL_HOST')
   const imapHost = pick(env, 'MAIL_IMAP_HOST') ?? mainHost ?? (mock ? 'localhost' : '')
@@ -219,7 +233,8 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
 
   // --- Secrets (production) ---
   if (production) {
-    if (mock && env.WEBMAIL_ALLOW_MOCK !== '1') problems.push('MAIL_BACKEND=mock est interdit en production (comptes de démonstration).')
+    // Démo publique : le backend mémoire est le but recherché, pas une faille de configuration.
+    if (mock && !demoEnabled && env.WEBMAIL_ALLOW_MOCK !== '1') problems.push('MAIL_BACKEND=mock est interdit en production (comptes de démonstration).')
     if ((env.NUXT_SESSION_PASSWORD ?? '').length < 32) problems.push('NUXT_SESSION_PASSWORD doit contenir au moins 32 caractères (openssl rand -base64 32).')
     if ((env.WEBMAIL_DATA_KEY ?? '').length < 32) problems.push('WEBMAIL_DATA_KEY doit contenir au moins 32 caractères (openssl rand -base64 32), différente de NUXT_SESSION_PASSWORD.')
     else if (env.WEBMAIL_DATA_KEY === env.NUXT_SESSION_PASSWORD) problems.push('WEBMAIL_DATA_KEY doit être différente de NUXT_SESSION_PASSWORD.')
@@ -250,6 +265,10 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
   }
   const supportUrl = url('COLOMBE_SUPPORT_URL')
   const passwordResetUrl = url('COLOMBE_PASSWORD_RESET_URL')
+
+  const demoTtlHours = count('COLOMBE_DEMO_TTL_HOURS', 4, 72)
+  const demoMaxAccounts = count('COLOMBE_DEMO_MAX_ACCOUNTS', 200, 5000)
+  const demoProjectUrl = url('COLOMBE_PROJECT_URL')
 
   if (problems.length) throw new ConfigError(problems)
 
@@ -285,6 +304,7 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
     },
     limits,
     dataDir: resolve(cwd, pick(env, 'WEBMAIL_DATA_DIR') ?? '.data'),
+    demo: { enabled: demoEnabled, ttlHours: demoTtlHours, maxAccounts: demoMaxAccounts, projectUrl: demoProjectUrl },
   }
 }
 
@@ -336,5 +356,6 @@ export function publicConfig(config: ColombeConfig): PublicConfig {
     hasLogo: b.logoFile !== null,
     login: { domains: config.login.domains, defaultDomain: config.login.defaultDomain },
     limits: { attachmentsBytes: config.limits.attachmentsBytes },
+    demo: config.demo.enabled ? { ttlHours: config.demo.ttlHours, projectUrl: config.demo.projectUrl } : null,
   }
 }

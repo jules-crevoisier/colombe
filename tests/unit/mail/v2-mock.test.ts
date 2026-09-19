@@ -10,33 +10,33 @@ describe('MockBackend v2', () => {
 
   describe('createFolder', () => {
     it('creates a new folder', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await backend.createFolder('INBOX.TestFolder')
       const folders = await backend.listFolders()
       expect(folders.find(f => f.path === 'INBOX.TestFolder')).toBeDefined()
     })
 
     it('throws INVALID if folder already exists', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await backend.createFolder('INBOX.NewFolder')
       await expect(backend.createFolder('INBOX.NewFolder')).rejects.toThrow(MailError)
     })
 
     it('throws INVALID if name is empty', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await expect(backend.createFolder('INBOX.')).rejects.toThrow(MailError)
     })
 
     it('throws INVALID if path starts or ends with delimiter', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await expect(backend.createFolder('.TestFolder')).rejects.toThrow(MailError)
       await expect(backend.createFolder('TestFolder.')).rejects.toThrow(MailError)
     })
 
     it('publishes mailbox change event', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       let changeReceived = false
-      const unsub = onMailboxChange('dev@mmi-troyes.fr', (change) => {
+      const unsub = onMailboxChange('dev@universite.example', (change) => {
         if (change.folder === 'INBOX.NewFolder') {
           changeReceived = true
         }
@@ -53,7 +53,7 @@ describe('MockBackend v2', () => {
 
   describe('renameFolder', () => {
     it('renames an existing folder', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await backend.createFolder('INBOX.OldName')
       await backend.renameFolder('INBOX.OldName', 'INBOX.NewName')
       const folders = await backend.listFolders()
@@ -62,24 +62,24 @@ describe('MockBackend v2', () => {
     })
 
     it('throws NOT_FOUND if source folder does not exist', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await expect(backend.renameFolder('INBOX.NonExistent', 'INBOX.NewName')).rejects.toThrow(MailError)
     })
 
     it('throws INVALID if destination already exists', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await backend.createFolder('INBOX.Folder1')
       await backend.createFolder('INBOX.Folder2')
       await expect(backend.renameFolder('INBOX.Folder1', 'INBOX.Folder2')).rejects.toThrow(MailError)
     })
 
     it('throws INVALID if renaming INBOX', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await expect(backend.renameFolder('INBOX', 'MyInbox')).rejects.toThrow(MailError)
     })
 
     it('throws INVALID if renaming special-use folders', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await expect(backend.renameFolder('INBOX.Envoyés', 'INBOX.OldSent')).rejects.toThrow(MailError)
       await expect(backend.renameFolder('INBOX.Brouillons', 'INBOX.OldDrafts')).rejects.toThrow(MailError)
       await expect(backend.renameFolder('INBOX.Corbeille', 'INBOX.OldTrash')).rejects.toThrow(MailError)
@@ -88,7 +88,7 @@ describe('MockBackend v2', () => {
     })
 
     it('preserves messages when renaming', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const raw = Buffer.from('From: test@example.com\r\nSubject: Test\r\n\r\nBody')
       await backend.createFolder('INBOX.OldName')
       const uid = await backend.append('INBOX.OldName', raw, [])
@@ -98,10 +98,10 @@ describe('MockBackend v2', () => {
     })
 
     it('publishes mailbox change events', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await backend.createFolder('INBOX.OldName')
       let changeCount = 0
-      const unsub = onMailboxChange('dev@mmi-troyes.fr', () => {
+      const unsub = onMailboxChange('dev@universite.example', () => {
         changeCount++
       })
       try {
@@ -116,7 +116,7 @@ describe('MockBackend v2', () => {
 
   describe('deleteFolder', () => {
     it('deletes an empty folder', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await backend.createFolder('INBOX.ToDelete')
       await backend.deleteFolder('INBOX.ToDelete')
       const folders = await backend.listFolders()
@@ -124,7 +124,7 @@ describe('MockBackend v2', () => {
     })
 
     it('deletes a folder with messages', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const raw = Buffer.from('From: test@example.com\r\nSubject: Test\r\n\r\nBody')
       await backend.createFolder('INBOX.ToDelete')
       await backend.append('INBOX.ToDelete', raw, [])
@@ -134,12 +134,12 @@ describe('MockBackend v2', () => {
     })
 
     it('throws INVALID if deleting INBOX', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await expect(backend.deleteFolder('INBOX')).rejects.toThrow(MailError)
     })
 
     it('throws INVALID if deleting special-use folders', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await expect(backend.deleteFolder('INBOX.Envoyés')).rejects.toThrow(MailError)
       await expect(backend.deleteFolder('INBOX.Brouillons')).rejects.toThrow(MailError)
       await expect(backend.deleteFolder('INBOX.Corbeille')).rejects.toThrow(MailError)
@@ -148,15 +148,15 @@ describe('MockBackend v2', () => {
     })
 
     it('throws NOT_FOUND if folder does not exist', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await expect(backend.deleteFolder('INBOX.NonExistent')).rejects.toThrow(MailError)
     })
 
     it('publishes mailbox change event', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await backend.createFolder('INBOX.ToDelete')
       let changeReceived = false
-      const unsub = onMailboxChange('dev@mmi-troyes.fr', () => {
+      const unsub = onMailboxChange('dev@universite.example', () => {
         changeReceived = true
       })
       try {
@@ -171,7 +171,7 @@ describe('MockBackend v2', () => {
 
   describe('searchHeader', () => {
     it('finds messages by message-id header', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const messageId = '<test-id-123@example.com>'
       const raw = Buffer.from(`From: test@example.com\r\nMessage-ID: ${messageId}\r\nSubject: Test\r\n\r\nBody`)
       const uid = await backend.append('INBOX', raw, [])
@@ -180,7 +180,7 @@ describe('MockBackend v2', () => {
     })
 
     it('finds messages by in-reply-to header', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const replyTo = '<original-id@example.com>'
       const raw = Buffer.from(`From: test@example.com\r\nIn-Reply-To: ${replyTo}\r\nSubject: Re: Test\r\n\r\nBody`)
       const uid = await backend.append('INBOX', raw, [])
@@ -189,7 +189,7 @@ describe('MockBackend v2', () => {
     })
 
     it('finds messages by references header (case-insensitive substring match)', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const msgId = 'msg-id-456'
       const raw = Buffer.from(`From: test@example.com\r\nReferences: <other@example.com> <${msgId}@example.com> <another@example.com>\r\nSubject: Test\r\n\r\nBody`)
       const uid = await backend.append('INBOX', raw, [])
@@ -198,18 +198,18 @@ describe('MockBackend v2', () => {
     })
 
     it('returns empty array if no matches', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const found = await backend.searchHeader('INBOX', 'message-id', '<nonexistent@example.com>')
       expect(found).toEqual([])
     })
 
     it('throws NOT_FOUND for unknown folder', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await expect(backend.searchHeader('UNKNOWN', 'message-id', '<test@example.com>')).rejects.toThrow(MailError)
     })
 
     it('handles folded headers (multiline)', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const msgId = 'fold-123'
       const raw = Buffer.from(`From: test@example.com\r\nReferences: <first@example.com>\r\n <${msgId}@example.com>\r\n <third@example.com>\r\nSubject: Test\r\n\r\nBody`)
       const uid = await backend.append('INBOX', raw, [])
@@ -220,7 +220,7 @@ describe('MockBackend v2', () => {
 
   describe('summaries', () => {
     it('returns summaries for given uids', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 5 })
       const uids = result.items.map(m => m.uid)
       const summaries = await backend.summaries('INBOX', uids)
@@ -234,13 +234,13 @@ describe('MockBackend v2', () => {
     })
 
     it('returns empty array for empty uid list', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const summaries = await backend.summaries('INBOX', [])
       expect(summaries).toEqual([])
     })
 
     it('ignores missing uids', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 1 })
       const uid = result.items[0].uid
       const summaries = await backend.summaries('INBOX', [uid, 99999])
@@ -249,12 +249,12 @@ describe('MockBackend v2', () => {
     })
 
     it('throws NOT_FOUND for unknown folder', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       await expect(backend.summaries('UNKNOWN', [1])).rejects.toThrow(MailError)
     })
 
     it('builds complete message summary', async () => {
-      const backend = new MockBackend('dev@mmi-troyes.fr')
+      const backend = new MockBackend('dev@universite.example')
       const result = await backend.listMessages('INBOX', { page: 1, pageSize: 1 })
       const uid = result.items[0].uid
       const summaries = await backend.summaries('INBOX', [uid])
@@ -280,10 +280,10 @@ describe('mock live events — orchestrator review', () => {
     const { onMailboxChange } = await import('../../../server/lib/live/bus')
     resetMockStore()
     const seen: string[] = []
-    const offDev = onMailboxChange('dev@mmi-troyes.fr', c => seen.push(`dev:${c.folder}`))
-    const offAlice = onMailboxChange('alice@mmi-troyes.fr', c => seen.push(`alice:${c.folder}`))
-    const dev = new MockBackend('dev@mmi-troyes.fr')
-    await dev.send(Buffer.from('Subject: x\r\n\r\ny'), { from: 'dev@mmi-troyes.fr', to: ['alice@mmi-troyes.fr'] })
+    const offDev = onMailboxChange('dev@universite.example', c => seen.push(`dev:${c.folder}`))
+    const offAlice = onMailboxChange('alice@universite.example', c => seen.push(`alice:${c.folder}`))
+    const dev = new MockBackend('dev@universite.example')
+    await dev.send(Buffer.from('Subject: x\r\n\r\ny'), { from: 'dev@universite.example', to: ['alice@universite.example'] })
     const { items } = await dev.listMessages('INBOX', { page: 1, pageSize: 1 })
     const uid = items[0]?.uid ?? 0
     await dev.setFlags('INBOX', [uid], { seen: true })

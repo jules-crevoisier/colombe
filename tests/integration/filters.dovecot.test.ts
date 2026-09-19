@@ -49,8 +49,8 @@ function freePort(): Promise<number> {
 }
 
 const rand = () => Math.random().toString(36).slice(2, 9)
-const userA = `it-${Date.now()}-${rand()}@mmi-troyes.fr`
-const userB = `it-${Date.now()}-${rand()}@mmi-troyes.fr`
+const userA = `it-${Date.now()}-${rand()}@universite.example`
+const userB = `it-${Date.now()}-${rand()}@universite.example`
 const DOVECOT_PASSWORD = 'dovecot-test-password'
 
 interface Client {
@@ -196,10 +196,10 @@ describe.skipIf(!reachable)('Filtres Sieve contre Dovecot + Pigeonhole (réel)',
 
     const rule: FilterRule = {
       id: 'r-mmi',
-      name: 'Objet contient [MMI] → Projets',
+      name: 'Objet contient [PROMO] → Projets',
       enabled: true,
       match: 'all',
-      conditions: [{ field: 'subject', op: 'contains', value: '[MMI]' }],
+      conditions: [{ field: 'subject', op: 'contains', value: '[PROMO]' }],
       actions: [{ type: 'move', folder: folder.path }],
     }
     const putRes = await c.request('/api/filters/sets/colombe', { method: 'PUT', body: { rules: [rule] } })
@@ -208,13 +208,13 @@ describe.skipIf(!reachable)('Filtres Sieve contre Dovecot + Pigeonhole (réel)',
     const activateRes = await c.request('/api/filters/sets/colombe/activate', { method: 'POST' })
     expect(activateRes.status).toBe(204)
 
-    await deliverByLmtp(userA, 'bob@mmi-troyes.fr', '[MMI] test filtre', 'Corps du message de test.')
+    await deliverByLmtp(userA, 'bob@universite.example', '[PROMO] test filtre', 'Corps du message de test.')
 
-    const delivered = await waitForSubject(c, folder.path, '[MMI] test filtre')
+    const delivered = await waitForSubject(c, folder.path, '[PROMO] test filtre')
     expect(delivered.folder).toBe(folder.path)
 
     const inbox = await c.json<MessagePage>('/api/messages?folder=INBOX&pageSize=100')
-    expect(inbox.items.some(m => m.subject === '[MMI] test filtre')).toBe(false)
+    expect(inbox.items.some(m => m.subject === '[PROMO] test filtre')).toBe(false)
   }, 30_000)
 
   // L'image dovecot/dovecot n'a pas de /usr/sbin/sendmail : Sieve exécute bien l'action

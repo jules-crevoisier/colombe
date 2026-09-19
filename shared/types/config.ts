@@ -6,7 +6,7 @@
 export interface PublicConfig {
   /** Nom du produit affiché (défaut « Colombe »). */
   productName: string
-  /** Établissement, ex. « IUT de Troyes · Département MMI ». Vide si non configuré. */
+  /** Établissement, ex. « Université Exemple · Campus Nord ». Vide si non configuré. */
   orgName: string
   /** Phrase sous le titre de la page de connexion. Vide si non configurée. */
   loginMessage: string
@@ -27,6 +27,13 @@ export interface PublicConfig {
   limits: {
     /** Total des pièces jointes d'un message, en octets (COLOMBE_MAX_ATTACHMENTS_MB). */
     attachmentsBytes: number
+  }
+  /** Démo publique (COLOMBE_DEMO) : null hors démo. */
+  demo: null | {
+    /** Durée de vie d'un compte visiteur, en heures. */
+    ttlHours: number
+    /** Lien « Découvrir le projet », ou null. */
+    projectUrl: string | null
   }
 }
 

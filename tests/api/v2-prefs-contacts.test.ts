@@ -41,7 +41,7 @@ function client(): Client {
   return c
 }
 
-async function login(email = 'dev@mmi-troyes.fr', password = 'dev-password'): Promise<Client> {
+async function login(email = 'dev@universite.example', password = 'dev-password'): Promise<Client> {
   const c = client()
   const res = await c.request('/api/auth/login', { method: 'POST', body: { email, password } })
   expect(res.status).toBe(200)
@@ -155,7 +155,7 @@ describe('prefs API', () => {
       method: 'PUT',
       body: { pageSize: 100 },
     })
-    const alice = await login('alice@mmi-troyes.fr', 'alice-password')
+    const alice = await login('alice@universite.example', 'alice-password')
     const alicePrefs = await alice.json<Prefs>('/api/prefs')
     expect(alicePrefs.pageSize).toBe(50)
   })
@@ -263,7 +263,7 @@ describe('contacts API', () => {
   it('should not allow PATCHing another user\'s contact', async () => {
     const dev = await login()
     const contact = (await (await dev.request('/api/contacts', { method: 'POST', body: { email: 'bob@example.com', name: 'Bob' } })).json()) as Contact
-    const alice = await login('alice@mmi-troyes.fr', 'alice-password')
+    const alice = await login('alice@universite.example', 'alice-password')
     const res = await alice.request(`/api/contacts/${contact.id}`, {
       method: 'PATCH',
       body: { name: 'Hacked' },
@@ -293,7 +293,7 @@ describe('contacts API', () => {
   it('should not allow DELETing another user\'s contact', async () => {
     const dev = await login()
     const contact = (await (await dev.request('/api/contacts', { method: 'POST', body: { email: 'bob@example.com', name: 'Bob' } })).json()) as Contact
-    const alice = await login('alice@mmi-troyes.fr', 'alice-password')
+    const alice = await login('alice@universite.example', 'alice-password')
     const res = await alice.request(`/api/contacts/${contact.id}`, {
       method: 'DELETE',
     })
@@ -308,7 +308,7 @@ describe('contacts auto-collection on send', () => {
     await dev.request('/api/send', {
       method: 'POST',
       body: {
-        to: ['alice@mmi-troyes.fr'],
+        to: ['alice@universite.example'],
         cc: ['bob@example.com'],
         bcc: ['secret@example.com'],
         subject,
@@ -316,12 +316,12 @@ describe('contacts auto-collection on send', () => {
       },
     })
     const contacts = await dev.json<Contact[]>('/api/contacts')
-    const alice = contacts.find(c => c.email === 'alice@mmi-troyes.fr')
+    const alice = contacts.find(c => c.email === 'alice@universite.example')
     expect(alice).toBeDefined()
     expect(alice?.manual).toBe(false)
     expect(alice?.timesContacted).toBe(1)
     // Le carnet du destinataire n'est pas modifié.
-    const aliceClient = await login('alice@mmi-troyes.fr', 'alice-password')
+    const aliceClient = await login('alice@universite.example', 'alice-password')
     expect(await aliceClient.json<Contact[]>('/api/contacts')).toEqual([])
   })
 
@@ -330,7 +330,7 @@ describe('contacts auto-collection on send', () => {
     await dev.request('/api/send', {
       method: 'POST',
       body: {
-        to: ['alice@mmi-troyes.fr'],
+        to: ['alice@universite.example'],
         cc: ['bob@example.com'],
         bcc: ['secret@example.com'],
         subject: 'Multi recipient',
@@ -346,8 +346,8 @@ describe('contacts auto-collection on send', () => {
     await dev.request('/api/send', {
       method: 'POST',
       body: {
-        to: ['alice@mmi-troyes.fr'],
-        cc: ['dev@mmi-troyes.fr'],
+        to: ['alice@universite.example'],
+        cc: ['dev@universite.example'],
         bcc: [],
         subject: 'Self recipient',
         text: 'Test',
@@ -363,7 +363,7 @@ describe('contacts auto-collection on send', () => {
       await dev.request('/api/send', {
         method: 'POST',
         body: {
-          to: ['alice@mmi-troyes.fr'],
+          to: ['alice@universite.example'],
           cc: [],
           bcc: [],
           subject: `Message ${i}`,
