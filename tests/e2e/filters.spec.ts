@@ -111,12 +111,12 @@ interface SimpleFilterOpts {
 /** Remplit la boîte « Nouveau filtre » en mode simple (PLAN-v4 F.2). */
 async function fillSimpleFilter(page: Page, dialog: Locator, opts: SimpleFilterOpts) {
   if (opts.from !== undefined) {
-    const field = dialog.getByLabel('De')
+    const field = dialog.getByLabel('De', { exact: true })
     await expect(field).toBeVisible()
     await field.fill(opts.from)
   }
   if (opts.subject !== undefined) {
-    const field = dialog.getByLabel('Objet')
+    const field = dialog.getByLabel('Objet', { exact: true })
     await expect(field).toBeVisible()
     await field.fill(opts.subject)
   }
@@ -215,7 +215,7 @@ test('F.2.3 — "Créer un filtre" depuis les options de recherche ouvre "Nouvea
 
   const dialog = page.getByRole('dialog', { name: 'Nouveau filtre' })
   await expect(dialog).toBeVisible()
-  await expect(dialog.getByLabel('Objet')).toHaveValue(/semestre/i)
+  await expect(dialog.getByLabel('Objet', { exact: true })).toHaveValue(/semestre/i)
 })
 
 // ============================================================================
@@ -232,7 +232,7 @@ test('F.2.4 — "Créer un filtre…" depuis un message préremplit "De" avec l\
 
   const dialog = page.getByRole('dialog', { name: 'Nouveau filtre' })
   await expect(dialog).toBeVisible()
-  await expect(dialog.getByLabel('De')).toHaveValue(new RegExp(escape(SCOLARITE)))
+  await expect(dialog.getByLabel('De', { exact: true })).toHaveValue(new RegExp(escape(SCOLARITE)))
 })
 
 // ============================================================================
@@ -289,14 +289,14 @@ test('F.6.1 — Activer la réponse automatique, renseigner Objet et Message, va
   await enable.click()
   await expect(enable).toBeChecked()
 
-  await page.getByLabel('Objet').fill('Absence du bureau')
-  await page.getByLabel('Message').fill('Je suis absent, réponse à mon retour.')
+  await page.getByLabel('Objet', { exact: true }).fill('Absence du bureau')
+  await page.getByLabel('Message', { exact: true }).fill('Je suis absent, réponse à mon retour.')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
 
   await page.reload()
   await expect(toggleControl(page, 'Activer la réponse automatique')).toBeChecked()
-  await expect(page.getByLabel('Objet')).toHaveValue('Absence du bureau')
-  await expect(page.getByLabel('Message')).toHaveValue('Je suis absent, réponse à mon retour.')
+  await expect(page.getByLabel('Objet', { exact: true })).toHaveValue('Absence du bureau')
+  await expect(page.getByLabel('Message', { exact: true })).toHaveValue('Je suis absent, réponse à mon retour.')
 })
 
 // ============================================================================

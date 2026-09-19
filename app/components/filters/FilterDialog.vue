@@ -154,6 +154,16 @@ const classifyFolder = computed({
   },
 })
 
+/** Case « Classer dans le dossier » (docs/PLAN-v4.md F.2) : révèle la liste des dossiers. */
+const classifyOpen = ref(false)
+const classifyChecked = computed({
+  get: () => classifyOpen.value || !!classifyFolder.value,
+  set: (v: boolean) => {
+    classifyOpen.value = v
+    if (!v) classifyFolder.value = ''
+  },
+})
+
 const redirectChecked = boolActionModel(a => a.type === 'redirect', () => ({ type: 'redirect', address: '', keepCopy: true }))
 const redirectAddress = computed({
   get: () => (draft.actions.find(a => a.type === 'redirect') as Extract<FilterAction, { type: 'redirect' }> | undefined)?.address ?? '',
@@ -281,6 +291,7 @@ async function save(): Promise<void> {
     <DialogContent class="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 sm:max-w-lg">
       <DialogHeader class="border-b border-border px-6 py-4">
         <DialogTitle>{{ isEditing ? 'Modifier le filtre' : 'Nouveau filtre' }}</DialogTitle>
+        <DialogDescription class="sr-only">Critères des messages concernés et actions à leur appliquer.</DialogDescription>
       </DialogHeader>
 
       <div class="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-4">
@@ -328,18 +339,18 @@ async function save(): Promise<void> {
               <Checkbox :model-value="flagChecked" @update:model-value="(v) => (flagChecked = v === true)" />
               Suivre
             </label>
-            <div class="space-y-2">
-              <Label for="filter-classify">Classer dans le dossier</Label>
-              <Select :model-value="classifyFolder || '__none__'" @update:model-value="(v) => (classifyFolder = v === '__none__' ? '' : String(v))">
-                <SelectTrigger id="filter-classify" class="h-11 w-full text-base">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Aucun</SelectItem>
-                  <SelectItem v-for="folder in folders" :key="folder.path" :value="folder.path">{{ folder.name }}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <label class="flex min-h-11 cursor-pointer items-center gap-3">
+              <Checkbox :model-value="classifyChecked" @update:model-value="(v) => (classifyChecked = v === true)" />
+              Classer dans le dossier
+            </label>
+            <Select v-if="classifyChecked" :model-value="classifyFolder || undefined" @update:model-value="(v) => (classifyFolder = String(v))">
+              <SelectTrigger id="filter-classify" aria-label="Dossier de destination" class="h-11 w-full text-base">
+                <SelectValue placeholder="Choisir un dossier" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="folder in folders" :key="folder.path" :value="folder.path">{{ folder.name }}</SelectItem>
+              </SelectContent>
+            </Select>
             <label class="flex min-h-11 cursor-pointer items-center gap-3">
               <Checkbox :model-value="redirectChecked" @update:model-value="(v) => (redirectChecked = v === true)" />
               Transférer à
