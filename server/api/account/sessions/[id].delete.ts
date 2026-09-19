@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { credentialsStore, hashSessionId } from '../../../lib/session/credentials'
 import { backendPool } from '../../../lib/session/pool'
+import { sievePool } from '../../../lib/session/sieve-pool'
 import { requireMail } from '../../../utils/mail-session'
 
 const paramsSchema = z.object({
@@ -19,6 +20,7 @@ export default defineEventHandler(async (event): Promise<null> => {
 
   credentialsStore.delete(target.sid)
   await backendPool.delete(target.sid)
+  await sievePool.delete(target.sid)
 
   setResponseStatus(event, 204)
   return null

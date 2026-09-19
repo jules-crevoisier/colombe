@@ -4,6 +4,7 @@ import { Plus, X } from '@lucide/vue'
 import type { FiltersStatus, VacationSettings } from '#shared/types/mail'
 
 const api = useFiltersApi()
+const sieveStore = useSieveStore()
 const confirmDialog = useTemplateRef('confirmDialog')
 
 const loading = ref(true)
@@ -38,9 +39,9 @@ const INCOMING_OPTIONS: { value: VacationSettings['incoming']; label: string }[]
 async function load(): Promise<void> {
   loading.value = true
   try {
-    status.value = await api.status()
+    status.value = await sieveStore.loadStatus()
     if (status.value.available) {
-      Object.assign(form, await api.vacation())
+      Object.assign(form, await sieveStore.loadVacation())
     }
   }
   catch (err) {
@@ -68,6 +69,8 @@ async function save(): Promise<void> {
     const payload: VacationSettings = { ...form }
     const saved = await confirmDialog.value!.withConfirmation(confirm => api.saveVacation(payload, confirm))
     Object.assign(form, saved)
+    sieveStore.invalidateVacation()
+    sieveStore.invalidateStatus()
     toast.success('Réponse automatique enregistrée.')
   }
   catch (err) {

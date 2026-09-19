@@ -6,6 +6,7 @@ import type { FilterRule, FilterSet, FiltersStatus } from '#shared/types/mail'
 const api = useFiltersApi()
 const mail = useMailStore()
 const filtersStore = useFiltersStore()
+const sieveStore = useSieveStore()
 const confirmDialog = useTemplateRef('confirmDialog')
 const importInput = useTemplateRef('importInput')
 
@@ -52,7 +53,7 @@ async function loadSelectedSet(): Promise<void> {
 async function load(): Promise<void> {
   loading.value = true
   try {
-    status.value = await api.status()
+    status.value = await sieveStore.loadStatus()
     if (status.value.available) {
       if (!mail.loaded) await mail.loadFolders()
       const active = activeSetName.value
@@ -81,6 +82,7 @@ async function persistActiveRules(rules: FilterRule[], successMessage?: string):
     const name = activeSetName.value
     const saved = await confirmDialog.value!.withConfirmation(confirm => api.saveSetRules(name, rules, confirm))
     activeRules.value = saved.rules
+    sieveStore.invalidateStatus()
     if (successMessage) toast.success(successMessage)
   }
   catch (err) {
@@ -124,6 +126,7 @@ async function createSet(): Promise<void> {
     newSetDialogOpen.value = false
     newSetName.value = ''
     newSetCopyFrom.value = ''
+    sieveStore.invalidateStatus()
     await load()
     selectedSetName.value = created.name
   }
@@ -141,6 +144,7 @@ async function activateSelectedSet(): Promise<void> {
   try {
     await api.activateSet(selectedSetName.value)
     toast.success('Jeu de filtres activé.')
+    sieveStore.invalidateStatus()
     await load()
   }
   catch (err) {
@@ -157,6 +161,7 @@ async function confirmDeleteSet(): Promise<void> {
     await api.deleteSet(selectedSetName.value)
     toast.success('Jeu de filtres supprimé.')
     deleteSetDialogOpen.value = false
+    sieveStore.invalidateStatus()
     await load()
   }
   catch (err) {
@@ -177,6 +182,7 @@ async function onImportFile(event: Event): Promise<void> {
   try {
     await confirmDialog.value!.withConfirmation(confirm => api.importSet(file, confirm))
     toast.success('Jeu de filtres importé.')
+    sieveStore.invalidateStatus()
     await load()
   }
   catch (err) {
@@ -196,6 +202,7 @@ async function saveScript(): Promise<void> {
     const saved = await confirmDialog.value!.withConfirmation(confirm => api.saveSetScript(selectedSetName.value, scriptDraft.value, confirm))
     selectedSet.value = saved
     toast.success('Script enregistré.')
+    sieveStore.invalidateStatus()
     await load()
   }
   catch (err) {

@@ -1,6 +1,7 @@
 import { credentialsStore } from '../../lib/session/credentials'
 import { listUserFolders } from '../../lib/mail/user-folders'
 import { backendPool } from '../../lib/session/pool'
+import { sievePool } from '../../lib/session/sieve-pool'
 import { getPrefs } from '../../lib/store/prefs'
 import { useDb } from '../../lib/store/db'
 import { mailConfig } from '../../utils/mail-session'
@@ -50,6 +51,7 @@ export default defineEventHandler(async (event) => {
 
     credentialsStore.delete(sid)
     await backendPool.delete(sid)
+    await sievePool.delete(sid)
   }
 
   await clearUserSession(event)

@@ -3,6 +3,7 @@ import { toast } from 'vue-sonner'
 import type { FiltersStatus, ForwardSettings } from '#shared/types/mail'
 
 const api = useFiltersApi()
+const sieveStore = useSieveStore()
 const confirmDialog = useTemplateRef('confirmDialog')
 
 const loading = ref(true)
@@ -14,9 +15,9 @@ const form = reactive<ForwardSettings>({ enabled: false, address: '', keepCopy: 
 async function load(): Promise<void> {
   loading.value = true
   try {
-    status.value = await api.status()
+    status.value = await sieveStore.loadStatus()
     if (status.value.available) {
-      Object.assign(form, await api.forward())
+      Object.assign(form, await sieveStore.loadForward())
     }
   }
   catch (err) {
@@ -36,6 +37,8 @@ async function save(): Promise<void> {
     const payload: ForwardSettings = { ...form, enabled: form.address.trim().length > 0 }
     const saved = await confirmDialog.value!.withConfirmation(confirm => api.saveForward(payload, confirm))
     Object.assign(form, saved)
+    sieveStore.invalidateForward()
+    sieveStore.invalidateStatus()
     toast.success('Transfert enregistré.')
   }
   catch (err) {

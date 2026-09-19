@@ -2,7 +2,7 @@
 import { toast } from 'vue-sonner'
 import { Archive, BookUser, ChevronDown, ChevronRight, EllipsisVertical, FileText, Folder as FolderIcon, FolderPlus, HardDrive, Inbox, Pencil, Send, ShieldAlert, Trash2 } from '@lucide/vue'
 import type { Component } from 'vue'
-import type { Folder, QuotaInfo, SpecialUse } from '#shared/types/mail'
+import type { Folder, SpecialUse } from '#shared/types/mail'
 
 const props = defineProps<{ collapsed?: boolean }>()
 const emit = defineEmits<{ navigate: [] }>()
@@ -181,6 +181,7 @@ async function confirmDelete() {
     toast(`Dossier « ${folder.name} » supprimé${folder.total ? ' — ses messages sont dans la Corbeille' : ''}`)
     if (current.value === folder.path) await navigateTo('/mail/INBOX')
     await mail.loadFolders()
+    void mail.loadQuota(true)
   }
   catch (err) {
     toast.error(errorText(err, 'Suppression impossible.'))
@@ -199,6 +200,7 @@ async function confirmEmpty() {
     toast(`Dossier « ${folder.name} » vidé`)
     mail.notifyChange(folder.path)
     await mail.loadFolders()
+    void mail.loadQuota(true)
   }
   catch (err) {
     toast.error(errorText(err, 'Impossible de vider ce dossier.'))
@@ -234,15 +236,11 @@ async function submitMove() {
   }
 }
 
-// ─── Jauge de quota (R2.4) ───
-const quota = ref<QuotaInfo | null>(null)
-onMounted(async () => {
-  try {
-    quota.value = await api.quota()
-  }
-  catch {
-    quota.value = null
-  }
+// ─── Jauge de quota (R2.4) : une fois par page (store, TTL 60 s), voir confirmDelete/confirmEmpty
+// pour le rafraîchissement forcé sur changement de dossiers. ───
+const quota = computed(() => mail.quota)
+onMounted(() => {
+  void mail.loadQuota()
 })
 const quotaRatio = computed(() => {
   if (!quota.value?.limitBytes) return 0

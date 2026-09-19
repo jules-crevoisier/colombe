@@ -4,6 +4,7 @@ import { Plus, X } from '@lucide/vue'
 import type { FilterAction, FilterCondition, FilterField, FilterRule } from '#shared/types/mail'
 
 const filtersStore = useFiltersStore()
+const sieveStore = useSieveStore()
 const mail = useMailStore()
 const api = useFiltersApi()
 const confirmDialog = useTemplateRef('confirmDialog')
@@ -42,7 +43,7 @@ const availableActionTypes = computed(() => ACTION_TYPES.filter(a => isSupported
 
 async function loadCapabilities(): Promise<void> {
   try {
-    const status = await api.status()
+    const status = await sieveStore.loadStatus()
     capabilities.value = status.capabilities
   }
   catch {
@@ -236,7 +237,7 @@ async function save(): Promise<void> {
 
   saving.value = true
   try {
-    const status = await api.status()
+    const status = await sieveStore.loadStatus()
     if (!status.available) {
       toast.error('Les filtres ne sont pas disponibles sur ce serveur.')
       return
@@ -253,6 +254,7 @@ async function save(): Promise<void> {
       setName = created.name
       existingRules = created.rules
       await api.activateSet(created.name)
+      sieveStore.invalidateStatus()
     }
 
     const idx = existingRules.findIndex(r => r.id === draft.id)
@@ -265,6 +267,7 @@ async function save(): Promise<void> {
     // Le serveur seul sait si la confirmation est requise (redirection/notification nouvelle ou modifiée) :
     // on tente sans, et le wrapper rouvre la boîte seulement si le serveur répond 403.
     await confirmDialog.value!.withConfirmation(confirm => api.saveSetRules(name, rules, confirm))
+    sieveStore.invalidateStatus()
 
     toast.success(isEditing.value ? 'Filtre enregistré.' : 'Filtre créé.')
     filtersStore.notifySaved()

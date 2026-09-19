@@ -24,6 +24,7 @@ import { createBackend } from '../mail/index'
 import { buildRawMessage } from '../mail/compose'
 import { credentialsStore } from '../session/credentials'
 import { loginLimiter } from '../session/rate-limit'
+import { sievePool } from '../session/sieve-pool'
 import { useDb } from '../store/db'
 import { isTwoFactorEnabled } from '../store/twofactor'
 import { mailConfig } from '../../utils/mail-session'
@@ -108,24 +109,55 @@ export async function openSieveSession(
   }
 }
 
+/**
+ * Ouvre une session (mock : une par appel, comme avant ; réel : une par sid,
+ * réutilisée et sérialisée via `sievePool` — voir server/lib/session/sieve-pool.ts)
+ * et y exécute `fn`. Ne lance pas si le serveur de filtres est indisponible :
+ * renvoie `{ available: false }`, à l'appelant de décider (throw ou réponse dégradée).
+ */
+async function withSessionOrUnavailable<T>(
+  ctx: FiltersContext,
+  fn: (session: SieveSessionLike, capabilities: string[]) => Promise<T>
+): Promise<{ available: true; result: T } | { available: false }> {
+  const cfg = sieveRuntimeConfig(ctx.event)
+  if (cfg.kind === 'mock') {
+    const { available, session, capabilities } = await openSieveSession(ctx.event, ctx.sid, ctx.email)
+    if (!available || !session) return { available: false }
+    try {
+      return { available: true, result: await fn(session, capabilities) }
+    } finally {
+      await session.close().catch(() => { /* ignore */ })
+    }
+  }
+  return sievePool.run(ctx.sid, () => openSieveSession(ctx.event, ctx.sid, ctx.email), fn)
+}
+
 async function withAvailableSession<T>(
   ctx: FiltersContext,
   fn: (session: SieveSessionLike, capabilities: string[]) => Promise<T>
 ): Promise<T> {
-  const { available, session, capabilities } = await openSieveSession(ctx.event, ctx.sid, ctx.email)
-  if (!available || !session) {
+  const outcome = await withSessionOrUnavailable(ctx, fn)
+  if (!outcome.available) {
     throw new SieveError('CONNECT_FAILED', 'Les filtres ne sont pas disponibles sur ce serveur.')
   }
-  try {
-    return await fn(session, capabilities)
-  } finally {
-    await session.close().catch(() => { /* ignore */ })
-  }
+  return outcome.result
 }
 
-async function checkThenPut(session: SieveSessionLike, name: string, content: string): Promise<void> {
+/** Lit un script en passant par le cache par sid (`sievePool`) : évite un GETSCRIPT
+ * si le contenu est déjà connu depuis la dernière écriture (voir invalidations ci-dessous). */
+async function readScript(ctx: FiltersContext, session: SieveSessionLike, name: string): Promise<string> {
+  const cached = sievePool.getCachedScript(ctx.sid, name)
+  if (cached !== undefined) return cached
+  const content = await session.getScript(name)
+  sievePool.setCachedScript(ctx.sid, name, content)
+  return content
+}
+
+async function checkThenPut(ctx: FiltersContext, session: SieveSessionLike, name: string, content: string): Promise<void> {
   await session.checkScript(content)
   await session.putScript(name, content)
+  // On connaît déjà le contenu qu'on vient d'écrire : autant amorcer le cache que l'invalider.
+  sievePool.setCachedScript(ctx.sid, name, content)
 }
 
 function emptyVacation(email: string): VacationSettings {
@@ -155,11 +187,11 @@ interface ActiveSetInfo {
   forward: ForwardSettings | null
 }
 
-async function loadActiveSet(session: SieveSessionLike): Promise<ActiveSetInfo | null> {
+async function loadActiveSet(ctx: FiltersContext, session: SieveSessionLike): Promise<ActiveSetInfo | null> {
   const scripts = await session.listScripts()
   const activeEntry = scripts.find((s) => s.active)
   if (!activeEntry) return null
-  const content = await session.getScript(activeEntry.name)
+  const content = await readScript(ctx, session, activeEntry.name)
   const parsed = readManagedData(content)
   return {
     name: activeEntry.name,
@@ -237,19 +269,19 @@ function notFound(message = 'Jeu de filtres introuvable.'): H3Error {
 // ─── Statut ───
 
 export async function getFiltersStatus(ctx: FiltersContext): Promise<FiltersStatus> {
-  const { available, session, capabilities } = await openSieveSession(ctx.event, ctx.sid, ctx.email)
-  if (!available || !session) return { available: false, capabilities: [], sets: [] }
-  try {
+  const outcome = await withSessionOrUnavailable(ctx, async (session, capabilities) => {
     const scripts = await session.listScripts()
     const sets: FilterSetSummary[] = []
     for (const s of scripts) {
-      const content = await session.getScript(s.name)
+      // En cache par sid depuis la dernière écriture (voir readScript) : sur une connexion
+      // poolée, un GET /api/filters répété sans modification ne renvoie plus GETSCRIPT.
+      const content = await readScript(ctx, session, s.name)
       sets.push({ name: s.name, active: s.active, managed: readManagedData(content) !== null })
     }
-    return { available: true, capabilities, sets }
-  } finally {
-    await session.close().catch(() => { /* ignore */ })
-  }
+    return { capabilities, sets }
+  })
+  if (!outcome.available) return { available: false, capabilities: [], sets: [] }
+  return { available: true, ...outcome.result }
 }
 
 // ─── Ensembles ───
@@ -266,7 +298,7 @@ export async function createFilterSet(ctx: FiltersContext, name: string, copyFro
     let rules: FilterRule[] = []
     if (copyFrom) {
       if (!scripts.some((s) => s.name === copyFrom)) throw notFound('Jeu de filtres source introuvable.')
-      const sourceContent = await session.getScript(copyFrom)
+      const sourceContent = await readScript(ctx, session, copyFrom)
       const data = readManagedData(sourceContent)
       if (data) {
         rules = data.rules
@@ -278,7 +310,7 @@ export async function createFilterSet(ctx: FiltersContext, name: string, copyFro
       script = generateScript({ rules: [], vacation: null, forward: null, capabilities }, cfg.forwardDomains)
     }
 
-    await checkThenPut(session, name, script)
+    await checkThenPut(ctx, session, name, script)
     const managed = readManagedData(script) !== null
     return { name, active: false, managed, rules: managed ? rules : [], script }
   })
@@ -289,7 +321,7 @@ export async function getFilterSet(ctx: FiltersContext, name: string): Promise<F
     const scripts = await session.listScripts()
     const entry = scripts.find((s) => s.name === name)
     if (!entry) throw notFound()
-    const content = await session.getScript(name)
+    const content = await readScript(ctx, session, name)
     const data = readManagedData(content)
     return { name, active: entry.active, managed: data !== null, rules: data?.rules ?? [], script: content }
   })
@@ -306,7 +338,7 @@ export async function updateFilterSetRules(
     const scripts = await session.listScripts()
     const entry = scripts.find((s) => s.name === name)
     if (!entry) throw notFound()
-    const content = await session.getScript(name)
+    const content = await readScript(ctx, session, name)
     const data = readManagedData(content)
     if (!data) throw UNMANAGED_SET
 
@@ -314,7 +346,7 @@ export async function updateFilterSetRules(
     if (sensitive) await assertConfirmed(ctx, confirm)
 
     const script = generateScript({ rules, vacation: data.vacation, forward: data.forward, capabilities }, cfg.forwardDomains)
-    await checkThenPut(session, name, script)
+    await checkThenPut(ctx, session, name, script)
 
     if (sensitive) {
       await onForwardingChanged(ctx, ctx.email, `Règles de filtrage modifiées dans « ${name} » (redirection ou notification).`)
@@ -342,7 +374,7 @@ export async function updateFilterSetScript(
 
     // Un script à la main exige toujours la confirmation, quel que soit son contenu.
     await assertConfirmed(ctx, confirm)
-    await checkThenPut(session, name, script)
+    await checkThenPut(ctx, session, name, script)
     await onForwardingChanged(ctx, ctx.email, `Script de filtres modifié à la main (« ${name} »).`)
 
     const data = readManagedData(script)
@@ -355,12 +387,14 @@ export async function activateFilterSet(ctx: FiltersContext, name: string): Prom
     const scripts = await session.listScripts()
     if (!scripts.some((s) => s.name === name)) throw notFound()
     await session.setActive(name)
+    sievePool.invalidateAllScripts(ctx.sid)
   })
 }
 
 export async function deactivateFilters(ctx: FiltersContext): Promise<void> {
   await withAvailableSession(ctx, async (session) => {
     await session.setActive('')
+    sievePool.invalidateAllScripts(ctx.sid)
   })
 }
 
@@ -373,12 +407,13 @@ export async function deleteFilterSet(ctx: FiltersContext, name: string): Promis
       throw createError({ statusCode: 409, statusMessage: 'Ensemble actif', message: 'Impossible de supprimer le jeu de filtres actif.' })
     }
     await session.deleteScript(name)
+    sievePool.invalidateScript(ctx.sid, name)
   })
 }
 
 export async function exportFilterSet(ctx: FiltersContext, name: string): Promise<{ filename: string; content: string }> {
   return withAvailableSession(ctx, async (session) => {
-    const content = await session.getScript(name)
+    const content = await readScript(ctx, session, name)
     return { filename: `${name}.sieve`, content }
   })
 }
@@ -408,7 +443,7 @@ export async function importFilterSet(
     // même sans redirection — `discard` ou `reject` suffisent à faire disparaître du courrier.
     await assertConfirmed(ctx, confirm)
 
-    await checkThenPut(session, name, content)
+    await checkThenPut(ctx, session, name, content)
     await onForwardingChanged(ctx, ctx.email, `Jeu de filtres importé depuis un script (« ${name} »).`)
 
     const data = readManagedData(content)
@@ -420,7 +455,7 @@ export async function importFilterSet(
 
 export async function getVacation(ctx: FiltersContext): Promise<VacationSettings> {
   return withAvailableSession(ctx, async (session) => {
-    const active = await loadActiveSet(session)
+    const active = await loadActiveSet(ctx, session)
     return active?.vacation ?? emptyVacation(ctx.email)
   })
 }
@@ -437,7 +472,7 @@ export async function putVacation(
       throw createError({ statusCode: 400, statusMessage: 'Domaine interdit', message: 'Transfert interdit vers ce domaine.' })
     }
 
-    const active = await loadActiveSet(session)
+    const active = await loadActiveSet(ctx, session)
     if (active && !active.managed) throw UNMANAGED_SET
     const name = active?.name ?? 'colombe'
 
@@ -450,8 +485,9 @@ export async function putVacation(
       { rules: active?.rules ?? [], vacation: toSave, forward: active?.forward ?? null, capabilities },
       cfg.forwardDomains
     )
-    await checkThenPut(session, name, script)
+    await checkThenPut(ctx, session, name, script)
     await session.setActive(name)
+    sievePool.invalidateAllScripts(ctx.sid)
 
     if (requiresConfirmation) {
       const dest = toSave.incoming === 'copy' ? `copié vers ${toSave.incomingAddress}` : `redirigé vers ${toSave.incomingAddress}`
@@ -463,7 +499,7 @@ export async function putVacation(
 
 export async function getForward(ctx: FiltersContext): Promise<ForwardSettings> {
   return withAvailableSession(ctx, async (session) => {
-    const active = await loadActiveSet(session)
+    const active = await loadActiveSet(ctx, session)
     return active?.forward ?? emptyForward()
   })
 }
@@ -479,7 +515,7 @@ export async function putForward(
       throw createError({ statusCode: 400, statusMessage: 'Domaine interdit', message: 'Transfert interdit vers ce domaine.' })
     }
 
-    const active = await loadActiveSet(session)
+    const active = await loadActiveSet(ctx, session)
     if (active && !active.managed) throw UNMANAGED_SET
     const name = active?.name ?? 'colombe'
 
@@ -489,8 +525,9 @@ export async function putForward(
       { rules: active?.rules ?? [], vacation: active?.vacation ?? null, forward: settings, capabilities },
       cfg.forwardDomains
     )
-    await checkThenPut(session, name, script)
+    await checkThenPut(ctx, session, name, script)
     await session.setActive(name)
+    sievePool.invalidateAllScripts(ctx.sid)
 
     if (settings.enabled) {
       const copyNote = settings.keepCopy ? ' (copie conservée)' : ''

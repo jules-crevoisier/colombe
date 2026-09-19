@@ -8,13 +8,24 @@ export const usePrefsStore = defineStore('prefs', {
     prefs: { ...DEFAULT_PREFS },
     loaded: false,
     loading: false,
+    /** Requête en cours, partagée par tous les appelants concomitants (layout, page
+     * Paramètres, dialogues…) : évite un GET /api/prefs par appelant. */
+    loadPromise: null as Promise<void> | null,
   }),
 
   actions: {
-    async load() {
+    load(): Promise<void> {
+      if (this.loadPromise) return this.loadPromise
+      const promise = this.fetchPrefs().finally(() => {
+        this.loadPromise = null
+      })
+      this.loadPromise = promise
+      return promise
+    },
+
+    async fetchPrefs(): Promise<void> {
       this.loading = true
       try {
-        const session = useUserSession()
         const fetcher = $fetch as (
           url: string,
           init: { method: 'GET' }

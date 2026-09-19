@@ -92,10 +92,28 @@ watch(() => mail.liveTick, () => {
   if (mail.liveFolder === folderPath.value) void load()
 })
 
+/**
+ * `pageSize` dépend des préférences (chargées en parallèle par le layout, en tâche
+ * de fond) : si on part immédiatement avec la valeur par défaut puis que les vraies
+ * préférences arrivent avec une autre taille de page, la clé de cache change et une
+ * seconde requête /api/messages part juste après la première. On attend donc que
+ * les préférences soient prêtes avant le tout premier chargement (le squelette est
+ * déjà affiché, ça ne coûte rien à l'œil) ; `started` avale les changements réactifs
+ * intermédiaires de cette attente pour ne déclencher qu'un seul appel initial.
+ */
+let started = false
 watch([folderPath, page, q, pageSize], () => {
+  if (!started) return
   selected.value = new Set()
   void load()
-}, { immediate: true })
+})
+
+onMounted(async () => {
+  if (!prefsStore.loaded) await prefsStore.load()
+  started = true
+  selected.value = new Set()
+  void load()
+})
 
 /** Messages masqués pendant le délai d'annulation d'une suppression. */
 const hidden = ref(new Set<number>())
