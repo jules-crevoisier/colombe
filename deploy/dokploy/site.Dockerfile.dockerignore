@@ -1,0 +1,29 @@
+# Fichier d'exclusion propre à deploy/dokploy/site.Dockerfile (remplace le
+# .dockerignore racine pour CETTE image — voir la doc Docker sur les fichiers
+# d'exclusion propres à un Dockerfile : <nom-du-dockerfile>.dockerignore,
+# à côté du Dockerfile). Contrairement au .dockerignore racine, celui-ci
+# n'exclut PAS "docs/" : c'est justement ce dont `pnpm docs:build` a besoin.
+
+node_modules
+.output
+.nuxt
+.data
+.env
+.env.*
+!.env.example
+
+.git
+.claude
+.github
+.orchestrator
+.deploy
+
+tests
+test-results
+playwright-report
+
+release
+
+*.log
+.DS_Store
+.build.lock

@@ -10,18 +10,11 @@ tests
 test-results
 playwright-report
 
-# docs/ : uniquement la doc admin/guide (le reste est interne, voir
-# scripts/build-release.mjs qui applique la même exclusion à la release tarball).
-# Docker ne permet pas de ré-inclure un enfant d'un dossier ignoré : on exclut
-# donc les fichiers un par un plutôt que tout "docs/" + négation.
-docs/site-mmi-troyes
-docs/dev
-docs/AUDIT*
-docs/PLAN*
-docs/ROADMAP.md
-docs/SERVEUR.md
-docs/DEPLOIEMENT.md
-docs/incident*
+# docs/ n'est jamais nécessaire pour construire l'image (ni la doc admin/guide,
+# ni le site VitePress public en cours d'écriture par ailleurs) : exclu en bloc.
+# La doc admin/guide reste incluse dans l'archive de release (scripts/build-release.mjs
+# lit le dossier directement sur disque, indépendamment de ce fichier).
+docs
 
 .orchestrator
 .deploy
