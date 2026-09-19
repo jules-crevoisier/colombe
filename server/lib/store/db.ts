@@ -5,6 +5,7 @@
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import { getConfig } from '../config'
 
 const MIGRATIONS: string[] = [
   // 1 — schéma initial
@@ -124,9 +125,16 @@ export function openDatabase(file: string): DatabaseSync {
 
 let shared: DatabaseSync | null = null
 
-/** Base partagée du processus. `WEBMAIL_DATA_DIR` (défaut `.data`). */
+/**
+ * Base partagée du processus. `WEBMAIL_DATA_DIR` (défaut `.data`) — ignoré en
+ * mode démo (COLOMBE_DEMO=true) : la base vit en mémoire (`:memory:`) et
+ * disparaît avec le processus, comme le backend mémoire lui-même.
+ */
 export function useDb(): DatabaseSync {
-  shared ??= openDatabase(resolve(process.env.WEBMAIL_DATA_DIR || '.data', 'webmail.sqlite'))
+  if (!shared) {
+    const demo = getConfig().demo.enabled
+    shared = openDatabase(demo ? ':memory:' : resolve(process.env.WEBMAIL_DATA_DIR || '.data', 'webmail.sqlite'))
+  }
   return shared
 }
 

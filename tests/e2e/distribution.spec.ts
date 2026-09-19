@@ -14,7 +14,7 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { resetMock } from '../support/reset'
 
-const DEV = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
+const DEV = { email: 'dev@universite.example', password: 'dev-password' }
 const isMobile = (page: Page) => (page.viewportSize()?.width ?? 1440) < 1024
 
 const PUBLIC_HOST = process.env.E2E_PUBLIC_HOST
@@ -80,7 +80,7 @@ test.describe('page de connexion', () => {
     await page.getByLabel('Adresse e-mail').fill('dev@gmail.com')
     await page.getByLabel('Mot de passe', { exact: true }).fill('peu importe')
     await page.getByRole('button', { name: 'Se connecter' }).click()
-    await expect(page.getByRole('alert')).toContainText('@mmi-troyes.fr')
+    await expect(page.getByRole('alert')).toContainText('@universite.example')
     await expect(page).toHaveURL(/\/login/)
   })
 })
@@ -145,7 +145,7 @@ test.describe('Paramètres → Autres applications', () => {
     const gmailPanel = page.getByRole('tabpanel').filter({ hasText: 'Et Gmail sur ordinateur' })
     await expect(gmailPanel.getByText(/ne peut plus relever le courrier/)).toBeVisible()
     await expect(gmailPanel.getByText(/l'autorise pas vers Gmail/)).toBeVisible()
-    await expect(gmailPanel.getByText('@mmi-troyes.fr', { exact: true })).toBeVisible()
+    await expect(gmailPanel.getByText('@universite.example', { exact: true })).toBeVisible()
   })
 
   test('9. le panneau iPhone / iPad propose le téléchargement du profil de configuration', async ({ page }) => {
@@ -189,7 +189,7 @@ test.describe('Paramètres → Transfert', () => {
     const tablist = page.getByRole('tablist', { name: 'Sections des paramètres' })
     await tablist.getByRole('tab', { name: 'Transfert' }).click()
     await expect(page.getByRole('heading', { name: 'Transfert' })).toBeVisible()
-    await expect(page.getByText('@mmi-troyes.fr')).toBeVisible()
+    await expect(page.getByText('@universite.example')).toBeVisible()
   })
 })
 

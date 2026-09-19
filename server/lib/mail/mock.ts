@@ -25,8 +25,8 @@ interface MockFolder {
 }
 
 export const MOCK_USERS = [
-  { email: 'dev@mmi-troyes.fr', password: 'dev-password', name: 'Dev Webmail' },
-  { email: 'alice@mmi-troyes.fr', password: 'alice-password', name: 'Alice Martin' },
+  { email: 'dev@universite.example', password: 'dev-password', name: 'Dev Webmail' },
+  { email: 'alice@universite.example', password: 'alice-password', name: 'Alice Martin' },
 ] as const
 
 // Global store shared across MockBackend instances
@@ -54,8 +54,8 @@ function seedUser(email: string, fixtures: FixtureMessage[]): void {
 function initializeStore(): void {
   mockStore = new Map()
   const now = Date.now()
-  seedUser('dev@mmi-troyes.fr', devFixtures(now))
-  seedUser('alice@mmi-troyes.fr', aliceFixtures(now))
+  seedUser('dev@universite.example', devFixtures(now))
+  seedUser('alice@universite.example', aliceFixtures(now))
   storeInitialized = true
 }
 
@@ -66,6 +66,22 @@ function ensureStore(): void {
 /** Remet le jeu de données dans son état initial. */
 export function resetMockStore(): void {
   initializeStore()
+}
+
+/**
+ * Ajoute une boîte (démo, server/lib/demo/accounts.ts) : même jeu de données que
+ * `dev`, adressé au titulaire indiqué. N'ajoute PAS l'adresse à `MOCK_USERS` — un
+ * compte démo ne se connecte jamais par mot de passe (POST /api/auth/login est
+ * désactivé en démo), il obtient directement une session via POST /api/auth/demo.
+ */
+export function createDemoMailbox(email: string, displayName: string, now: number): void {
+  ensureStore()
+  seedUser(email, devFixtures(now, `${displayName} <${email}>`))
+}
+
+/** Retire une boîte (éviction d'un compte démo expiré ou en surnombre). */
+export function deleteMockMailbox(email: string): void {
+  mockStore.delete(email)
 }
 
 export async function verifyMockCredentials(creds: MailCredentials): Promise<boolean> {

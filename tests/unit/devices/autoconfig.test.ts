@@ -49,9 +49,9 @@ describe('autoconfig Thunderbird', () => {
   })
 
   it('should escape XML special characters and contain no password', () => {
-    const xml = buildAutoconfig({ ...input, productName: 'A&B <"x\'>', orgName: 'IUT & co' })!
+    const xml = buildAutoconfig({ ...input, productName: 'A&B <"x\'>', orgName: 'Faculté & co' })!
     expect(xml).toContain('<displayShortName>A&amp;B &lt;&quot;x&apos;&gt;</displayShortName>')
-    expect(xml).toContain('IUT &amp; co')
+    expect(xml).toContain('Faculté &amp; co')
     expect(xml).not.toMatch(/<password/i)
   })
 

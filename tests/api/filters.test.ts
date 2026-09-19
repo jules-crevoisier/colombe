@@ -53,7 +53,7 @@ function client(): Client {
   return c
 }
 
-async function login(email = 'dev@mmi-troyes.fr', password = email.startsWith('dev') ? 'dev-password' : 'alice-password'): Promise<Client> {
+async function login(email = 'dev@universite.example', password = email.startsWith('dev') ? 'dev-password' : 'alice-password'): Promise<Client> {
   const c = client()
   const res = await c.request('/api/auth/login', { method: 'POST', body: { email, password } })
   expect(res.status).toBe(200)
@@ -72,10 +72,10 @@ beforeEach(async () => {
 
 const MOVE_RULE: FilterRule = {
   id: 'r-mmi',
-  name: 'Objet MMI vers Projets',
+  name: 'Objet PROMO vers Projets',
   enabled: true,
   match: 'all',
-  conditions: [{ field: 'subject', op: 'contains', value: '[MMI]' }],
+  conditions: [{ field: 'subject', op: 'contains', value: '[PROMO]' }],
   actions: [{ type: 'move', folder: 'INBOX.Projets' }],
 }
 
@@ -249,7 +249,7 @@ describe('GET/PUT /api/filters/vacation', () => {
   it('should always force replyFrom to the logged-in address, ignoring what the client sends', async () => {
     const c = await login()
     const before = await c.json<VacationSettings>('/api/filters/vacation')
-    expect(before.replyFrom).toBe('dev@mmi-troyes.fr')
+    expect(before.replyFrom).toBe('dev@universite.example')
 
     const payload = {
       enabled: true,
@@ -258,7 +258,7 @@ describe('GET/PUT /api/filters/vacation', () => {
       subject: 'Absent(e)',
       message: 'Je suis en congés, réponse à mon retour.',
       days: 5,
-      addresses: ['dev.pro@mmi-troyes.fr'],
+      addresses: ['dev.pro@universite.example'],
       replyFrom: 'attacker@example.com',
       incoming: 'keep',
       incomingAddress: null,
@@ -266,10 +266,10 @@ describe('GET/PUT /api/filters/vacation', () => {
     const putRes = await c.request('/api/filters/vacation', { method: 'PUT', body: payload })
     expect(putRes.status).toBe(200)
     const putBody = (await putRes.json()) as VacationSettings
-    expect(putBody.replyFrom).toBe('dev@mmi-troyes.fr')
+    expect(putBody.replyFrom).toBe('dev@universite.example')
 
     const after = await c.json<VacationSettings>('/api/filters/vacation')
-    expect(after).toEqual({ ...payload, replyFrom: 'dev@mmi-troyes.fr' })
+    expect(after).toEqual({ ...payload, replyFrom: 'dev@universite.example' })
   })
 
   it('should reject days outside 1-30 with 400, and accept the boundaries', async () => {
@@ -282,7 +282,7 @@ describe('GET/PUT /api/filters/vacation', () => {
       message: 'Message',
       days: 7,
       addresses: [],
-      replyFrom: 'dev@mmi-troyes.fr',
+      replyFrom: 'dev@universite.example',
       incoming: 'keep',
       incomingAddress: null,
     }
@@ -305,21 +305,21 @@ describe('GET/PUT /api/filters/forward', () => {
 
     const res = await c.request('/api/filters/forward', {
       method: 'PUT',
-      body: { enabled: true, address: 'alice@mmi-troyes.fr', keepCopy: true, confirmPassword: 'dev-password' },
+      body: { enabled: true, address: 'alice@universite.example', keepCopy: true, confirmPassword: 'dev-password' },
     })
     expect(res.status).toBe(200)
     const body = (await res.json()) as ForwardSettings
-    expect(body).toEqual({ enabled: true, address: 'alice@mmi-troyes.fr', keepCopy: true })
+    expect(body).toEqual({ enabled: true, address: 'alice@universite.example', keepCopy: true })
 
     const after = await c.json<ForwardSettings>('/api/filters/forward')
-    expect(after).toEqual({ enabled: true, address: 'alice@mmi-troyes.fr', keepCopy: true })
+    expect(after).toEqual({ enabled: true, address: 'alice@universite.example', keepCopy: true })
   })
 
   it('should deliver the "transfert modifié" alert e-mail into the account INBOX', async () => {
     const c = await login()
     await c.request('/api/filters/forward', {
       method: 'PUT',
-      body: { enabled: true, address: 'alice@mmi-troyes.fr', keepCopy: true, confirmPassword: 'dev-password' },
+      body: { enabled: true, address: 'alice@universite.example', keepCopy: true, confirmPassword: 'dev-password' },
     })
 
     const inbox = await c.json<MessagePage>('/api/messages?folder=INBOX&pageSize=100')
@@ -336,14 +336,14 @@ describe('sécurité — confirmPassword requis', () => {
     const c = await login()
     const noPassword = await c.request('/api/filters/forward', {
       method: 'PUT',
-      body: { enabled: true, address: 'alice@mmi-troyes.fr', keepCopy: false },
+      body: { enabled: true, address: 'alice@universite.example', keepCopy: false },
     })
     expect(noPassword.status).toBe(403)
     expect(await message(noPassword)).toContain(CONFIRM_PASSWORD_MESSAGE)
 
     const wrongPassword = await c.request('/api/filters/forward', {
       method: 'PUT',
-      body: { enabled: true, address: 'alice@mmi-troyes.fr', keepCopy: false, confirmPassword: 'wrong-password' },
+      body: { enabled: true, address: 'alice@universite.example', keepCopy: false, confirmPassword: 'wrong-password' },
     })
     expect(wrongPassword.status).toBe(403)
   })
@@ -367,7 +367,7 @@ describe('sécurité — confirmPassword requis', () => {
       enabled: true,
       match: 'all',
       conditions: [],
-      actions: [{ type: 'redirect', address: 'alice@mmi-troyes.fr', keepCopy: false }],
+      actions: [{ type: 'redirect', address: 'alice@universite.example', keepCopy: false }],
     }
 
     const noPassword = await c.request('/api/filters/sets/perso', { method: 'PUT', body: { rules: [rule] } })
@@ -442,7 +442,7 @@ describe('sécurité — domaine de transfert interdit', () => {
       message: 'Message',
       days: 7,
       addresses: [],
-      replyFrom: 'dev@mmi-troyes.fr',
+      replyFrom: 'dev@universite.example',
       incoming: 'redirect',
       incomingAddress: 'attacker@evil.example',
     }
@@ -493,7 +493,7 @@ describe('isolation entre utilisateurs', () => {
     const dev = await login()
     await dev.request('/api/filters/sets', { method: 'POST', body: { name: 'perso-dev' } })
 
-    const alice = await login('alice@mmi-troyes.fr')
+    const alice = await login('alice@universite.example')
     const status = await alice.json<FiltersStatus>('/api/filters')
     expect(status.sets.some(s => s.name === 'perso-dev')).toBe(false)
 

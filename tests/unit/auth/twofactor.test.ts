@@ -4,7 +4,7 @@ import { openDatabase } from '../../../server/lib/store/db'
 import { disableTwoFactor, enableTwoFactor, isTwoFactorEnabled, markStepUsed, readSecret, storePendingSecret, twoFactorStatus, useRecoveryCode } from '../../../server/lib/store/twofactor'
 
 const KEY = 'une-cle-de-donnees-de-test-suffisamment-longue'
-const DEV = 'dev@mmi-troyes.fr'
+const DEV = 'dev@universite.example'
 
 describe('twofactor store', () => {
   it('should keep the secret encrypted and only enable after confirmation', () => {
@@ -26,7 +26,7 @@ describe('twofactor store', () => {
     const db = openDatabase(':memory:')
     storePendingSecret(db, DEV, 'JBSWY3DPEHPK3PXP', KEY)
     const code = enableTwoFactor(db, DEV)[0] ?? ''
-    expect(useRecoveryCode(db, 'alice@mmi-troyes.fr', code)).toBe(false)
+    expect(useRecoveryCode(db, 'alice@universite.example', code)).toBe(false)
     expect(useRecoveryCode(db, DEV, code.toLowerCase().replace('-', ' '))).toBe(true)
     expect(useRecoveryCode(db, DEV, code)).toBe(false)
     expect(twoFactorStatus(db, DEV).recoveryCodesLeft).toBe(9)

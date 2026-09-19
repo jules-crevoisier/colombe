@@ -16,7 +16,7 @@ describe('sanitizeOutgoingHtml', () => {
   it('should only allow http(s) and mailto links', () => {
     expect(sanitizeOutgoingHtml('<a href="javascript:alert(1)">x</a>')).not.toContain('javascript')
     expect(sanitizeOutgoingHtml('<a href="data:text/html,x">x</a>')).not.toContain('data:')
-    expect(sanitizeOutgoingHtml('<a href="https://mmi-troyes.fr">x</a>')).toBe('<a rel="noopener noreferrer" href="https://mmi-troyes.fr">x</a>')
+    expect(sanitizeOutgoingHtml('<a href="https://universite.example">x</a>')).toBe('<a rel="noopener noreferrer" href="https://universite.example">x</a>')
   })
 })
 

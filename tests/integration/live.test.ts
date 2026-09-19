@@ -21,8 +21,8 @@ const config: MailServerConfig = {
   smtpServername: '127.0.0.1',
   loginUsername: 'email',
 }
-const dev = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
-const alice = { email: 'alice@mmi-troyes.fr', password: 'alice-password' }
+const dev = { email: 'dev@universite.example', password: 'dev-password' }
+const alice = { email: 'alice@universite.example', password: 'alice-password' }
 
 const reachable = await new Promise<boolean>((resolve) => {
   const socket = net.connect(3143, '127.0.0.1')
@@ -53,7 +53,7 @@ describe.skipIf(!reachable)('InboxWatcher with GreenMail', () => {
       events.push(change.folder)
     })
 
-    // Send a message to dev@mmi-troyes.fr via SMTP
+    // Send a message to dev@universite.example via SMTP
     const transporter = nodemailer.createTransport({
       host: config.smtpHost,
       port: config.smtpPort,

@@ -89,7 +89,7 @@ function multipart(type: string, parts: string[]): string {
 }
 
 export function buildFixtureRaw(m: FixtureMessage, index: number): Buffer {
-  const domain = m.from.match(/@([^>]+)/)?.[1] ?? 'mmi-troyes.fr'
+  const domain = m.from.match(/@([^>]+)/)?.[1] ?? 'universite.example'
   const headers = [
     `From: ${encodeAddress(m.from)}`,
     `To: ${encodeAddress(m.to)}`,
@@ -121,38 +121,42 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n', 'latin1')
 
 const PEOPLE = [
-  'Camille Laurent <camille.laurent@mmi-troyes.fr>',
-  'Hugo Bernard <hugo.bernard@mmi-troyes.fr>',
-  'Léa Dubois <lea.dubois@mmi-troyes.fr>',
-  'Scolarité IUT <scolarite@mmi-troyes.fr>',
-  'Nathan Moreau <nathan.moreau@mmi-troyes.fr>',
-  'Chloé Petit <chloe.petit@mmi-troyes.fr>',
-  'Service informatique <informatique@mmi-troyes.fr>',
-  'Inès Garcia <ines.garcia@mmi-troyes.fr>',
+  'Camille Laurent <camille.laurent@universite.example>',
+  'Hugo Bernard <hugo.bernard@universite.example>',
+  'Léa Dubois <lea.dubois@universite.example>',
+  'Scolarité <scolarite@universite.example>',
+  'Nathan Moreau <nathan.moreau@universite.example>',
+  'Chloé Petit <chloe.petit@universite.example>',
+  'Service informatique <informatique@universite.example>',
+  'Inès Garcia <ines.garcia@universite.example>',
 ]
 
 const TOPICS = [
-  ['Planning de la SAÉ 5.01', 'Voici le planning mis à jour pour la SAÉ. Les soutenances auront lieu la semaine prochaine.'],
+  ['Planning du projet tutoré 5.01', 'Voici le planning mis à jour pour le projet. Les soutenances auront lieu la semaine prochaine.'],
   ['Compte rendu de réunion', 'Merci à tous pour votre présence. Vous trouverez ci-dessous les points abordés.'],
   ['Changement de salle — cours de jeudi', 'Le cours de jeudi aura lieu en salle B204 au lieu de A102.'],
   ['Rendu du projet web', 'Pensez à déposer votre projet sur Moodle avant vendredi 18 h.'],
   ['Question sur le TP Vue.js', 'Est-ce que quelqu’un a réussi à faire fonctionner le routeur avec les paramètres dynamiques ?'],
-  ['Stage : offre en agence', 'Une agence troyenne recherche un·e stagiaire en développement front-end pour le printemps.'],
+  ['Stage : offre en agence', 'Une agence locale recherche un·e stagiaire en développement front-end pour le printemps.'],
   ['Maintenance du serveur mail', 'Le webmail sera indisponible samedi de 8 h à 10 h pour maintenance.'],
   ['Relances absences', 'Merci de justifier vos absences auprès de la scolarité dans les plus brefs délais.'],
   ['Photos de la journée portes ouvertes', 'Les photos de la JPO sont disponibles sur le drive du département.'],
   ['Café ☕ jeudi ?', 'On se retrouve à la cafétéria jeudi à 10 h pour parler du projet ?'],
 ] as const
 
-export function devFixtures(now: number): FixtureMessage[] {
+/**
+ * `me` : identité du titulaire de la boîte (nom affiché + adresse). Par défaut le
+ * compte `dev` ; le mode démo (server/lib/demo/accounts.ts) réutilise ce même jeu
+ * de données en l'adressant au compte visiteur généré.
+ */
+export function devFixtures(now: number, me = 'Dev Webmail <dev@universite.example>'): FixtureMessage[] {
   const random = rng(20260918)
   const day = 86_400_000
-  const me = 'Dev Webmail <dev@mmi-troyes.fr>'
   const list: FixtureMessage[] = []
 
   for (let i = 0; i < 62; i++) {
     const topic = TOPICS[Math.floor(random() * TOPICS.length)] ?? TOPICS[0]
-    const from = PEOPLE[Math.floor(random() * PEOPLE.length)] ?? 'Camille Laurent <camille.laurent@mmi-troyes.fr>'
+    const from = PEOPLE[Math.floor(random() * PEOPLE.length)] ?? 'Camille Laurent <camille.laurent@universite.example>'
     list.push({
       folder: 'INBOX',
       from,
@@ -169,11 +173,11 @@ export function devFixtures(now: number): FixtureMessage[] {
   list.push(
     {
       folder: 'INBOX',
-      from: 'Lettre MMI <newsletter@mmi-troyes.fr>',
+      from: 'Lettre du campus <newsletter@universite.example>',
       to: me,
-      subject: 'La lettre du département — septembre',
-      text: 'La lettre du département (version texte).',
-      html: '<div style="font-family:Arial;max-width:600px"><img src="https://cdn.example.org/header.png" alt="En-tête" width="600"><h1 style="color:#0b57d0">La lettre MMI</h1><p>Rentrée, projets, événements : toutes les nouvelles du mois.</p><img src="https://cdn.example.org/photo-jpo.jpg" alt="JPO"><img src="https://cdn.example.org/agenda.png" alt="Agenda"><p><a href="https://www.example.org/lettre">Lire en ligne</a></p><img src="https://track.example.org/open.gif?u=dev" width="1" height="1" alt=""></div>',
+      subject: 'La lettre du campus — septembre',
+      text: 'La lettre du campus (version texte).',
+      html: '<div style="font-family:Arial;max-width:600px"><img src="https://cdn.example.org/header.png" alt="En-tête" width="600"><h1 style="color:#0b57d0">La lettre du campus</h1><p>Rentrée, projets, événements : toutes les nouvelles du mois.</p><img src="https://cdn.example.org/photo-jpo.jpg" alt="JPO"><img src="https://cdn.example.org/agenda.png" alt="Agenda"><p><a href="https://www.example.org/lettre">Lire en ligne</a></p><img src="https://track.example.org/open.gif?u=dev" width="1" height="1" alt=""></div>',
       date: new Date(now - 2 * 3_600_000),
       seen: false,
       flagged: false,
@@ -204,8 +208,8 @@ export function devFixtures(now: number): FixtureMessage[] {
       from: PEOPLE[2] ?? '',
       to: me,
       subject: 'Maquette avec logo intégré',
-      html: '<p>Voici la maquette avec le logo :</p><p><img src="cid:logo@mmi" alt="Logo" width="64" height="64"></p>',
-      attachments: [{ filename: 'logo.png', contentType: 'image/png', content: PNG, cid: 'logo@mmi' }],
+      html: '<p>Voici la maquette avec le logo :</p><p><img src="cid:logo@demo" alt="Logo" width="64" height="64"></p>',
+      attachments: [{ filename: 'logo.png', contentType: 'image/png', content: PNG, cid: 'logo@demo' }],
       date: new Date(now - 30 * 3_600_000),
       seen: true,
       flagged: false,
@@ -214,7 +218,7 @@ export function devFixtures(now: number): FixtureMessage[] {
       folder: 'INBOX',
       from: PEOPLE[4] ?? '',
       to: me,
-      cc: 'Alice Martin <alice@mmi-troyes.fr>',
+      cc: 'Alice Martin <alice@universite.example>',
       subject: 'Un sujet très long pour vérifier que la liste des messages tronque correctement le texte sans casser la mise en page sur mobile à 320 pixels de large',
       text: 'Texte court.',
       date: new Date(now - 50 * 3_600_000),
@@ -250,7 +254,7 @@ export function devFixtures(now: number): FixtureMessage[] {
       headers: {
         'X-Priority': '1 (Highest)',
         'Importance': 'High',
-        'Disposition-Notification-To': 'hugo.bernard@mmi-troyes.fr',
+        'Disposition-Notification-To': 'hugo.bernard@universite.example',
       },
       date: new Date(now - 9 * 3_600_000),
       seen: false,
@@ -272,7 +276,7 @@ export function devFixtures(now: number): FixtureMessage[] {
   for (let i = 0; i < 3; i++) {
     list.push({ folder: 'INBOX.Envoyés', from: me, to: PEOPLE[i] ?? '', subject: `Re: ${TOPICS[i]?.[0] ?? ''}`, text: 'Merci, bien reçu !', date: new Date(now - (i + 1) * 2 * day), seen: true, flagged: false })
   }
-  list.push({ folder: 'INBOX.Brouillons', from: me, to: 'Camille Laurent <camille.laurent@mmi-troyes.fr>', subject: 'Brouillon : idées pour la SAÉ', text: 'Quelques idées à compléter…', date: new Date(now - day), seen: true, flagged: false, draft: true })
+  list.push({ folder: 'INBOX.Brouillons', from: me, to: 'Camille Laurent <camille.laurent@universite.example>', subject: 'Brouillon : idées pour le projet tutoré', text: 'Quelques idées à compléter…', date: new Date(now - day), seen: true, flagged: false, draft: true })
   for (let i = 0; i < 2; i++) {
     list.push({ folder: 'INBOX.Corbeille', from: PEOPLE[6] ?? '', to: me, subject: `Ancienne notification ${i + 1}`, text: 'Notification supprimée.', date: new Date(now - (20 + i) * day), seen: true, flagged: false })
   }
@@ -283,12 +287,12 @@ export function devFixtures(now: number): FixtureMessage[] {
   list.push({
     folder: 'INBOX',
     from: PEOPLE[7] ?? '',
-    to: 'Liste MMI <liste-mmi@mmi-troyes.fr>',
-    subject: 'Liste MMI : réunion de rentrée',
+    to: 'Liste Promo 2026 <liste-promo2026@universite.example>',
+    subject: 'Liste Promo 2026 : réunion de rentrée',
     text: 'Bonjour à toutes et à tous,\n\nLa réunion de rentrée aura lieu mardi à 9 h en amphi.\n\nInès',
     headers: {
-      'List-Id': 'Liste MMI <liste-mmi.mmi-troyes.fr>',
-      'List-Post': '<mailto:liste-mmi@mmi-troyes.fr>',
+      'List-Id': 'Liste Promo 2026 <liste-promo2026.universite.example>',
+      'List-Post': '<mailto:liste-promo2026@universite.example>',
     },
     date: new Date(now - 13 * 3_600_000),
     seen: false,
@@ -308,9 +312,9 @@ export function devFixtures(now: number): FixtureMessage[] {
         'VERSION:3.0',
         'N:Dubois;Léa;;;',
         'FN:Léa Dubois',
-        'EMAIL;TYPE=WORK:lea.dubois@mmi-troyes.fr',
+        'EMAIL;TYPE=WORK:lea.dubois@universite.example',
         'TEL;TYPE=CELL:+33 6 12 34 56 78',
-        'ORG:IUT de Troyes',
+        'ORG:Université Exemple',
         'TITLE:Enseignante',
         'END:VCARD',
         '',
@@ -327,7 +331,7 @@ export function devFixtures(now: number): FixtureMessage[] {
 }
 
 export function aliceFixtures(now: number): FixtureMessage[] {
-  const me = 'Alice Martin <alice@mmi-troyes.fr>'
+  const me = 'Alice Martin <alice@universite.example>'
   return Array.from({ length: 5 }, (_, i) => ({
     folder: 'INBOX',
     from: PEOPLE[i] ?? '',

@@ -31,7 +31,7 @@ export interface SieveConfig {
   port: number
   /** false uniquement en dev contre un certificat auto-signé (MAIL_TLS_REJECT_UNAUTHORIZED=false). */
   rejectUnauthorized: boolean
-  /** Nom vérifié dans le certificat (défaut : host). Ex. ManageSieve sur 127.0.0.1 avec le certificat de mail.mmi-troyes.fr. */
+  /** Nom vérifié dans le certificat (défaut : host). Ex. ManageSieve sur 127.0.0.1 avec le certificat de mail.universite.example. */
   servername?: string
 }
 

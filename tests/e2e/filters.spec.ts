@@ -16,13 +16,13 @@ import { expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 import { resetMock } from '../support/reset'
 
-const DEV = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
-const ALICE = { email: 'alice@mmi-troyes.fr', password: 'alice-password' }
+const DEV = { email: 'dev@universite.example', password: 'dev-password' }
+const ALICE = { email: 'alice@universite.example', password: 'alice-password' }
 
 // Données de test (docs/dev/PLAN-v3.md R1 / R2.8) : message reçu dans la boîte de
-// réception de dev@mmi-troyes.fr, envoyé par « Scolarité IUT ».
+// réception de dev@universite.example, envoyé par « Scolarité ».
 const GRADES = 'Relevé de notes — semestre 4'
-const SCOLARITE = 'scolarite@mmi-troyes.fr'
+const SCOLARITE = 'scolarite@universite.example'
 
 const isMobile = (page: Page) => (page.viewportSize()?.width ?? 1440) < 1024
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -253,7 +253,7 @@ test('F.5.1 — Transfert vers un domaine hors liste autorisée est refusé', as
 })
 
 test('F.5.2 — Transfert vers un domaine autorisé exige la confirmation du mot de passe du compte connecté, puis persiste', async ({ page }) => {
-  // Le compte connecté est dev@mmi-troyes.fr ; alice@mmi-troyes.fr n'est ici que
+  // Le compte connecté est dev@universite.example ; alice@universite.example n'est ici que
   // l'adresse de destination du transfert (domaine autorisé). La confirmation
   // d'identité porte donc sur le mot de passe de dev, pas celui d'alice.
   await loginToInbox(page, DEV)

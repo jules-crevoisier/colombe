@@ -11,17 +11,17 @@ describe('CredentialsStore', () => {
   })
 
   it('creates a session and returns a sid', () => {
-    const sid = store.create('dev@mmi-troyes.fr', 'password123')
+    const sid = store.create('dev@universite.example', 'password123')
     expect(sid).toBeTruthy()
     expect(typeof sid).toBe('string')
     expect(sid.length).toBeGreaterThan(20)
   })
 
   it('retrieves credentials by sid', () => {
-    const sid = store.create('dev@mmi-troyes.fr', 'password123')
+    const sid = store.create('dev@universite.example', 'password123')
     const creds = store.get(sid)
     expect(creds).toEqual({
-      email: 'dev@mmi-troyes.fr',
+      email: 'dev@universite.example',
       password: 'password123',
     })
   })
@@ -32,7 +32,7 @@ describe('CredentialsStore', () => {
   })
 
   it('updates lastSeen on get()', () => {
-    const sid = store.create('dev@mmi-troyes.fr', 'password123')
+    const sid = store.create('dev@universite.example', 'password123')
     clock.now = () => 1000
     store.get(sid)
     clock.now = () => 2000
@@ -44,7 +44,7 @@ describe('CredentialsStore', () => {
 
   it('expires after absolute TTL (8 hours)', () => {
     clock.now = () => 0
-    const sid = store.create('dev@mmi-troyes.fr', 'password123')
+    const sid = store.create('dev@universite.example', 'password123')
 
     clock.now = () => 7 * 60 * 60 * 1000 // 7 hours
     expect(store.get(sid)).not.toBeNull()
@@ -55,7 +55,7 @@ describe('CredentialsStore', () => {
 
   it('expires after idle TTL (2 hours)', () => {
     clock.now = () => 0
-    const sid = store.create('dev@mmi-troyes.fr', 'password123')
+    const sid = store.create('dev@universite.example', 'password123')
 
     clock.now = () => 1 * 60 * 60 * 1000 // 1 hour
     store.get(sid) // Touch it
@@ -66,7 +66,7 @@ describe('CredentialsStore', () => {
   })
 
   it('deletes a session', () => {
-    const sid = store.create('dev@mmi-troyes.fr', 'password123')
+    const sid = store.create('dev@universite.example', 'password123')
     expect(store.get(sid)).not.toBeNull()
     store.delete(sid)
     expect(store.get(sid)).toBeNull()
@@ -74,8 +74,8 @@ describe('CredentialsStore', () => {
 
   it('periodically sweeps expired sessions', async () => {
     clock.now = () => 0
-    const sid1 = store.create('dev@mmi-troyes.fr', 'password123')
-    const sid2 = store.create('alice@mmi-troyes.fr', 'password456')
+    const sid1 = store.create('dev@universite.example', 'password123')
+    const sid2 = store.create('alice@universite.example', 'password456')
 
     clock.now = () => 10 * 60 * 60 * 1000 // Both expired
 
@@ -88,13 +88,13 @@ describe('CredentialsStore', () => {
   })
 
   it('handles multiple sessions independently', () => {
-    const sid1 = store.create('dev@mmi-troyes.fr', 'password123')
-    const sid2 = store.create('alice@mmi-troyes.fr', 'password456')
+    const sid1 = store.create('dev@universite.example', 'password123')
+    const sid2 = store.create('alice@universite.example', 'password456')
 
     const creds1 = store.get(sid1)
     const creds2 = store.get(sid2)
 
-    expect(creds1?.email).toBe('dev@mmi-troyes.fr')
-    expect(creds2?.email).toBe('alice@mmi-troyes.fr')
+    expect(creds1?.email).toBe('dev@universite.example')
+    expect(creds2?.email).toBe('alice@universite.example')
   })
 })

@@ -10,6 +10,6 @@ describe('html utils', () => {
   })
   it('should build a signature block only when there is a signature', () => {
     expect(signatureBlock('')).toBe('')
-    expect(signatureBlock('<p>Léa<br>MMI</p>')).toBe('<p>--</p><p>Léa<br>MMI</p>')
+    expect(signatureBlock('<p>Léa<br>Campus</p>')).toBe('<p>--</p><p>Léa<br>Campus</p>')
   })
 })

@@ -58,7 +58,7 @@ function buildRoundcubeFixture() {
         user_id: '1',
         standard: '1',
         name: 'Alice Dupont',
-        organization: 'IUT',
+        organization: 'Faculté',
         email: 'alice@example.org',
         reply_to: '',
         bcc: '',
@@ -124,7 +124,7 @@ describe('applyGroupImport / applyIdentityImport / applyResponseImport (idempote
 
   it('identity: converts a plain-text signature to HTML with <br>, first import becomes default', () => {
     const db = openDatabase(':memory:')
-    const result = applyIdentityImport(db, OWNER, { name: 'Alice Dupont', replyTo: '', bcc: '', organization: 'IUT', signature: 'Ligne 1\nLigne 2', htmlSignature: false, email: OWNER, standard: true })
+    const result = applyIdentityImport(db, OWNER, { name: 'Alice Dupont', replyTo: '', bcc: '', organization: 'Faculté', signature: 'Ligne 1\nLigne 2', htmlSignature: false, email: OWNER, standard: true })
     expect(result.status).toBe('created')
     const row = db.prepare('SELECT signature_html, is_default FROM identities WHERE id = ?').get(result.id) as any
     expect(row.signature_html).toBe(textToHtml('Ligne 1\nLigne 2'))
@@ -134,11 +134,11 @@ describe('applyGroupImport / applyIdentityImport / applyResponseImport (idempote
   it('identity: re-importing the same owner+name updates instead of duplicating', () => {
     const db = openDatabase(':memory:')
     applyIdentityImport(db, OWNER, { name: 'Alice Dupont', replyTo: '', bcc: '', organization: '', signature: 'v1', htmlSignature: false, email: OWNER, standard: true })
-    applyIdentityImport(db, OWNER, { name: 'Alice Dupont', replyTo: '', bcc: '', organization: 'IUT', signature: 'v2', htmlSignature: false, email: OWNER, standard: true })
+    applyIdentityImport(db, OWNER, { name: 'Alice Dupont', replyTo: '', bcc: '', organization: 'Faculté', signature: 'v2', htmlSignature: false, email: OWNER, standard: true })
     const count = (db.prepare('SELECT COUNT(*) AS n FROM identities WHERE owner = ?').get(OWNER) as any).n
     expect(count).toBe(1)
     const row = db.prepare('SELECT organization FROM identities WHERE owner = ?').get(OWNER) as any
-    expect(row.organization).toBe('IUT')
+    expect(row.organization).toBe('Faculté')
   })
 
   it('identity: strips <script> and event handlers from an HTML signature', () => {
@@ -232,9 +232,9 @@ describe('importOneUser (import complet, pilote par les fonctions ci-dessus) + v
   it('maps a Roundcube username without @ to an owner e-mail using --domain', () => {
     const db = openDatabase(':memory:')
     const data = buildRoundcubeFixture()
-    const stats = importOneUser(db, 'alice@mmi-troyes.fr', '1', data, { parseVCards })
+    const stats = importOneUser(db, 'alice@universite.example', '1', data, { parseVCards })
     expect(stats.contacts.created).toBe(2)
-    const count = (db.prepare('SELECT COUNT(*) AS n FROM contacts WHERE owner = ?').get('alice@mmi-troyes.fr') as any).n
+    const count = (db.prepare('SELECT COUNT(*) AS n FROM contacts WHERE owner = ?').get('alice@universite.example') as any).n
     expect(count).toBe(2)
   })
 })

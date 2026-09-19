@@ -42,7 +42,7 @@ function client(): Client {
   return c
 }
 
-async function login(email = 'dev@mmi-troyes.fr', password = email.startsWith('dev') ? 'dev-password' : 'alice-password'): Promise<Client> {
+async function login(email = 'dev@universite.example', password = email.startsWith('dev') ? 'dev-password' : 'alice-password'): Promise<Client> {
   const c = client()
   const res = await c.request('/api/auth/login', { method: 'POST', body: { email, password } })
   expect(res.status).toBe(200)
@@ -63,23 +63,23 @@ describe('auth', () => {
   it('should log in and expose only the email in the session', async () => {
     const c = await login()
     const session = await c.json<Record<string, unknown>>('/api/_auth/session')
-    expect(session.user).toEqual({ email: 'dev@mmi-troyes.fr' })
+    expect(session.user).toEqual({ email: 'dev@universite.example' })
     expect(JSON.stringify(session)).not.toContain('dev-password')
     expect(c.cookie).not.toContain('dev-password')
   })
 
   it('should normalise the email address', async () => {
-    const res = await client().request('/api/auth/login', { method: 'POST', body: { email: '  DEV@mmi-troyes.fr ', password: 'dev-password' } })
+    const res = await client().request('/api/auth/login', { method: 'POST', body: { email: '  DEV@universite.example ', password: 'dev-password' } })
     expect(res.status).toBe(200)
   })
 
   it('should reject a wrong password with 401 and a foreign domain with 403', async () => {
-    expect((await client().request('/api/auth/login', { method: 'POST', body: { email: 'alice@mmi-troyes.fr', password: 'x' } })).status).toBe(401)
+    expect((await client().request('/api/auth/login', { method: 'POST', body: { email: 'alice@universite.example', password: 'x' } })).status).toBe(401)
     expect((await client().request('/api/auth/login', { method: 'POST', body: { email: 'bob@gmail.com', password: 'x' } })).status).toBe(403)
   })
 
   it('should rate-limit after 5 failures for the same address, even with the right password', async () => {
-    const email = 'ratelimit@mmi-troyes.fr'
+    const email = 'ratelimit@universite.example'
     for (let i = 0; i < 5; i++) {
       expect((await client().request('/api/auth/login', { method: 'POST', body: { email, password: 'bad' } })).status).toBe(401)
     }
@@ -126,7 +126,7 @@ describe('folders and messages', () => {
     expect(p2.items).toHaveLength(22)
     const dates = [...p1.items, ...p2.items].map(m => Date.parse(m.date))
     expect(dates).toEqual([...dates].sort((a, b) => b - a))
-    expect(p1.items[0]!.subject).toBe('La lettre du département — septembre')
+    expect(p1.items[0]!.subject).toBe('La lettre du campus — septembre')
   })
 
   it('should reject pageSize above 100 and an empty folder name', async () => {
@@ -160,7 +160,7 @@ describe('folders and messages', () => {
 
   it('should block remote images by default and inline cid images', async () => {
     const c = await login()
-    const news = await findBySubject(c, 'INBOX', 'La lettre du département — septembre')
+    const news = await findBySubject(c, 'INBOX', 'La lettre du campus — septembre')
     const detail = await c.json<MessageDetail>(`/api/messages/${news!.uid}?folder=INBOX`)
     expect(detail.remoteImages).toBe(4)
     expect(detail.html).not.toMatch(/\ssrc="https?:/)
@@ -209,21 +209,21 @@ describe('compose', () => {
     const subject = `Test envoi ${Date.now()}`
     const res = await dev.request('/api/send', {
       method: 'POST',
-      body: { to: ['alice@mmi-troyes.fr'], cc: [], bcc: ['secret@mmi-troyes.fr'], subject, text: 'Bonjour Alice' },
+      body: { to: ['alice@universite.example'], cc: [], bcc: ['secret@universite.example'], subject, text: 'Bonjour Alice' },
     })
     expect(res.status).toBe(204)
 
     const sent = await findBySubject(dev, 'INBOX.Envoyés', subject)
     expect(sent).toBeDefined()
     const sentDetail = await dev.json<MessageDetail>(`/api/messages/${sent!.uid}?folder=${encodeURIComponent('INBOX.Envoyés')}`)
-    expect(sentDetail.bcc.map(a => a.address)).toEqual(['secret@mmi-troyes.fr'])
+    expect(sentDetail.bcc.map(a => a.address)).toEqual(['secret@universite.example'])
 
-    const alice = await login('alice@mmi-troyes.fr')
+    const alice = await login('alice@universite.example')
     const received = await findBySubject(alice, 'INBOX', subject)
     expect(received?.seen).toBe(false)
     const receivedDetail = await alice.json<MessageDetail>(`/api/messages/${received!.uid}?folder=INBOX`)
     expect(receivedDetail.bcc).toEqual([])
-    expect(receivedDetail.from?.address).toBe('dev@mmi-troyes.fr')
+    expect(receivedDetail.from?.address).toBe('dev@universite.example')
   })
 
   it('should validate the payload', async () => {
@@ -231,12 +231,12 @@ describe('compose', () => {
     const send = (body: Record<string, unknown>) => dev.request('/api/send', { method: 'POST', body: { to: [], cc: [], bcc: [], subject: 's', text: 't', ...body } })
     expect((await send({})).status).toBe(400)
     expect((await send({ to: ['pas-une-adresse'] })).status).toBe(400)
-    expect((await send({ to: ['alice@mmi-troyes.fr'], subject: 'a\r\nBcc: x@evil.example' })).status).toBe(400)
+    expect((await send({ to: ['alice@universite.example'], subject: 'a\r\nBcc: x@evil.example' })).status).toBe(400)
   })
 
   it('should save a draft, replace it, then delete it when sent', async () => {
     const dev = await login()
-    const draft = { to: ['alice@mmi-troyes.fr'], cc: [], bcc: [], subject: 'Brouillon test', text: 'v1' }
+    const draft = { to: ['alice@universite.example'], cc: [], bcc: [], subject: 'Brouillon test', text: 'v1' }
     const first = await dev.request('/api/drafts', { method: 'POST', body: draft })
     const { uid: uid1 } = (await first.json()) as { uid: number }
     const second = await dev.request('/api/drafts', { method: 'POST', body: { ...draft, text: 'v2', draftUid: uid1 } })

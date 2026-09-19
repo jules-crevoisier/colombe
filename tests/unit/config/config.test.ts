@@ -44,7 +44,7 @@ describe('loadConfig', () => {
   it('backend mock : aucun serveur requis', () => {
     const c = loadConfig({ MAIL_BACKEND: 'mock' })
     expect(c.backend).toBe('mock')
-    expect(c.login.domains).toEqual(['mmi-troyes.fr'])
+    expect(c.login.domains).toEqual(['universite.example'])
   })
 
   it('alias historiques NUXT_MAIL_* et MAIL_ALLOWED_DOMAIN acceptés', () => {
@@ -101,6 +101,41 @@ describe('loadConfig', () => {
     expect(problems({ ...base, ...secrets, MAIL_TLS_REJECT_UNAUTHORIZED: 'false' })).toHaveLength(1)
     expect(problems({ ...secrets, MAIL_BACKEND: 'mock' })).toHaveLength(1)
     expect(problems({ ...secrets, MAIL_BACKEND: 'mock', WEBMAIL_ALLOW_MOCK: '1' })).toEqual([])
+  })
+})
+
+describe('démo publique (COLOMBE_DEMO)', () => {
+  it('désactivée par défaut, valeurs par défaut sinon', () => {
+    expect(loadConfig(base).demo).toEqual({ enabled: false, ttlHours: 4, maxAccounts: 200, projectUrl: null })
+    const c = loadConfig({ MAIL_BACKEND: 'mock', COLOMBE_DEMO: 'true' })
+    expect(c.demo).toEqual({ enabled: true, ttlHours: 4, maxAccounts: 200, projectUrl: null })
+  })
+
+  it('exige MAIL_BACKEND=mock', () => {
+    expect(problems({ ...base, COLOMBE_DEMO: 'true' })).toHaveLength(1)
+    expect(problems({ MAIL_BACKEND: 'mock', COLOMBE_DEMO: 'true' })).toEqual([])
+  })
+
+  it('en production, autorise le backend mock sans WEBMAIL_ALLOW_MOCK, mais exige toujours les deux secrets', () => {
+    expect(problems({ MAIL_BACKEND: 'mock', COLOMBE_DEMO: 'true', NODE_ENV: 'production' })).toHaveLength(2)
+    expect(problems({ ...secrets, MAIL_BACKEND: 'mock', COLOMBE_DEMO: 'true' })).toEqual([])
+  })
+
+  it('COLOMBE_DEMO_TTL_HOURS et COLOMBE_DEMO_MAX_ACCOUNTS : bornes 1..72 et 1..5000', () => {
+    const c = loadConfig({ MAIL_BACKEND: 'mock', COLOMBE_DEMO: 'true', COLOMBE_DEMO_TTL_HOURS: '12', COLOMBE_DEMO_MAX_ACCOUNTS: '50' })
+    expect(c.demo).toMatchObject({ ttlHours: 12, maxAccounts: 50 })
+    expect(problems({ MAIL_BACKEND: 'mock', COLOMBE_DEMO_TTL_HOURS: '0' })).toHaveLength(1)
+    expect(problems({ MAIL_BACKEND: 'mock', COLOMBE_DEMO_TTL_HOURS: '73' })).toHaveLength(1)
+    expect(problems({ MAIL_BACKEND: 'mock', COLOMBE_DEMO_MAX_ACCOUNTS: '0' })).toHaveLength(1)
+    expect(problems({ MAIL_BACKEND: 'mock', COLOMBE_DEMO_MAX_ACCOUNTS: '5001' })).toHaveLength(1)
+  })
+
+  it('COLOMBE_PROJECT_URL doit être une URL http(s), exposée par publicConfig uniquement en démo', () => {
+    expect(problems({ MAIL_BACKEND: 'mock', COLOMBE_PROJECT_URL: 'javascript:alert(1)' })).toHaveLength(1)
+    const withUrl = loadConfig({ MAIL_BACKEND: 'mock', COLOMBE_DEMO: 'true', COLOMBE_PROJECT_URL: 'https://colombe.example/' })
+    expect(publicConfig(withUrl).demo).toEqual({ ttlHours: 4, projectUrl: 'https://colombe.example/' })
+    const withoutDemo = loadConfig({ MAIL_BACKEND: 'mock', COLOMBE_PROJECT_URL: 'https://colombe.example/' })
+    expect(publicConfig(withoutDemo).demo).toBeNull()
   })
 })
 

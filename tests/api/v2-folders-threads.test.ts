@@ -47,7 +47,7 @@ function client(): Client {
   return c
 }
 
-async function login(email = 'dev@mmi-troyes.fr', password = email.startsWith('dev') ? 'dev-password' : 'alice-password'): Promise<Client> {
+async function login(email = 'dev@universite.example', password = email.startsWith('dev') ? 'dev-password' : 'alice-password'): Promise<Client> {
   const c = client()
   const res = await c.request('/api/auth/login', { method: 'POST', body: { email, password } })
   expect(res.status).toBe(200)

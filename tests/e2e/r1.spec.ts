@@ -10,8 +10,8 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { resetMock } from '../support/reset'
 
-const DEV = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
-const ALICE = { email: 'alice@mmi-troyes.fr', password: 'alice-password' }
+const DEV = { email: 'dev@universite.example', password: 'dev-password' }
+const ALICE = { email: 'alice@universite.example', password: 'alice-password' }
 
 // Test data from PLAN-v3
 const PHOTOS = 'Photos de la sortie'
@@ -154,7 +154,7 @@ test('R1.1.1 — Copier vers… submenu and destination folder', async ({ page }
 test('R1.1.1 — Signaler comme spam moves message to Spam folder', async ({ page }) => {
   await login(page)
 
-  const subject = 'La lettre du département — septembre'
+  const subject = 'La lettre du campus — septembre'
 
   await selectMessage(page, subject)
 

@@ -58,7 +58,7 @@ function createFakeClient(): FakeImapFlow {
   return client
 }
 
-const testCreds: MailCredentials = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
+const testCreds: MailCredentials = { email: 'dev@universite.example', password: 'dev-password' }
 const testConfig: MailServerConfig = {
   imapHost: '127.0.0.1',
   imapPort: 3143,
@@ -165,7 +165,7 @@ describe('InboxWatcher', () => {
     fakeClock.advanceTimersByTime(500)
     await vi.runAllTimersAsync()
 
-    expect(publishMailboxChange).toHaveBeenCalledWith('dev@mmi-troyes.fr', 'INBOX')
+    expect(publishMailboxChange).toHaveBeenCalledWith('dev@universite.example', 'INBOX')
     expect(publishMailboxChange).toHaveBeenCalledTimes(1)
 
     watcher.release(sid)
@@ -195,7 +195,7 @@ describe('InboxWatcher', () => {
     await vi.runAllTimersAsync()
 
     // Should publish once (last debounce window covers all)
-    expect(publishMailboxChange).toHaveBeenCalledWith('dev@mmi-troyes.fr', 'INBOX')
+    expect(publishMailboxChange).toHaveBeenCalledWith('dev@universite.example', 'INBOX')
 
     watcher.release(sid)
   })
