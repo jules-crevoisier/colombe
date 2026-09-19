@@ -74,9 +74,9 @@ describe('Démo publique (COLOMBE_DEMO=true)', () => {
     return c
   }
 
-  async function demoLogin(): Promise<{ client: Client; email: string }> {
+  async function demoLogin(headers?: Record<string, string>): Promise<{ client: Client; email: string }> {
     const c = client()
-    const res = await c.request('/api/auth/demo', { method: 'POST' })
+    const res = await c.request('/api/auth/demo', { method: 'POST', headers })
     expect(res.status, `POST /api/auth/demo → ${res.status}`).toBe(200)
     const body = (await res.json()) as LoginResult
     expect(body.user?.email).toMatch(/^visiteur-[0-9a-f]{8}@/)
@@ -196,6 +196,40 @@ describe('Démo publique (COLOMBE_DEMO=true)', () => {
       expect(inboxB.items.some(m => m.subject === subjectA)).toBe(false)
       const sentB = await b.client.json<MessagePage>(`/api/messages?folder=${encodeURIComponent('INBOX.Envoyés')}&pageSize=100`)
       expect(sentB.items.some(m => m.subject === subjectA)).toBe(false)
+    })
+
+    it('Accept-Language: en → boîte d\'échantillon anglaise et pref.language "en"', async () => {
+      const { client: c } = await demoLogin({ 'accept-language': 'en' })
+
+      const inbox = await c.json<MessagePage>('/api/messages?folder=INBOX&pageSize=100')
+      expect(inbox.items.some(m => m.subject === 'The Campus Newsletter — September')).toBe(true)
+      expect(inbox.items.some(m => m.subject.includes('Facture'))).toBe(false)
+
+      const prefs = await c.json<{ language: string }>('/api/prefs')
+      expect(prefs.language).toBe('en')
+    })
+
+    it('Accept-Language: fr (ou absent) → boîte d\'échantillon française et pref.language "fr"', async () => {
+      const { client: cFr } = await demoLogin({ 'accept-language': 'fr' })
+      const inboxFr = await cFr.json<MessagePage>('/api/messages?folder=INBOX&pageSize=100')
+      expect(inboxFr.items.some(m => m.subject === 'La lettre du campus — septembre')).toBe(true)
+      const prefsFr = await cFr.json<{ language: string }>('/api/prefs')
+      expect(prefsFr.language).toBe('fr')
+
+      // En-tête absent : comportement historique inchangé (français par défaut).
+      const { client: cAbsent } = await demoLogin()
+      const inboxAbsent = await cAbsent.json<MessagePage>('/api/messages?folder=INBOX&pageSize=100')
+      expect(inboxAbsent.items.some(m => m.subject === 'La lettre du campus — septembre')).toBe(true)
+    })
+
+    it('deux visiteurs de langues différentes sont isolés (aucune fuite de contenu entre boîtes)', async () => {
+      const { client: cEn } = await demoLogin({ 'accept-language': 'en' })
+      const { client: cFr } = await demoLogin({ 'accept-language': 'fr' })
+
+      const inboxEn = await cEn.json<MessagePage>('/api/messages?folder=INBOX&pageSize=100')
+      const inboxFr = await cFr.json<MessagePage>('/api/messages?folder=INBOX&pageSize=100')
+      expect(inboxEn.items.some(m => m.subject === 'La lettre du campus — septembre')).toBe(false)
+      expect(inboxFr.items.some(m => m.subject === 'The Campus Newsletter — September')).toBe(false)
     })
 
     it('429 après 10 créations depuis la même adresse IP', async () => {
