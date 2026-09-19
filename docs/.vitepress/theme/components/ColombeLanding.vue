@@ -93,7 +93,7 @@ const adminFacts = [
   },
   {
     title: 'Connexion unique de l’établissement',
-    text: 'OpenID Connect : CAS, Shibboleth, Keycloak. La messagerie est ouverte par jeton vérifié par Dovecot, aucun mot de passe stocké. Bancs d’essai réels fournis.',
+    text: 'OpenID Connect : Keycloak et Apereo CAS testés de bout en bout, fédération RENATER/SAML par passerelle. La messagerie est ouverte par jeton vérifié par Dovecot, aucun mot de passe stocké.',
     link: '/admin/connexion-unique',
     label: 'Connexion unique',
   },
