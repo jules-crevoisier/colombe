@@ -55,6 +55,9 @@ export async function setup(project: TestProject): Promise<void> {
       NUXT_SESSION_PASSWORD: 'test-session-password-at-least-32-characters-long',
       WEBMAIL_DATA_KEY: 'test-data-key-at-least-32-characters-long-xx',
       WEBMAIL_DATA_DIR: dataDir,
+      MAIL_PUBLIC_HOST: 'mail.univ-exemple.fr',
+      COLOMBE_ORG_NAME: 'Université Exemple',
+      COLOMBE_PASSWORD_RESET_URL: 'https://mdp.univ-exemple.fr/',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
