@@ -126,7 +126,9 @@ Recherche seule (jamais d'authentification) dans l'annuaire LDAP publié par
 l'établissement — schéma SupAnn/eduPerson par-dessus `inetOrgPerson`, comme
 l'annuaire LDAP de Roundcube. Désactivé par défaut ; activé dès que `LDAP_URL`
 est défini : la suggestion « Annuaire » apparaît dans le champ destinataires et
-un onglet **Annuaire de l'établissement** apparaît dans Contacts.
+un onglet **Annuaire de l'établissement** apparaît dans Contacts. Détail des
+attributs SupAnn, du compte de liaison et de la sécurité de la recherche :
+[Annuaire LDAP](/admin/annuaire).
 
 `ldap://` sans StartTLS n'est accepté que vers un hôte local (développement) — vers
 un hôte distant, utilisez `ldaps://` ou `LDAP_STARTTLS=true`, sinon Colombe refuse de
@@ -154,6 +156,31 @@ démarrer (le mot de passe de liaison ne doit jamais circuler en clair sur le r�
 Seules les fiches dont l'adresse appartient à `MAIL_DOMAINS` sont renvoyées, même si
 l'annuaire LDAP contient d'autres organisations. Les résultats sont mis en cache 60 s
 et la recherche est limitée à 30 requêtes par minute et par session.
+
+## Connexion unique (OpenID Connect)
+
+Authentification déléguée à l'annuaire fédéré de l'établissement (Keycloak, CAS 6+,
+Shibboleth, Entra ID, Google Workspace…) via OpenID Connect. Désactivée par défaut
+(`AUTH_METHODS=password`) ; activée en ajoutant `oidc` à `AUTH_METHODS`. Détail du choix
+entre les deux modes d'accès à la messagerie (`oauth2`/`master`), configuration Dovecot
+2.4 testée, notes Postfix, et sections par fournisseur d'identité (testé/non testé) :
+[Connexion unique](/admin/connexion-unique).
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `AUTH_METHODS` | `password` | Méthodes de connexion proposées : `password`, `oidc`, ou les deux séparées par une virgule/espace. Au moins une est obligatoire. |
+| `OIDC_ISSUER` | — (obligatoire avec `oidc`) | URL de l'émetteur OpenID Connect (découverte sur `<OIDC_ISSUER>/.well-known/openid-configuration`). https obligatoire, sauf boucle locale (tests). |
+| `OIDC_CLIENT_ID` | — (obligatoire) | Identifiant du client déclaré chez le fournisseur. |
+| `OIDC_CLIENT_SECRET` | — (obligatoire) | Secret du client confidentiel. |
+| `OIDC_SCOPES` | `openid email profile offline_access` | Portées demandées ; `openid` obligatoire. Voir la mise en garde sur `offline_access` dans [Connexion unique](/admin/connexion-unique#variables-colombe). |
+| `OIDC_EMAIL_CLAIM` | `email` | Revendication portant l'adresse de messagerie (jeton d'identité ou UserInfo). Sans `@`, `MAIL_LOGIN_DEFAULT_DOMAIN` est ajouté. |
+| `OIDC_BUTTON_LABEL` | `Se connecter avec mon compte de l'établissement` | Texte du bouton sur la page de connexion. |
+| `OIDC_LOGOUT` | `true` | Déconnexion aussi chez le fournisseur (`end_session_endpoint`) en plus de la déconnexion locale. |
+| `OIDC_REDIRECT_URL` | déduite (`<origine><base>api/auth/oidc/callback`) | À fixer si l'origine vue par Nitro n'est pas fiable. Doit se terminer par `/api/auth/oidc/callback`. |
+| `MAIL_SSO_AUTH` | `oauth2` | `oauth2` (jeton présenté à Dovecot, recommandé) ou `master` (utilisateur maître Dovecot, accès à **toutes** les boîtes). |
+| `MAIL_OAUTH_MECHANISM` | `xoauth2` | `xoauth2` ou `oauthbearer`, mode `oauth2` uniquement. |
+| `MAIL_MASTER_USER`, `MAIL_MASTER_PASSWORD`, `MAIL_MASTER_SEPARATOR` | — / — / `*` | Mode `master` uniquement. Mot de passe : 24 caractères minimum imposés au démarrage. |
+| `COLOMBE_PORTAL_URL` | — | Lien « Retour à l'ENT », affiché sur la page de connexion et utilisé comme destination de déconnexion si `OIDC_LOGOUT=false`. |
 
 ## Limites
 

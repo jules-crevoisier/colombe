@@ -18,6 +18,12 @@ place.
   mot de passe de messagerie.
 - Ne délivre, ne fait transiter et ne stocke aucun message : le courrier reste
   intégralement sur le serveur IMAP.
+- Peut déléguer l'authentification à l'annuaire fédéré de l'établissement via
+  **connexion unique OpenID Connect** (Keycloak testé ; CAS, Shibboleth, Entra ID, Google
+  Workspace documentés mais non testés) — voir [Connexion unique](/admin/connexion-unique).
+- Peut interroger l'**annuaire LDAP** de l'établissement (schéma SupAnn/eduPerson) pour
+  proposer les personnes de l'établissement dans les destinataires et dans Contacts —
+  recherche seule, jamais d'authentification — voir [Annuaire LDAP](/admin/annuaire).
 
 ## Architecture
 
@@ -84,6 +90,8 @@ Puis un reverse proxy devant, pour le HTTPS public — voir
 ## Pour aller plus loin
 
 - [Configuration complète](/admin/configuration) — toutes les variables d'environnement
+- [Connexion unique (OpenID Connect)](/admin/connexion-unique)
+- [Annuaire LDAP de l'établissement](/admin/annuaire)
 - [Proxy inverse](/admin/proxy-inverse) — Apache, Nginx, sous-chemin, HTTPS
 - [Configuration automatique des logiciels de messagerie](/admin/configuration-automatique)
 - [Migration depuis Roundcube](/admin/migration-roundcube)

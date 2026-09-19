@@ -54,8 +54,11 @@ option de style : les choix ci-dessous en découlent directement.
   `COLOMBE_PASSWORD_RESET_URL` pour y renvoyer.
 - **Remplacer une authentification forte centrale.** La double authentification de Colombe
   ne protège que le webmail : un mot de passe volé reste utilisable en IMAP par un autre
-  logiciel. Une connexion unique (CAS, Shibboleth, OpenID Connect) n'est pas encore
-  disponible.
+  logiciel. Une connexion unique **OpenID Connect** est disponible (Keycloak testé ; CAS
+  6+, Shibboleth, Entra ID, Google Workspace documentés mais non testés — voir
+  [Connexion unique](/admin/connexion-unique)) ; **SAML natif** n'est pas parlé directement
+  par Colombe (une passerelle OIDC devant un IdP SAML, ex. SATOSA ou Keycloak en SP/OP,
+  est l'architecture recommandée, non testée).
 - **Haute disponibilité.** Sessions et limites de débit sont en mémoire d'un seul
   processus : pas de répartition de charge entre plusieurs instances, déconnexion de tous
   au redémarrage.

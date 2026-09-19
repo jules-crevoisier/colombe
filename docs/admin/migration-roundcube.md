@@ -139,5 +139,6 @@ recompilation n'est nécessaire.
 | Plugin `attachment_reminder` | Rappel de pièce jointe oubliée |
 | Plugin `newmail_notifier` | Nouveaux messages en direct, notifications du bureau |
 | Plugin `password` | Pas de changement de mot de passe dans le webmail : lien `COLOMBE_PASSWORD_RESET_URL` vers l'outil de l'établissement |
-| Carnet d'adresses LDAP global | Pas encore disponible |
+| Carnet d'adresses LDAP global | [Annuaire LDAP](/admin/annuaire) (recherche seule, schéma SupAnn/eduPerson) |
+| Plugin CAS / authentification centralisée | [Connexion unique OpenID Connect](/admin/connexion-unique) (Keycloak testé ; CAS 6+ via son point de terminaison OIDC documenté mais non testé) |
 | Plugin `enigma` (PGP) | Non prévu |

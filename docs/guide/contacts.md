@@ -38,4 +38,16 @@ personnes régulièrement.
 
 En tapant un nom ou le début d'une adresse dans le champ **À**, **Cc** ou **Cci** d'un
 message, Colombe propose vos contacts correspondants — ajoutés à la main comme collectés
-automatiquement.
+automatiquement. Si votre établissement publie un annuaire (voir ci-dessous), les
+suggestions qui en viennent portent un badge **Annuaire**, à côté de vos contacts
+personnels.
+
+## Annuaire de l'établissement
+
+Si votre établissement l'a activé, un onglet **Annuaire de l'établissement** apparaît à
+côté de vos contacts. Tapez un nom, un prénom ou une adresse (au moins 3 caractères) pour
+rechercher parmi les personnes de l'établissement — collègues, services — et ajoutez-en
+une à vos contacts personnels en un clic.
+
+Cette recherche ne sert qu'à retrouver quelqu'un : elle ne vous connecte à aucun compte et
+n'a rien à voir avec la double authentification ou la connexion unique.

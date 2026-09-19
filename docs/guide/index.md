@@ -19,6 +19,31 @@ Colombe ne gère pas les mots de passe. Un lien « Mot de passe oublié ? » sur
 connexion, quand votre établissement l'a configuré, vous renvoie vers son propre outil.
 :::
 
+## Se connecter avec le compte de l'établissement
+
+Si votre établissement l'a activé, un bouton unique sur la page de connexion vous
+identifie avec votre compte habituel (le même que pour l'ENT ou les autres services de
+l'établissement) : plus de mot de passe à saisir dans Colombe. Après avoir choisi votre
+compte chez votre établissement, vous revenez automatiquement sur votre boîte de
+réception.
+
+Si Colombe propose aussi la connexion par mot de passe, elle reste accessible sous le
+bouton, derrière un lien « Se connecter avec un mot de passe » — utile par exemple pour un
+compte qui n'existe pas dans l'annuaire de l'établissement.
+
+Ce que ça change au quotidien :
+
+- **La double authentification de Colombe**, si vous l'avez activée dans vos paramètres,
+  continue de s'appliquer en plus — un second facteur propre à Colombe, indépendant de
+  votre compte d'établissement.
+- **Créer ou modifier un transfert ou une redirection** vous redemande de vous identifier
+  auprès de votre établissement (au lieu d'un mot de passe Colombe) : une fenêtre de 5
+  minutes s'ouvre après ce retour pour confirmer votre modification.
+- **Se déconnecter** de Colombe peut aussi vous déconnecter de votre compte
+  d'établissement, selon la configuration choisie par votre établissement.
+- Un lien **« Retour à l'ENT »**, s'il est configuré, ramène vers le portail de votre
+  établissement depuis la page de connexion.
+
 ## L'écran principal
 
 Une fois connecté, trois zones :

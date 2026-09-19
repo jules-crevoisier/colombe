@@ -143,6 +143,8 @@ export default defineConfigWithTheme<ColombeThemeConfig>({
           text: 'Configurer',
           items: [
             { text: 'Référence de configuration', link: '/admin/configuration' },
+            { text: 'Connexion unique (OpenID Connect)', link: '/admin/connexion-unique' },
+            { text: 'Annuaire LDAP', link: '/admin/annuaire' },
             { text: 'Configuration automatique des clients', link: '/admin/configuration-automatique' },
             { text: 'Migrer depuis Roundcube', link: '/admin/migration-roundcube' },
           ],
