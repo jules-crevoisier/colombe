@@ -608,7 +608,7 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
 
     <div class="min-h-0 flex-1 overflow-y-auto pb-24 lg:pb-0">
       <!-- Chargement -->
-      <ul v-if="loading" aria-busy="true" aria-label="Chargement des messages">
+      <ul v-if="loading" aria-busy="true" aria-label="Chargement en cours">
         <li v-for="n in 10" :key="n" class="flex items-center gap-3 border-b border-border px-4 py-3 @3xl:h-11 @3xl:py-0">
           <Skeleton class="size-10 shrink-0 rounded-full lg:size-4 lg:rounded" />
           <div class="flex flex-1 flex-col gap-2 @3xl:flex-row @3xl:items-center @3xl:gap-4">

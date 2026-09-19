@@ -6,6 +6,9 @@ export default defineNitroPlugin(() => {
   const { mail, session } = useRuntimeConfig()
   const production = process.env.NODE_ENV === 'production'
 
+  if (production && String((mail as { tlsRejectUnauthorized?: unknown }).tlsRejectUnauthorized) === 'false' && process.env.WEBMAIL_ALLOW_INSECURE_TLS !== '1') {
+    throw new Error('[webmail] MAIL_TLS_REJECT_UNAUTHORIZED=false est interdit en production.')
+  }
   if (production && mail.backend === 'mock' && process.env.WEBMAIL_ALLOW_MOCK !== '1') {
     throw new Error('[webmail] MAIL_BACKEND=mock est interdit en production.')
   }

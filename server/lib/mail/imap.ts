@@ -256,6 +256,7 @@ function newClient(creds: MailCredentials, config: MailServerConfig): ImapFlow {
     port: config.imapPort,
     secure: config.imapSecure,
     servername: config.host,
+    tls: { rejectUnauthorized: config.tlsRejectUnauthorized !== false },
     auth: { user: creds.email, pass: creds.password },
     logger: false,
     disableAutoIdle: true,
@@ -579,7 +580,7 @@ export class ImapBackend implements MailBackend {
       port: this.config.smtpPort,
       secure: this.config.smtpPort === 465,
       requireTLS: this.config.smtpRequireTls,
-      tls: { servername: this.config.host },
+      tls: { servername: this.config.host, rejectUnauthorized: this.config.tlsRejectUnauthorized !== false },
       auth: { user: this.creds.email, pass: this.creds.password },
       connectionTimeout: 15_000,
     })

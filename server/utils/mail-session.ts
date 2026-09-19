@@ -30,6 +30,7 @@ export function mailConfig(event: H3Event): ResolvedMailConfig {
       imapSecure: c.imapSecure === true || String(c.imapSecure) === 'true',
       smtpPort: Number(c.smtpPort),
       smtpRequireTls: c.smtpRequireTls === true || String(c.smtpRequireTls) === 'true',
+      tlsRejectUnauthorized: !(String((c as { tlsRejectUnauthorized?: unknown }).tlsRejectUnauthorized) === 'false'),
     },
   }
 }

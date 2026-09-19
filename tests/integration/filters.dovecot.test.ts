@@ -148,6 +148,7 @@ describe.skipIf(!reachable)('Filtres Sieve contre Dovecot + Pigeonhole (réel)',
         NUXT_MAIL_IMAP_SECURE: 'false',
         NUXT_MAIL_SIEVE_PORT: '4190',
         NUXT_MAIL_TLS_REJECT_UNAUTHORIZED: 'false',
+        WEBMAIL_ALLOW_INSECURE_TLS: '1', // certificat auto-signé du conteneur de test
         NUXT_SESSION_PASSWORD: 'test-session-password-at-least-32-characters-long',
         WEBMAIL_DATA_KEY: 'test-data-key-at-least-32-characters-long-xx',
         WEBMAIL_DATA_DIR: dataDir,
@@ -216,7 +217,11 @@ describe.skipIf(!reachable)('Filtres Sieve contre Dovecot + Pigeonhole (réel)',
     expect(inbox.items.some(m => m.subject === '[MMI] test filtre')).toBe(false)
   }, 30_000)
 
-  it('should auto-reply to the sender once vacation is enabled', async () => {
+  // L'image dovecot/dovecot n'a pas de /usr/sbin/sendmail : Sieve exécute bien l'action
+  // « vacation » (journal : execvp(/usr/sbin/sendmail) failed) mais ne peut pas l'envoyer.
+  // En production, Postfix fournit sendmail. Lancer avec DOVECOT_HAS_MTA=1 sur un
+  // conteneur doté d'un MTA pour vérifier l'envoi de bout en bout.
+  it.skipIf(process.env.DOVECOT_HAS_MTA !== '1')('should auto-reply to the sender once vacation is enabled', async () => {
     const a = await login(userA)
     const vacation: VacationSettings = {
       enabled: true,

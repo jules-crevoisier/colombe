@@ -131,4 +131,6 @@ export interface MailServerConfig {
   imapSecure: boolean
   smtpPort: number
   smtpRequireTls: boolean
+  /** false uniquement en dev/tests contre un certificat auto-signé (interdit en production). */
+  tlsRejectUnauthorized?: boolean
 }
