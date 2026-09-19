@@ -487,3 +487,8 @@ export interface SecurityConfirmation {
   confirmPassword?: string
   totpCode?: string
 }
+
+/** POST /api/filters/apply : filtre appliqué aux messages déjà présents (docs/PLAN-v4.md F.2). */
+export interface FilterApplyResult {
+  applied: number
+}

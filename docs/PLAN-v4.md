@@ -230,6 +230,36 @@ interface FiltersStatus { available: boolean; capabilities: string[]; sets: Filt
 - Lecture → « Plus d'actions » → **« Créer un filtre… »** : boîte « Nouveau filtre »
   préremplie (De = expéditeur, Objet = objet).
 
+### F.2 Filtres « à la Gmail » (demande du 19/09)
+
+L'utilisateur crée un filtre comme dans Gmail, sans connaître Sieve. Le mode décrit
+ci-dessus (conditions et opérateurs détaillés, ensembles, script) reste disponible sous
+**« Mode avancé »**.
+
+- **Depuis la recherche** : le panneau « Options de recherche » a un bouton
+  **« Créer un filtre »** qui ouvre « Nouveau filtre » prérempli avec les critères saisis.
+- **Boîte « Nouveau filtre » (mode simple, par défaut)** — critères, tous combinés (ET) :
+  **« De »**, **« À »**, **« Objet »**, **« Contient les mots »**, **« Ne contient pas »** ;
+  actions (cases à cocher) : **« Ignorer la boîte de réception (archiver) »**,
+  **« Marquer comme lu »**, **« Suivre »**, **« Classer dans le dossier »** (liste des
+  dossiers), **« Transférer à »** (confirmation d'identité, domaines autorisés),
+  **« Supprimer »** ; case **« Appliquer aussi aux messages existants »** ; boutons
+  **« Annuler »** / **« Créer le filtre »** (**« Enregistrer »** en modification).
+  Correspondance Sieve : De → `from` contient, À → `to-cc` contient, Objet → `subject`
+  contient, Contient les mots → `body` contient, Ne contient pas → `body` ne contient pas ;
+  archiver → `move` vers le dossier Archives, classer → `move`, supprimer → `delete`.
+- **Liste « Filtres »** : une ligne lisible par filtre, ex.
+  « De : scolarite@mmi-troyes.fr → Classer dans Projets, Marquer comme lu », avec
+  interrupteur « Actif », **« Modifier »**, **« Supprimer »**, **« Monter »**, **« Descendre »**.
+  Les ensembles, le script, l'import et l'export sont regroupés sous **« Mode avancé »**.
+- **Appliquer aux messages existants** : `POST /api/filters/apply { rule: FilterRule }` →
+  `{ applied: number }` ; le serveur cherche dans la **boîte de réception** les messages qui
+  correspondent (mêmes critères que la recherche) et applique `move`, `copy`, `mark-read`,
+  `flag`, `delete`. **Jamais** `redirect`, `notify` ni `reject` sur l'existant (seul le
+  courrier à venir est concerné). Toast **« Filtre appliqué à {n} message(s) »**.
+- Le filtre simple est enregistré dans l'ensemble actif (créé sous le nom `colombe` au
+  besoin), comme la réponse automatique.
+
 ### Tests
 
 - API (testeur aveugle) contre le faux serveur ManageSieve.
