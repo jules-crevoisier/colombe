@@ -3,6 +3,28 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Colombe suit un schéma de version proche de [SemVer](https://semver.org/lang/fr/).
 
+## [1.0.0-rc.6] — 2026-09-19
+
+### Corrigé
+
+- **La langue choisie sur la page de connexion s'applique à toute l'application** : elle est
+  enregistrée dans les préférences du compte (si celles-ci sont sur « Automatique »), donc
+  conservée après la connexion, au rechargement et sur les autres appareils. Le choix fait
+  dans les Paramètres reste prioritaire.
+
+### Ajouté
+
+- **Messages de démonstration en anglais** : un visiteur dont le navigateur est en anglais
+  reçoit une boîte d'exemple en anglais (même structure, mêmes pièces jointes, même message
+  piégé qui éprouve l'assainisseur), et son compte démarre en anglais.
+
+### Modifié
+
+- Documentation relue avant l'annonce publique : liens corrigés (casse des noms de fichiers),
+  variables du mode démonstration ajoutées à `.env.example`, bancs d'essai de connexion
+  unique listés dans la page « Contribuer », page d'accueil complétée (connexion unique,
+  annuaire, langues).
+
 ## [1.0.0-rc.5] — 2026-09-19
 
 ### Ajouté
@@ -163,6 +185,7 @@ d'environnement. En production dans un institut universitaire depuis le
 - Intégration continue (tests et vérification des types à chaque changement,
   publication de la release en brouillon sur les tags de version)
 
+[1.0.0-rc.6]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.6
 [1.0.0-rc.5]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.5
 [1.0.0-rc.4]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.4
 [1.0.0-rc.3]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.3
