@@ -1,0 +1,38 @@
+# Sert le site vitrine statique (VitePress, docs/.vitepress/dist) derrière
+# Traefik (Dokploy). Traefik termine déjà le TLS et transmet en HTTP en clair :
+# pas de HTTPS automatique ici (auto_https off), pas d'API d'admin exposée,
+# rien à écrire sur disque (système de fichiers en lecture seule, voir
+# docker-compose.yml — seul /tmp est accessible en écriture).
+
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	root * /srv/site
+	encode zstd gzip
+
+	# URLs "propres" de VitePress : /guide -> guide.html si guide/ n'existe pas.
+	try_files {path} {path}.html {path}/ =404
+	file_server
+
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Site statique, sans ressource externe (voir CLAUDE.md : auto-hébergé,
+		# aucun CDN) : politique stricte. À desserrer si le site VitePress fini
+		# a besoin d'une source externe précise (peu probable).
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

@@ -29,3 +29,115 @@ jobs:
 
       - name: Unit tests
         run: pnpm test
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (linux/amd64, loaded locally)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: colombe:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            IMAGE_VERSION=0.0.0-ci
+            IMAGE_REVISION=${{ github.sha }}
+            IMAGE_SOURCE=https://github.com/${{ github.repository }}
+
+      - name: Run container
+        run: |
+          docker run -d --name colombe-ci \
+            -p 3000:3000 \
+            -e NODE_ENV=production \
+            -e MAIL_BACKEND=mock \
+            -e WEBMAIL_ALLOW_MOCK=1 \
+            -e NUXT_SESSION_PASSWORD="ci-session-password-at-least-32-chars-long" \
+            -e WEBMAIL_DATA_KEY="ci-data-key-different-value-32-chars-min" \
+            colombe:ci
+
+      - name: Wait for health endpoint and container health status
+        run: |
+          for i in $(seq 1 30); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/health || true)"
+            status="$(docker inspect --format='{{.State.Health.Status}}' colombe-ci 2>/dev/null || true)"
+            echo "attempt $i: /api/health=$code container-health=$status"
+            if [ "$code" = "200" ] && [ "$status" = "healthy" ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container never became healthy in time." >&2
+          docker logs colombe-ci >&2 || true
+          exit 1
+
+      - name: Check /login responds 200
+        run: |
+          code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/login)"
+          echo "/login -> $code"
+          test "$code" = "200"
+
+      - name: Check the process runs as non-root
+        run: |
+          user="$(docker inspect --format='{{.Config.User}}' colombe-ci)"
+          echo "Config.User = $user"
+          # L'image d'exécution est distroless (pas de shell, pas de commande "id") :
+          # on vérifie via `docker inspect` plutôt que `docker exec ... id -u`.
+          test -n "$user"
+          test "$user" != "root"
+          test "$user" != "0"
+          test "$user" != "0:0"
+
+      - name: Run colombe-doctor --help inside the container
+        run: docker exec colombe-ci node scripts/colombe-doctor.mjs --help
+
+      - name: Measure docker stop duration (must stay well under the 10s default grace period)
+        run: |
+          start=$(date +%s%N)
+          docker stop colombe-ci
+          end=$(date +%s%N)
+          ms=$(( (end - start) / 1000000 ))
+          echo "docker stop took ${ms} ms"
+          echo "docker stop: ${ms} ms" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$ms" -ge 5000 ]; then
+            echo "docker stop took >= 5000ms (Nitro's SIGTERM handling may be broken, or tini/init is missing)." >&2
+            exit 1
+          fi
+
+      - name: Report image size
+        run: |
+          size_bytes="$(docker image inspect colombe:ci --format='{{.Size}}')"
+          size_mb="$(awk "BEGIN { printf \"%.1f\", ${size_bytes} / 1024 / 1024 }")"
+          echo "### Image size" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`colombe:ci\`: ${size_bytes} bytes (~${size_mb} MiB, uncompressed on-disk)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up container
+        if: always()
+        run: docker rm -f colombe-ci || true
+
+      - name: Trivy vulnerability scan (report only, does not fail the build)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: colombe:ci
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '0'
+          output: trivy-report.txt
+
+      - name: Publish Trivy report to summary
+        if: always()
+        run: |
+          echo "### Trivy scan (CRITICAL,HIGH, ignore-unfixed)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat trivy-report.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

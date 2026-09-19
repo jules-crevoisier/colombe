@@ -1,0 +1,96 @@
+# Stack de démo publique de Colombe, pour un déploiement Dokploy (PaaS
+# auto-hébergé : il clone cette branche, construit ce fichier avec
+# `docker compose -f deploy/dokploy/docker-compose.yml up -d --build`, et gère
+# lui-même les domaines/HTTPS via Traefik — configuré dans SON interface, pas
+# ici). Voir README.md pour la marche à suivre complète.
+#
+# Deux services, tous deux CONSTRUITS depuis ce dépôt (aucune image pré-construite
+# à publier séparément pour la démo) :
+#   - colombe : l'application, en mode démo (COLOMBE_DEMO=true, voir le contrat
+#     gelé documenté dans .env.example et server/lib/config).
+#   - site    : le site vitrine statique (VitePress, docs/), construit par
+#     deploy/dokploy/site.Dockerfile et servi par Caddy.
+#
+# Règles Dokploy respectées ici (voir docs.dokploy.com) :
+#   - pas de "container_name" (interfère avec les logs/métriques de Dokploy) ;
+#   - "expose" plutôt que "ports" : aucun port publié sur l'hôte, c'est Traefik
+#     (réseau externe "dokploy-network") qui route vers chaque service — le
+#     port interne de chaque service se choisit dans l'onglet "Domains" de
+#     Dokploy (colombe -> 3000, site -> 8080, voir README.md) ;
+#   - les variables du panneau "Environment" de Dokploy sont écrites dans un
+#     ".env" à côté de ce fichier mais PAS injectées automatiquement dans les
+#     conteneurs : elles doivent être reprises explicitement ci-dessous via
+#     "${VARIABLE}" (substitution faite par Docker Compose à la lecture de ce
+#     fichier, pas par Dokploy).
+#
+# SSE : l'endpoint /api/events (événements serveur de Colombe) doit rester non
+# bufferisé de bout en bout. Traefik, contrairement à certains reverse proxies,
+# ne bufferise pas les réponses par défaut : rien à configurer côté Traefik.
+
+services:
+  colombe:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Contrat démo (server/lib/config) : MAIL_BACKEND=mock est obligatoire
+      # avec COLOMBE_DEMO=true, et ce sans WEBMAIL_ALLOW_MOCK — contrairement
+      # au mode mock "hors démo", interdit en production sans cette dérogation.
+      MAIL_BACKEND: mock
+      COLOMBE_DEMO: "true"
+      COLOMBE_DEMO_TTL_HOURS: ${COLOMBE_DEMO_TTL_HOURS:-4}
+      COLOMBE_DEMO_MAX_ACCOUNTS: ${COLOMBE_DEMO_MAX_ACCOUNTS:-200}
+      COLOMBE_PROJECT_URL: ${COLOMBE_PROJECT_URL}
+      # Secrets : obligatoires même en mode démo (chiffrement du cookie de
+      # session et des données locales). Saisis dans l'onglet "Environment"
+      # de Dokploy — voir README.md pour la commande openssl. La syntaxe
+      # "${VAR:?...}" fait échouer le déploiement tout de suite si l'une des
+      # deux manque, plutôt que de démarrer avec une chaîne vide.
+      NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD:?NUXT_SESSION_PASSWORD est obligatoire (voir README.md)}
+      WEBMAIL_DATA_KEY: ${WEBMAIL_DATA_KEY:?WEBMAIL_DATA_KEY est obligatoire (voir README.md)}
+    expose:
+      - "3000"
+    networks:
+      - dokploy-network
+    # Durcissement (mêmes règles que deploy/docker/docker-compose.yml) :
+    # système de fichiers en lecture seule, aucune capacité Linux, pas
+    # d'élévation de privilèges. Pas de volume /data : le mode démo garde
+    # tout en mémoire (aucune persistance voulue entre redémarrages).
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  site:
+    build:
+      context: ../..
+      dockerfile: deploy/dokploy/site.Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8080"
+    networks:
+      - dokploy-network
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+networks:
+  dokploy-network:
+    external: true
