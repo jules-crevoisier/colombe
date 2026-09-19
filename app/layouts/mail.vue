@@ -297,9 +297,11 @@ useHead({
     </Sheet>
 
     <!-- Mobile : « Nouveau message », une lettre au coin replié. L'ombre est portée par
-         l'enveloppe : le coin découpé du bouton rognerait une ombre posée sur le bouton. -->
+         l'enveloppe : le coin découpé du bouton rognerait une ombre posée sur le bouton.
+         Absent des Paramètres et des Contacts : une seule action principale par écran
+         (« Nouveau contact », « Écrire un message »), et il masquait « Enregistrer » d'une fiche. -->
     <div
-      v-if="!compose.isOpen && !route.path.startsWith('/settings')"
+      v-if="!compose.isOpen && !route.path.startsWith('/settings') && !route.path.startsWith('/contacts')"
       class="fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-20 drop-shadow-[0_10px_16px_rgb(13_19_36/0.28)] lg:hidden"
     >
       <button
