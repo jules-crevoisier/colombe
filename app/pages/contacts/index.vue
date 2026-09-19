@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import { watchDebounced } from '@vueuse/core'
+import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
 import { FileDown, FolderOpen, Plus, Search, Users } from '@lucide/vue'
 import type { Contact, ContactDetail, ContactDetailInput, ContactGroup } from '#shared/types/mail'
 
 definePageMeta({ layout: 'mail' })
 
 const api = useContactsApi()
+const { config: siteConfig } = useSiteConfig()
+const activeTab = ref<'contacts' | 'directory'>('contacts')
 
 const contacts = ref<Contact[]>([])
 const groups = ref<ContactGroup[]>([])
@@ -151,7 +154,29 @@ useHead({ title: 'Contacts' })
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 flex-col lg:flex-row">
+  <TabsRoot v-model="activeTab" class="flex h-full min-h-0 flex-col">
+    <!-- Onglets : masqués sans annuaire LDAP configuré, l'interface reste identique
+         à avant (docs/dev — annuaire de l'établissement). -->
+    <TabsList v-if="siteConfig.features.directory" aria-label="Contacts" class="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-3 pt-2 [scrollbar-width:none] sm:px-4">
+      <TabsTrigger
+        value="contacts"
+        class="relative -mb-px h-11 flex-none border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=active]:border-nav-marker data-[state=active]:font-semibold data-[state=active]:text-foreground"
+      >
+        Mes contacts
+      </TabsTrigger>
+      <TabsTrigger
+        value="directory"
+        class="relative -mb-px h-11 flex-none border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=active]:border-nav-marker data-[state=active]:font-semibold data-[state=active]:text-foreground"
+      >
+        Annuaire de l'établissement
+      </TabsTrigger>
+    </TabsList>
+
+    <TabsContent value="directory" class="min-h-0 flex-1 outline-none">
+      <ContactsDirectoryPanel @added="loadContacts" />
+    </TabsContent>
+
+  <TabsContent value="contacts" class="flex min-h-0 flex-1 flex-col outline-none lg:flex-row">
     <!-- Groupes (à gauche sur bureau, bandeau en haut sur mobile) -->
     <nav aria-label="Groupes de contacts" class="flex shrink-0 gap-1 overflow-x-auto border-b border-border p-2 [scrollbar-width:none] lg:w-56 lg:flex-col lg:overflow-visible lg:border-r lg:border-b-0 lg:p-3">
       <button
@@ -283,5 +308,6 @@ useHead({ title: 'Contacts' })
         </form>
       </DialogContent>
     </Dialog>
-  </div>
+  </TabsContent>
+  </TabsRoot>
 </template>

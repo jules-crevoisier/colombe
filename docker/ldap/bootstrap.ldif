@@ -1,0 +1,196 @@
+# Annuaire de test « Université Exemple » (dc=universite,dc=example), pour
+# docker-compose.ldap.yml. ~15 personnes, schéma inetOrgPerson uniquement : l'image
+# osixia/openldap n'embarque pas les schémas eduPerson/SupAnn par défaut, donc pas de
+# eduPersonPrimaryAffiliation ici (LDAP_ATTR_AFFILIATION reste absent → affiliation
+# null côté API, ce qui est le comportement attendu et couvert par les tests). ou/title
+# restent des attributs inetOrgPerson standard, donc bien présents.
+#
+# Un établissement réel avec un schéma SupAnn/eduPerson verrait `affiliation` rempli
+# normalement (voir docs/admin/configuration.md).
+
+dn: ou=people,dc=universite,dc=example
+objectClass: organizationalUnit
+ou: people
+
+dn: uid=jdupont,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: jdupont
+cn: Jean Dupont
+sn: Dupont
+givenName: Jean
+displayName: Jean Dupont
+mail: jean.dupont@universite.example
+telephoneNumber: +33325000001
+title: Maître de conférences
+ou: Informatique
+
+dn: uid=mcurie,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: mcurie
+cn: Marie Curie
+sn: Curie
+givenName: Marie
+displayName: Marie Curie
+mail: marie.curie@universite.example
+telephoneNumber: +33325000002
+title: Professeure
+ou: Physique
+
+dn: uid=eberanger,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: eberanger
+cn: Éléonore Béranger
+sn: Béranger
+givenName: Éléonore
+displayName: Éléonore Béranger
+mail: eleonore.beranger@universite.example
+telephoneNumber: +33325000003
+title: Maîtresse de conférences
+ou: Informatique
+
+dn: uid=fnoel,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: fnoel
+cn: François Noël
+sn: Noël
+givenName: François
+displayName: François Noël
+mail: francois.noel@universite.example
+telephoneNumber: +33325000004
+title: Ingénieur pédagogique
+ou: Direction des usages numériques
+
+dn: uid=agarcia,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: agarcia
+cn: Amélie García
+sn: García
+givenName: Amélie
+displayName: Amélie García
+mail: amelie.garcia@universite.example
+telephoneNumber: +33325000005
+title: Secrétaire pédagogique
+ou: Scolarité
+
+dn: uid=hleroux,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: hleroux
+cn: Hugo Leroux
+sn: Leroux
+givenName: Hugo
+displayName: Hugo Leroux
+mail: hugo.leroux@universite.example
+telephoneNumber: +33325000006
+title: Étudiant
+ou: Informatique
+
+dn: uid=lrousseau,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: lrousseau
+cn: Léa Rousseau
+sn: Rousseau
+givenName: Léa
+displayName: Léa Rousseau
+mail: lea.rousseau@universite.example
+telephoneNumber: +33325000007
+title: Étudiante
+ou: Informatique
+
+dn: uid=tmartin,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: tmartin
+cn: Thomas Martin
+sn: Martin
+givenName: Thomas
+displayName: Thomas Martin
+mail: thomas.martin@universite.example
+telephoneNumber: +33325000008
+title: Technicien informatique
+ou: Direction des usages numériques
+
+dn: uid=cbernard,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: cbernard
+cn: Camille Bernard
+sn: Bernard
+givenName: Camille
+displayName: Camille Bernard
+mail: camille.bernard@universite.example
+telephoneNumber: +33325000009
+title: Chargée de communication
+ou: Direction de la communication
+
+dn: uid=npetit,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: npetit
+cn: Nicolas Petit
+sn: Petit
+givenName: Nicolas
+displayName: Nicolas Petit
+mail: nicolas.petit@universite.example
+telephoneNumber: +33325000010
+title: Enseignant-chercheur
+ou: Mathématiques
+
+dn: uid=sdurand,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: sdurand
+cn: Sophie Durand
+sn: Durand
+givenName: Sophie
+displayName: Sophie Durand
+mail: sophie.durand@universite.example
+telephoneNumber: +33325000011
+title: Responsable scolarité
+ou: Scolarité
+
+dn: uid=jmoreau,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: jmoreau
+cn: Julie Moreau
+sn: Moreau
+givenName: Julie
+displayName: Julie Moreau
+mail: julie.moreau@universite.example
+telephoneNumber: +33325000012
+title: Étudiante
+ou: Physique
+
+dn: uid=blefevre,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: blefevre
+cn: Benoît Lefèvre
+sn: Lefèvre
+givenName: Benoît
+displayName: Benoît Lefèvre
+mail: benoit.lefevre@universite.example
+telephoneNumber: +33325000013
+title: Directeur des systèmes d'information
+ou: Direction des usages numériques
+
+dn: uid=mfontaine,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: mfontaine
+cn: Manon Fontaine
+sn: Fontaine
+givenName: Manon
+displayName: Manon Fontaine
+mail: manon.fontaine@universite.example
+telephoneNumber: +33325000014
+title: Étudiante
+ou: Mathématiques
+
+# Adresse hors domaine (partenaire externe fiché par erreur dans l'annuaire interne) :
+# ne doit JAMAIS apparaître dans une réponse de GET /api/directory/search — c'est le
+# cas précis couvert par tests/integration/ldap.test.ts et tests/api/directory.test.ts.
+dn: uid=partenaire,ou=people,dc=universite,dc=example
+objectClass: inetOrgPerson
+uid: partenaire
+cn: Paul Partenaire
+sn: Partenaire
+givenName: Paul
+displayName: Paul Partenaire
+mail: paul.partenaire@labo-externe.fr
+telephoneNumber: +33325000015
+title: Partenaire de recherche
+ou: Laboratoire externe

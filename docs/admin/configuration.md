@@ -120,6 +120,41 @@ Si aucun nom public n'est connu (Colombe configuré sur `localhost` sans
 | `COLOMBE_PASSWORD_RESET_URL` | — | Lien « Mot de passe oublié ? » vers l'outil de votre établissement (Colombe ne change aucun mot de passe). |
 | `COLOMBE_SUPPORT_URL`, `COLOMBE_SUPPORT_EMAIL` | — | Lien « Besoin d'aide ? ». |
 
+## Annuaire de l'établissement (LDAP)
+
+Recherche seule (jamais d'authentification) dans l'annuaire LDAP publié par
+l'établissement — schéma SupAnn/eduPerson par-dessus `inetOrgPerson`, comme
+l'annuaire LDAP de Roundcube. Désactivé par défaut ; activé dès que `LDAP_URL`
+est défini : la suggestion « Annuaire » apparaît dans le champ destinataires et
+un onglet **Annuaire de l'établissement** apparaît dans Contacts.
+
+`ldap://` sans StartTLS n'est accepté que vers un hôte local (développement) — vers
+un hôte distant, utilisez `ldaps://` ou `LDAP_STARTTLS=true`, sinon Colombe refuse de
+démarrer (le mot de passe de liaison ne doit jamais circuler en clair sur le réseau).
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `LDAP_URL` | — | `ldaps://annuaire.univ-exemple.fr:636` (ou `ldap://…` + `LDAP_STARTTLS=true`). Active la fonctionnalité. |
+| `LDAP_STARTTLS` | `false` | StartTLS sur une URL `ldap://`. |
+| `LDAP_BIND_DN`, `LDAP_BIND_PASSWORD` | — (liaison anonyme) | Les deux ensemble, ou aucun des deux. Un compte lecture seule suffit. |
+| `LDAP_BASE_DN` | — (obligatoire) | Base de recherche, ex. `dc=univ-exemple,dc=fr`. |
+| `LDAP_FILTER` | `(&(objectClass=inetOrgPerson)(mail=*))` | Filtre de base, combiné en ET avec les termes de recherche. |
+| `LDAP_SEARCH_ATTRS` | `cn,displayName,mail,sn,givenName,uid` | Attributs comparés à chaque mot de la requête. |
+| `LDAP_ATTR_NAME` | `displayName` | Nom affiché ; repli sur `cn` si absent sur la fiche. |
+| `LDAP_ATTR_EMAIL` | `mail` | |
+| `LDAP_ATTR_PHONE` | `telephoneNumber` | |
+| `LDAP_ATTR_TITLE` | `title` | |
+| `LDAP_ATTR_DEPARTMENT` | `ou` | Sur un site SupAnn, `supannEntiteAffectation` est souvent plus pertinent — le code brut est alors affiché tel quel, sans traduction. |
+| `LDAP_ATTR_AFFILIATION` | `eduPersonPrimaryAffiliation` | `student`/`staff`/`faculty`/`employee` → « Étudiant »/« Personnel »/« Enseignant »/« Personnel ». Une valeur inconnue est affichée telle quelle. Absente si le schéma eduPerson n'est pas publié par votre annuaire (le reste de la fiche fonctionne normalement). |
+| `LDAP_MAX_RESULTS` | `20` (max `100`) | Résultats renvoyés au maximum. |
+| `LDAP_MIN_QUERY` | `3` | Longueur minimale de la requête (en deçà : `400`). |
+| `LDAP_TIMEOUT_MS` | `5000` | Délai de connexion et d'opération LDAP. |
+| `LDAP_HIDE_AFFILIATIONS` | — | Liste séparée par des virgules d'affiliations à exclure des résultats (ex. `student` pour un annuaire réservé au personnel). |
+
+Seules les fiches dont l'adresse appartient à `MAIL_DOMAINS` sont renvoyées, même si
+l'annuaire LDAP contient d'autres organisations. Les résultats sont mis en cache 60 s
+et la recherche est limitée à 30 requêtes par minute et par session.
+
 ## Limites
 
 Compteurs sur une fenêtre de 15 minutes glissante, **par processus** (voir

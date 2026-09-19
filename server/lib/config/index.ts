@@ -77,6 +77,46 @@ export interface ColombeConfig {
     /** Lien « Découvrir le projet » affiché dans la démo, ou null. */
     projectUrl: string | null
   }
+  // ─── LDAP (annuaire de l'établissement) — bloc ajouté par l'agent « annuaire » ───
+  // Fusion : un autre agent ajoute le SSO dans ce même fichier en parallèle ; ce bloc
+  // (interface, validation, retour) est délimité pour rester facile à isoler/fusionner.
+  /** null : fonctionnalité désactivée (LDAP_URL absent). */
+  ldap: LdapConfig | null
+  // ─── fin LDAP ───
+}
+
+/** Recherche dans l'annuaire LDAP de l'établissement (schéma SupAnn / inetOrgPerson). */
+export interface LdapConfig {
+  /** URL complète, ex. ldaps://annuaire.univ-exemple.fr:636. */
+  url: string
+  /** StartTLS sur une URL ldap:// (RFC 4513). Ignoré (non nécessaire) avec ldaps://. */
+  startTls: boolean
+  /** DN de liaison, ou null pour une liaison anonyme (LDAP_BIND_DN/LDAP_BIND_PASSWORD). */
+  bindDn: string | null
+  bindPassword: string | null
+  baseDn: string
+  /** Filtre de base combiné en AND avec les termes de recherche (LDAP_FILTER). */
+  filter: string
+  /** Attributs comparés à chaque mot de la requête (LDAP_SEARCH_ATTRS). */
+  searchAttrs: string[]
+  /** Attributs LDAP → champs de DirectoryEntry (défauts adaptés à SupAnn). */
+  attrs: {
+    name: string
+    /** Repli si `attrs.name` (LDAP_ATTR_NAME, défaut displayName) est absent : cn. */
+    nameFallback: string
+    email: string
+    phone: string
+    title: string
+    department: string
+    affiliation: string
+  }
+  /** Résultats renvoyés au maximum (LDAP_MAX_RESULTS, 1..100). */
+  maxResults: number
+  /** Longueur minimale de la requête (LDAP_MIN_QUERY). */
+  minQuery: number
+  timeoutMs: number
+  /** Valeurs d'affiliation exclues des résultats (LDAP_HIDE_AFFILIATIONS), en minuscules. */
+  hideAffiliations: string[]
 }
 
 export class ConfigError extends Error {
@@ -109,6 +149,11 @@ function pick(env: Env, ...names: string[]): string | undefined {
 
 function list(value: string | undefined): string[] {
   return (value ?? '').split(/[\s,;]+/).map(s => s.trim().toLowerCase()).filter(Boolean)
+}
+
+/** Comme `list()` mais sans mise en minuscules : noms d'attributs LDAP (ex. displayName). */
+function attrList(value: string | undefined): string[] {
+  return (value ?? '').split(/[\s,;]+/).map(s => s.trim()).filter(Boolean)
 }
 
 function isLoopback(host: string): boolean {
@@ -270,6 +315,72 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
   const demoMaxAccounts = count('COLOMBE_DEMO_MAX_ACCOUNTS', 200, 5000)
   const demoProjectUrl = url('COLOMBE_PROJECT_URL')
 
+  // ─── LDAP (annuaire de l'établissement) — bloc ajouté par l'agent « annuaire » ───
+  const ldapUrlRaw = pick(env, 'LDAP_URL')
+  let ldap: LdapConfig | null = null
+  if (ldapUrlRaw) {
+    const ldapStartTls = bool(['LDAP_STARTTLS'], false)
+
+    let parsedUrl: URL | null = null
+    try {
+      parsedUrl = new URL(ldapUrlRaw)
+    }
+    catch {
+      problems.push(`LDAP_URL n'est pas une URL valide (reçu « ${ldapUrlRaw} »).`)
+    }
+    if (parsedUrl && parsedUrl.protocol !== 'ldap:' && parsedUrl.protocol !== 'ldaps:') {
+      problems.push(`LDAP_URL doit commencer par ldap:// ou ldaps:// (reçu « ${ldapUrlRaw} »).`)
+      parsedUrl = null
+    }
+    if (parsedUrl && parsedUrl.protocol === 'ldap:' && !ldapStartTls && !isLoopback(parsedUrl.hostname)) {
+      problems.push('LDAP_URL en ldap:// vers un hôte distant nécessite LDAP_STARTTLS=true (sinon le mot de passe de liaison circule en clair) — utilisez ldaps:// ou LDAP_STARTTLS=true, ou un hôte local (127.0.0.1/localhost) pour le développement.')
+    }
+
+    const ldapBindDn = pick(env, 'LDAP_BIND_DN') ?? null
+    const ldapBindPassword = pick(env, 'LDAP_BIND_PASSWORD') ?? null
+    if ((ldapBindDn === null) !== (ldapBindPassword === null)) {
+      problems.push('LDAP_BIND_DN et LDAP_BIND_PASSWORD doivent être fournis ensemble, ou aucun des deux pour une liaison anonyme.')
+    }
+
+    const ldapBaseDn = pick(env, 'LDAP_BASE_DN')
+    if (!ldapBaseDn) problems.push('LDAP_BASE_DN est obligatoire quand LDAP_URL est défini.')
+
+    const ldapFilter = pick(env, 'LDAP_FILTER') ?? '(&(objectClass=inetOrgPerson)(mail=*))'
+    if (!/^\(.*\)$/.test(ldapFilter)) problems.push(`LDAP_FILTER doit être un filtre LDAP entre parenthèses (reçu « ${ldapFilter} »).`)
+
+    const ldapSearchAttrs = attrList(pick(env, 'LDAP_SEARCH_ATTRS') ?? 'cn,displayName,mail,sn,givenName,uid')
+    if (!ldapSearchAttrs.length) problems.push('LDAP_SEARCH_ATTRS ne peut pas être vide.')
+
+    const ldapMaxResults = count('LDAP_MAX_RESULTS', 20, 100)
+    const ldapMinQuery = count('LDAP_MIN_QUERY', 3, 50)
+    const ldapTimeoutMs = count('LDAP_TIMEOUT_MS', 5000, 60_000)
+    const ldapHideAffiliations = list(pick(env, 'LDAP_HIDE_AFFILIATIONS'))
+
+    ldap = {
+      url: ldapUrlRaw,
+      startTls: ldapStartTls,
+      bindDn: ldapBindDn,
+      bindPassword: ldapBindPassword,
+      baseDn: ldapBaseDn ?? '',
+      filter: ldapFilter,
+      searchAttrs: ldapSearchAttrs,
+      attrs: {
+        name: pick(env, 'LDAP_ATTR_NAME') ?? 'displayName',
+        nameFallback: 'cn',
+        email: pick(env, 'LDAP_ATTR_EMAIL') ?? 'mail',
+        phone: pick(env, 'LDAP_ATTR_PHONE') ?? 'telephoneNumber',
+        title: pick(env, 'LDAP_ATTR_TITLE') ?? 'title',
+        department: pick(env, 'LDAP_ATTR_DEPARTMENT') ?? 'ou',
+        affiliation: pick(env, 'LDAP_ATTR_AFFILIATION') ?? 'eduPersonPrimaryAffiliation',
+      },
+      maxResults: ldapMaxResults,
+      minQuery: ldapMinQuery,
+      timeoutMs: ldapTimeoutMs,
+      hideAffiliations: ldapHideAffiliations,
+    }
+  }
+  // ─── fin LDAP ───
+
   if (problems.length) throw new ConfigError(problems)
 
   return {
@@ -305,6 +416,7 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
     limits,
     dataDir: resolve(cwd, pick(env, 'WEBMAIL_DATA_DIR') ?? '.data'),
     demo: { enabled: demoEnabled, ttlHours: demoTtlHours, maxAccounts: demoMaxAccounts, projectUrl: demoProjectUrl },
+    ldap,
   }
 }
 
@@ -357,5 +469,8 @@ export function publicConfig(config: ColombeConfig): PublicConfig {
     login: { domains: config.login.domains, defaultDomain: config.login.defaultDomain },
     limits: { attachmentsBytes: config.limits.attachmentsBytes },
     demo: config.demo.enabled ? { ttlHours: config.demo.ttlHours, projectUrl: config.demo.projectUrl } : null,
+    // ─── LDAP (annuaire de l'établissement) ───
+    features: { directory: config.ldap !== null },
+    // ─── fin LDAP ───
   }
 }
