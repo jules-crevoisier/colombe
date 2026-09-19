@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { listUserFolders } from '../../../lib/mail/user-folders'
 import type { ThreadResult, MessageSummary } from '#shared/types/mail'
 import { mailError, requireMail } from '#server/utils/mail-session'
 import { parseMessage } from '#server/lib/mail/parse'
@@ -8,7 +9,7 @@ export default defineEventHandler(async (event): Promise<ThreadResult> => {
     const { uid } = await getValidatedRouterParams(event, p => z.object({ uid: z.coerce.number().int().positive() }).parse(p))
     const { folder } = await getValidatedQuery(event, q => z.object({ folder: z.string().min(1).max(512) }).parse(q))
 
-    const { backend } = await requireMail(event)
+    const { email, backend } = await requireMail(event)
 
     // Get the message
     const msg = await backend.getMessage(folder, uid)
@@ -59,7 +60,7 @@ export default defineEventHandler(async (event): Promise<ThreadResult> => {
     }
 
     // Also search in sent folder if different
-    const folderList = await backend.listFolders()
+    const folderList = await listUserFolders(backend, email)
     const sentFolder = folderList.find(f => f.specialUse === 'sent')
     if (sentFolder && sentFolder.path !== folder) {
       try {

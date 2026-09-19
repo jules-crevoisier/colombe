@@ -1,16 +1,35 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import { onKeyStroke } from '@vueuse/core'
-import { Mail, Maximize2, Minimize2, Minus, Paperclip, Send, Settings, Trash2, X } from '@lucide/vue'
+import { FileText, Mail, Maximize2, Minimize2, Minus, Paperclip, Send, Settings, Trash2, X } from '@lucide/vue'
+import type { CannedResponse } from '#shared/types/mail'
 
 const compose = useComposeStore()
+const prefsStore = usePrefsStore()
 const fileInput = ref<HTMLInputElement | null>(null)
 const toField = ref<{ commit: () => void } | null>(null)
 const ccField = ref<{ commit: () => void } | null>(null)
 const bccField = ref<{ commit: () => void } | null>(null)
-const editor = ref<{ focusStart: () => void } | null>(null)
+const editor = ref<{ focusStart: () => void; focusEnd: () => void; insertAtCursor: (content: string) => void } | null>(null)
 const dragOver = ref(false)
 const attachmentReminderOpen = ref(false)
+const cannedResponses = ref<CannedResponse[]>([])
+const cannedResponsesLoaded = ref(false)
+
+async function loadCannedResponses() {
+  if (cannedResponsesLoaded.value) return
+  cannedResponsesLoaded.value = true
+  try {
+    cannedResponses.value = await useSettingsApi().responses()
+  }
+  catch {
+    cannedResponses.value = []
+  }
+}
+
+function insertCannedResponse(response: CannedResponse) {
+  compose.insertCannedResponse(response.html, editor.value)
+}
 
 const saveLabel = computed(() => ({
   idle: '',
@@ -38,7 +57,7 @@ async function onSend() {
   if (!compose.subject.trim() && !window.confirm('Envoyer ce message sans objet ?')) return
 
   const hasAttachments = compose.attachments.length > 0 || compose.forwardAsAttachment.length > 0
-  if (!hasAttachments && mentionsAttachment(compose.html)) {
+  if (!hasAttachments && mentionsAttachment(compose.html || compose.text)) {
     attachmentReminderOpen.value = true
     return
   }
@@ -78,11 +97,15 @@ onKeyStroke('Enter', (e) => {
   }
 })
 
-// Réponse : curseur au début du corps (la citation est en dessous).
+// Réponse : curseur au début du corps (« au-dessus de la citation ») ou à la fin
+// (« en dessous »), selon Prefs.replyPosition (R2.5).
 watch(() => compose.isOpen, async (open) => {
   if (!open) return
   await nextTick()
-  if (compose.to.length) editor.value?.focusStart()
+  if (compose.to.length) {
+    if (prefsStore.prefs.replyPosition === 'below') editor.value?.focusEnd()
+    else editor.value?.focusStart()
+  }
 })
 
 function onBodyChange(text: string) {
@@ -122,6 +145,20 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 
     <form v-show="!compose.minimized" class="flex min-h-0 flex-1 flex-col relative" @submit.prevent="onSend" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
       <div class="px-4">
+        <!-- Sélecteur d'identité : affiché seulement si plusieurs identités existent (docs/PLAN-v3.md R2.1). -->
+        <div v-if="compose.showIdentityPicker" class="flex min-h-11 items-center gap-2 border-b border-border/60 py-1">
+          <label for="compose-from" class="pr-1 text-sm text-muted-foreground">De</label>
+          <Select :model-value="`${compose.identityId}`" @update:model-value="(v) => compose.setIdentity(Number(v))">
+            <SelectTrigger id="compose-from" class="h-9 flex-1 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="identity in compose.identities" :key="identity.id" :value="`${identity.id}`">
+                {{ identity.name }} &lt;{{ identity.email }}&gt;
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div class="flex items-start">
           <div class="min-w-0 flex-1">
             <MailRecipientInput id="compose-to" ref="toField" v-model="compose.to" label="À" :autofocus="!compose.to.length" @change="compose.touch()" />
@@ -138,7 +175,19 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
         </div>
       </div>
 
-      <MailRichEditor id="compose-body" ref="editor" v-model:html="compose.html" @change="onBodyChange" />
+      <MailRichEditor v-if="prefsStore.prefs.composeHtml" id="compose-body" ref="editor" v-model:html="compose.html" @change="onBodyChange" />
+      <div v-else class="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+        <Textarea
+          id="compose-body-text"
+          v-model="compose.text"
+          aria-label="Message"
+          class="min-h-40 w-full resize-none border-0 bg-transparent p-0 text-base leading-relaxed shadow-none outline-none focus-visible:ring-0"
+          placeholder="Rédigez votre message…"
+          spellcheck="true"
+          lang="fr"
+          @input="compose.touch()"
+        />
+      </div>
 
       <ul v-if="compose.attachments.length || compose.forwardAsAttachment.length" class="flex flex-col gap-1 px-4 pb-2" aria-label="Pièces jointes">
         <li v-for="(name, i) in compose.forwardAsAttachmentNames" :key="`eml-${i}`" class="flex h-9 items-center gap-2 rounded-lg bg-secondary pr-1 pl-3 text-sm">
@@ -165,13 +214,25 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
         <p class="text-lg font-medium text-primary">Déposez les fichiers ici</p>
       </div>
 
-      <footer class="flex shrink-0 items-center gap-1 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <footer class="flex shrink-0 flex-wrap items-center gap-1 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <Button type="submit" class="h-11 rounded-full px-6 font-medium" :disabled="compose.sending">
           <Send class="size-4" aria-hidden="true" />
           {{ compose.sending ? 'Envoi…' : 'Envoyer' }}
         </Button>
         <input ref="fileInput" type="file" multiple class="sr-only" tabindex="-1" aria-hidden="true" @change="onFiles">
         <MailIconButton :icon="Paperclip" label="Joindre des fichiers" @click="fileInput?.click()" />
+        <!-- Réponses types (docs/PLAN-v3.md R2.2) -->
+        <DropdownMenu @update:open="(open: boolean) => { if (open) loadCannedResponses() }">
+          <MailMenuButton :icon="FileText" label="Insérer une réponse type" />
+          <DropdownMenuContent align="start" class="w-64">
+            <DropdownMenuItem v-if="!cannedResponses.length" disabled>
+              Aucune réponse type
+            </DropdownMenuItem>
+            <DropdownMenuItem v-for="response in cannedResponses" :key="response.id" @select="insertCannedResponse(response)">
+              {{ response.name }}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <!-- Send options button -->
         <DropdownMenu>
           <MailMenuButton :icon="Settings" label="Options d'envoi" />
@@ -187,7 +248,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
             </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <span class="ml-1 min-w-0 flex-1 truncate text-xs text-muted-foreground" role="status" aria-live="polite">{{ saveLabel }}</span>
+        <span class="order-last ml-1 w-full min-w-0 truncate text-xs text-muted-foreground sm:order-none sm:w-auto sm:flex-1" role="status" aria-live="polite">{{ saveLabel }}</span>
         <MailIconButton :icon="Trash2" label="Supprimer le brouillon" @click="compose.discard()" />
       </footer>
     </form>

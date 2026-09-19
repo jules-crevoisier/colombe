@@ -89,14 +89,20 @@ function neutralizeImageSource(el: DomElement): void {
   }
 }
 
+// L'instance DOMPurify d'isomorphic-dompurify est partagée avec sanitize-outgoing.ts :
+// chaque module n'agit que pendant son propre appel à sanitize(), sinon les règles
+// de l'un (ex. retirer les images non « data: ») s'appliqueraient aux mails de l'autre.
+let active = false
+
 DOMPurify.addHook('uponSanitizeElement', (node, data) => {
+  if (!active) return
   if (data.tagName === 'style' && node.textContent) {
     node.textContent = cleanCss(node.textContent)
   }
 })
 
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-  if (node.nodeType !== 1) return
+  if (!active || node.nodeType !== 1) return
   const el = node as unknown as DomElement
 
   if (el.hasAttribute('srcset')) {
@@ -133,16 +139,23 @@ export function sanitizeEmailHtml(
   inlineImages: Record<string, string>,
 ): { html: string; remoteImages: number } {
   ctx = { inlineImages, remoteImages: 0 }
-  const clean = DOMPurify.sanitize(html, {
-    USE_PROFILES: { html: true },
-    FORBID_TAGS,
-    FORBID_ATTR: ['srcdoc', 'formaction', 'action', 'ping', 'xlink:href'],
-    ALLOW_DATA_ATTR: false,
-    // Conserve un <style> placé en tête de document.
-    FORCE_BODY: true,
-    WHOLE_DOCUMENT: false,
-    RETURN_TRUSTED_TYPE: false,
-  })
+  active = true
+  let clean: string
+  try {
+    clean = DOMPurify.sanitize(html, {
+      USE_PROFILES: { html: true },
+      FORBID_TAGS,
+      FORBID_ATTR: ['srcdoc', 'formaction', 'action', 'ping', 'xlink:href'],
+      ALLOW_DATA_ATTR: false,
+      // Conserve un <style> placé en tête de document.
+      FORCE_BODY: true,
+      WHOLE_DOCUMENT: false,
+      RETURN_TRUSTED_TYPE: false,
+    })
+  }
+  finally {
+    active = false
+  }
   const remoteImages = ctx.remoteImages
   ctx = { inlineImages: {}, remoteImages: 0 }
   return { html: clean, remoteImages }

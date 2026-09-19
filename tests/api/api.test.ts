@@ -109,7 +109,9 @@ describe('auth', () => {
 describe('folders and messages', () => {
   it('should list folders in Gmail order with counts', async () => {
     const folders = await (await login()).json<Folder[]>('/api/folders')
-    expect(folders.map(f => f.specialUse)).toEqual(['inbox', 'sent', 'drafts', 'archive', 'junk', 'trash', null])
+    // R2 : « Projets » et son sous-dossier « 2026 » ; « Anciens cours » n'est pas abonné.
+    expect(folders.map(f => f.specialUse)).toEqual(['inbox', 'sent', 'drafts', 'archive', 'junk', 'trash', null, null])
+    expect(folders.map(f => f.path)).not.toContain('INBOX.Anciens cours')
     expect(folders[0]).toMatchObject({ path: 'INBOX', name: 'Boîte de réception' })
     expect(folders[0]!.total).toBe(72)
     expect(folders[0]!.unread).toBeGreaterThan(0)

@@ -97,6 +97,23 @@ function extractPriority(parsed: ParsedMail): Priority {
   return 'normal'
 }
 
+/**
+ * Adresse de l'en-tête List-Post (RFC 2369), sans « mailto: » ni chevrons.
+ * `List-Post: NO` (liste sans réponse possible) ou en-tête absent → null.
+ */
+function extractListPost(parsed: ParsedMail): string | null {
+  // mailparser regroupe les en-têtes List-* sous `headers.get('list')` (objet
+  // sans l'URL d'origine) : on repart de la ligne brute.
+  const line = parsed.headerLines.find(h => h.key === 'list-post')?.line
+  if (!line) return null
+  const raw = line.slice(line.indexOf(':') + 1).replace(/\r?\n[ \t]+/g, ' ').trim()
+  const bracketed = raw.match(/<mailto:([^>]+)>/i)
+  if (bracketed?.[1]) return bracketed[1].trim()
+  const bare = raw.match(/^mailto:(.+)$/i)
+  if (bare?.[1]) return bare[1].trim()
+  return null
+}
+
 function isAddressObject(value: unknown): value is AddressObject {
   return typeof value === 'object' && value !== null && Array.isArray((value as { value?: unknown }).value)
 }
@@ -167,6 +184,7 @@ export async function parseMessage(raw: Buffer, ctx: MessageContext): Promise<Me
   const forwarded = flags.includes('$Forwarded')
   const priority = extractPriority(parsed)
   const readReceiptTo = extractReadReceiptTo(parsed, flags)
+  const listPost = extractListPost(parsed)
 
   return {
     uid: ctx.uid,
@@ -195,6 +213,11 @@ export async function parseMessage(raw: Buffer, ctx: MessageContext): Promise<Me
     forwarded,
     priority,
     readReceiptTo,
+    listPost,
+    // Nécessite un accès à la base de contacts (propriétaire) : calculé par
+    // l'appelant (server/api/messages/[uid].get.ts), jamais ici (parse.ts
+    // reste pur, sans dépendance à SQLite).
+    senderInContacts: false,
   }
 }
 

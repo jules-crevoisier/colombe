@@ -8,6 +8,8 @@ import type {
   MessageQuery,
   MessageSource,
   ImportResult,
+  QuotaInfo,
+  FolderSize,
 } from '#shared/types/mail'
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE'
@@ -51,7 +53,14 @@ export function useMailApi() {
   }
 
   return {
-    folders: () => call<Folder[]>('/api/folders'),
+    folders: (all = false) => call<Folder[]>('/api/folders', { query: all ? { all: 1 } : undefined }),
+    subscribeFolder: (path: string, subscribed: boolean) =>
+      call<null>('/api/folders/subscribe', { method: 'POST', body: { path, subscribed } }),
+    quota: () => call<QuotaInfo>('/api/folders/quota'),
+    folderSize: (path: string) => call<FolderSize>('/api/folders/size', { query: { path } }),
+    /** Déplace un dossier personnel : `parent: null` le ramène à la racine. */
+    moveFolder: (path: string, parent: string | null) =>
+      call<{ path: string }>('/api/folders', { method: 'PATCH', body: { path, parent } }),
     messages: (folder: string, page = 1, query?: MessageQuery, pageSize = 50) => {
       const q = query ? buildMessageQuery(query) : {}
       return call<MessagePage>('/api/messages', { query: { folder, page, pageSize, ...q } })

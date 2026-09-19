@@ -6,6 +6,7 @@ import type { MessageDetail, MessageSummary } from '#shared/types/mail'
 const props = defineProps<{ item: MessageSummary; folderName: string | null }>()
 
 const api = useMailApi()
+const prefsStore = usePrefsStore()
 const expanded = ref(false)
 const detail = ref<MessageDetail | null>(null)
 const loading = ref(false)
@@ -19,6 +20,8 @@ async function toggle() {
   failed.value = false
   try {
     detail.value = await api.message(props.item.folder, props.item.uid)
+    const pref = prefsStore.prefs.remoteImages
+    showRemote.value = pref === 'always' || (pref === 'contacts' && detail.value.senderInContacts)
   }
   catch {
     failed.value = true
@@ -29,7 +32,8 @@ async function toggle() {
 }
 
 const sender = computed(() => props.item.from?.name || props.item.from?.address || '(inconnu)')
-const date = computed(() => new Date(props.item.date).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }))
+const date = computed(() => formatFullDate(props.item.date, 'fr-FR', { timeZone: prefsStore.prefs.timeZone, dateFormat: prefsStore.prefs.dateFormat, timeFormat: prefsStore.prefs.timeFormat }))
+const html = computed(() => (prefsStore.prefs.preferHtml ? detail.value?.html ?? null : null))
 </script>
 
 <template>
@@ -55,7 +59,7 @@ const date = computed(() => new Date(props.item.date).toLocaleString('fr-FR', { 
         <button v-if="detail.remoteImages > 0 && !showRemote" type="button" class="mb-2 text-xs font-medium text-primary hover:underline" @click="showRemote = true">
           Afficher les images distantes
         </button>
-        <MailFrame :html="detail.html" :text="detail.text" :show-remote="showRemote" class="!min-h-48" />
+        <MailFrame :html="html" :text="detail.text" :show-remote="showRemote" class="!min-h-48" />
       </template>
     </div>
   </li>

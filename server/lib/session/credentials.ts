@@ -1,14 +1,31 @@
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import type { MailCredentials } from '../mail/backend'
 
 interface StoredCredentials extends MailCredentials {
   createdAt: number
   lastSeen: number
   hasBeenAccessed: boolean
+  ip: string
+  userAgent: string
 }
 
 interface Clock {
   now: () => number
+}
+
+/** Métadonnées d'une session, pour « Sessions actives » (R2.6). Jamais le sid en clair. */
+export interface SessionInfo {
+  sid: string
+  email: string
+  createdAt: number
+  lastSeen: number
+  ip: string
+  userAgent: string
+}
+
+/** Empreinte de session exposée au client : jamais le sid réel (R2.6/R2.8). */
+export function hashSessionId(sid: string): string {
+  return createHash('sha256').update(sid).digest('hex').slice(0, 8)
 }
 
 export class CredentialsStore {
@@ -41,7 +58,7 @@ export class CredentialsStore {
     }
   }
 
-  create(email: string, password: string): string {
+  create(email: string, password: string, ip = '', userAgent = ''): string {
     const sid = randomBytes(32).toString('base64url')
     const now = this.clock.now()
     this.store.set(sid, {
@@ -50,6 +67,9 @@ export class CredentialsStore {
       createdAt: now,
       lastSeen: now,
       hasBeenAccessed: false,
+      ip,
+      // Même limite que le journal de connexion (login_events.user_agent).
+      userAgent: userAgent.slice(0, 300),
     })
     return sid
   }
@@ -83,6 +103,21 @@ export class CredentialsStore {
       email: creds.email,
       password: creds.password,
     }
+  }
+
+  /** Sessions actives d'un utilisateur (celles déjà expirées sont exclues, sans les effacer ici). */
+  listByOwner(email: string): SessionInfo[] {
+    const now = this.clock.now()
+    const out: SessionInfo[] = []
+    for (const [sid, creds] of this.store.entries()) {
+      if (creds.email !== email) continue
+      const age = now - creds.createdAt
+      const idle = now - creds.lastSeen
+      if (age > this.ABSOLUTE_TTL) continue
+      if (creds.hasBeenAccessed && idle > this.IDLE_TTL) continue
+      out.push({ sid, email: creds.email, createdAt: creds.createdAt, lastSeen: creds.lastSeen, ip: creds.ip, userAgent: creds.userAgent })
+    }
+    return out
   }
 
   delete(sid: string): void {

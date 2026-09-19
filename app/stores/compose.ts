@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { toast } from 'vue-sonner'
-import type { ComposeAttachment, ComposePayload, MessageDetail, Priority, MessageRef } from '#shared/types/mail'
+import type { ComposeAttachment, ComposePayload, Identity, MessageDetail, Priority, MessageRef } from '#shared/types/mail'
 
 export const MAX_ATTACHMENTS_BYTES = 10 * 1024 * 1024
 const AUTOSAVE_MS = 3000
@@ -10,6 +10,7 @@ export interface DraftAttachment extends ComposeAttachment {
 }
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
+type ReplyMode = 'reply' | 'replyAll' | 'list'
 
 function emptyForm() {
   return {
@@ -19,7 +20,7 @@ function emptyForm() {
     subject: '',
     /** Corps HTML de l'éditeur riche (source de vérité). */
     html: '',
-    /** Version texte tenue à jour par l'éditeur (partie text/plain). */
+    /** Version texte tenue à jour par l'éditeur (partie text/plain), ou éditeur texte brut. */
     text: '',
     attachments: [] as DraftAttachment[],
     inReplyTo: null as string | null,
@@ -32,6 +33,10 @@ function emptyForm() {
     /** Noms affichés des messages joints (`{objet}.eml`), parallèles à `forwardAsAttachment`. */
     forwardAsAttachmentNames: [] as string[],
     origin: null as (MessageRef & { kind: 'reply' | 'forward' }) | null,
+    /** Identité d'envoi (R2.1). null : identité par défaut. */
+    identityId: null as number | null,
+    /** Bloc signature actuellement inséré dans `html`, pour le remplacer si l'identité change. */
+    currentSignature: '',
   }
 }
 
@@ -61,6 +66,12 @@ function quotedBody(msg: MessageDetail): string {
   return textToHtml((msg.text ?? msg.preview).trim())
 }
 
+/** Corps de la réponse : citation au-dessus ou en dessous selon `Prefs.replyPosition` (R2.5). */
+function buildReplyHtml(msg: MessageDetail, signature: string, replyPosition: 'above' | 'below'): string {
+  const quote = `<p>${escapeHtml(quoteHeader(msg))}</p><blockquote>${quotedBody(msg)}</blockquote>`
+  return replyPosition === 'below' ? `${quote}<p></p>${signature}` : `<p></p>${signature}${quote}`
+}
+
 export const useComposeStore = defineStore('compose', {
   state: () => ({
     isOpen: false,
@@ -74,12 +85,21 @@ export const useComposeStore = defineStore('compose', {
     sending: false,
     /** Envoi différé en attente (annulable). */
     pendingSend: false,
+    /**
+     * Ouverture en cours (identités, pièces jointes d'un brouillon à charger). Les raccourcis
+     * clavier de la page restent coupés pendant ce temps : sinon les premières lettres tapées
+     * (« e » archiver, « # » supprimer…) agiraient sur le message affiché.
+     */
+    opening: false,
+    /** Identités disponibles (chargées une fois, persistent entre deux ouvertures). */
+    identities: [] as Identity[],
   }),
 
   getters: {
     attachmentsBytes: state => state.attachments.reduce((sum, a) => sum + a.size, 0),
     isEmpty: state => !state.to.length && !state.cc.length && !state.bcc.length && !state.subject.trim() && !state.text.trim() && !state.attachments.length && !state.forwardAsAttachment.length,
     title: state => state.subject.trim() || 'Nouveau message',
+    showIdentityPicker: state => state.identities.length > 1,
   },
 
   actions: {
@@ -101,18 +121,22 @@ export const useComposeStore = defineStore('compose', {
         forwardAsAttachment: [...this.forwardAsAttachment],
         forwardAsAttachmentNames: [...this.forwardAsAttachmentNames],
         origin: this.origin ? { ...this.origin } : null,
+        identityId: this.identityId,
+        currentSignature: this.currentSignature,
       }
     },
 
     payload(from?: Form): ComposePayload {
       const form = from ?? this.form()
+      const { prefs } = usePrefsStore()
       return {
         to: form.to,
         cc: form.cc,
         bcc: form.bcc,
         subject: form.subject,
         text: form.text,
-        html: form.html || null,
+        // Éditeur texte brut (Prefs.composeHtml = false) : jamais de HTML résiduel envoyé.
+        html: prefs.composeHtml ? (form.html || null) : null,
         inReplyTo: form.inReplyTo,
         references: form.references,
         attachments: form.attachments.map(({ filename, contentType, content }) => ({ filename, contentType, content })),
@@ -122,12 +146,46 @@ export const useComposeStore = defineStore('compose', {
         requestDeliveryReceipt: form.requestDeliveryReceipt || undefined,
         forwardAsAttachment: form.forwardAsAttachment.length > 0 ? form.forwardAsAttachment : undefined,
         origin: form.origin || undefined,
+        identityId: form.identityId ?? undefined,
       }
     },
 
-    signature(): string {
+    /** Charge les identités une seule fois (persistent entre deux ouvertures de la rédaction). */
+    async ensureIdentities() {
+      this.opening = true
+      if (this.identities.length) return
+      try {
+        this.identities = await useSettingsApi().identities()
+      }
+      catch {
+        this.identities = []
+      }
+    },
+
+    defaultIdentity(): Identity | null {
+      return this.identities.find(i => i.isDefault) ?? this.identities[0] ?? null
+    },
+
+    /** Bloc signature (avec séparateur « -- ») de l'identité donnée, si les signatures sont activées. */
+    signature(identityId?: number | null): string {
       const { prefs } = usePrefsStore()
-      return prefs.signatureEnabled ? signatureBlock(prefs.signatureHtml) : ''
+      if (!prefs.signatureEnabled) return ''
+      const identity = identityId != null ? this.identities.find(i => i.id === identityId) : this.defaultIdentity()
+      return identity ? signatureBlock(identity.signatureHtml) : ''
+    },
+
+    /** Changement d'identité dans le sélecteur « De » : remplace le bloc signature dans le corps. */
+    setIdentity(id: number) {
+      const next = this.signature(id)
+      if (this.currentSignature && this.html.includes(this.currentSignature)) {
+        this.html = this.html.replace(this.currentSignature, next)
+      }
+      else if (next) {
+        this.html = `${this.html}${next}`
+      }
+      this.currentSignature = next
+      this.identityId = id
+      this.touch()
     },
 
     async openWith(form: Partial<Form>) {
@@ -135,36 +193,58 @@ export const useComposeStore = defineStore('compose', {
       Object.assign(this, emptyForm(), form)
       this.showCc = this.cc.length > 0 || this.bcc.length > 0
       this.isOpen = true
+      this.opening = false
       this.minimized = false
       this.dirty = false
       this.saveState = 'idle'
     },
 
-    openNew(to: string[] = []) {
-      const sig = this.signature()
-      return this.openWith({ to, html: sig ? `<p></p>${sig}` : '' })
+    async openNew(to: string[] = []) {
+      await this.ensureIdentities()
+      const identityId = this.defaultIdentity()?.id ?? null
+      const sig = this.signature(identityId)
+      return this.openWith({ to, html: sig ? `<p></p>${sig}` : '', identityId, currentSignature: sig })
     },
 
-    openReply(msg: MessageDetail, me: string, mode: 'reply' | 'replyAll') {
+    async openReply(msg: MessageDetail, me: string, mode: ReplyMode = 'reply') {
+      await this.ensureIdentities()
+      const identityId = this.defaultIdentity()?.id ?? null
       const self = me.toLowerCase()
-      const direct = getReplyToAddresses(msg, me).filter(a => a.toLowerCase() !== self)
-      const to = direct.length ? direct : getReplyToAddresses(msg, me)
-      const lowerTo = to.map(a => a.toLowerCase())
-      const cc = mode === 'replyAll'
-        ? getReplyAllAddresses(msg, me).filter(a => a.toLowerCase() !== self && !lowerTo.includes(a.toLowerCase()))
-        : []
+
+      let to: string[]
+      let cc: string[]
+      if (mode === 'list') {
+        to = msg.listPost ? [msg.listPost] : []
+        cc = []
+      }
+      else {
+        const direct = getReplyToAddresses(msg, me).filter(a => a.toLowerCase() !== self)
+        to = direct.length ? direct : getReplyToAddresses(msg, me)
+        const lowerTo = to.map(a => a.toLowerCase())
+        cc = mode === 'replyAll'
+          ? getReplyAllAddresses(msg, me).filter(a => a.toLowerCase() !== self && !lowerTo.includes(a.toLowerCase()))
+          : []
+      }
+
+      const replyPosition = usePrefsStore().prefs.replyPosition
+      const sig = this.signature(identityId)
       return this.openWith({
         to,
         cc,
         subject: buildReplySubject(msg.subject),
-        html: `<p></p>${this.signature()}<p>${escapeHtml(quoteHeader(msg))}</p><blockquote>${quotedBody(msg)}</blockquote>`,
+        html: buildReplyHtml(msg, sig, replyPosition),
         inReplyTo: msg.messageId,
         references: [...msg.references, ...(msg.messageId ? [msg.messageId] : [])],
         origin: { folder: msg.folder, uid: msg.uid, kind: 'reply' },
+        identityId,
+        currentSignature: sig,
       })
     },
 
-    openForward(msg: MessageDetail) {
+    async openForward(msg: MessageDetail) {
+      await this.ensureIdentities()
+      const identityId = this.defaultIdentity()?.id ?? null
+      const sig = this.signature(identityId)
       const lines = [
         '---------- Message transféré ----------',
         `De : ${msg.from ? `${msg.from.name} <${msg.from.address}>`.trim() : ''}`,
@@ -174,20 +254,26 @@ export const useComposeStore = defineStore('compose', {
       ]
       return this.openWith({
         subject: buildForwardSubject(msg.subject),
-        html: `<p></p>${this.signature()}<p>${lines.map(escapeHtml).join('<br>')}</p>${quotedBody(msg)}`,
+        html: `<p></p>${sig}<p>${lines.map(escapeHtml).join('<br>')}</p>${quotedBody(msg)}`,
         origin: { folder: msg.folder, uid: msg.uid, kind: 'forward' },
+        identityId,
+        currentSignature: sig,
       })
     },
 
     /** Transfert en pièce jointe : le message d'origine part intact en message/rfc822, sans citation. */
-    openForwardAsAttachment(msg: MessageDetail) {
-      const sig = this.signature()
+    async openForwardAsAttachment(msg: MessageDetail) {
+      await this.ensureIdentities()
+      const identityId = this.defaultIdentity()?.id ?? null
+      const sig = this.signature(identityId)
       return this.openWith({
         subject: buildForwardSubject(msg.subject),
         html: sig ? `<p></p>${sig}` : '',
         forwardAsAttachment: [{ folder: msg.folder, uid: msg.uid }],
         forwardAsAttachmentNames: [emlFilename(msg.subject)],
         origin: { folder: msg.folder, uid: msg.uid, kind: 'forward' },
+        identityId,
+        currentSignature: sig,
       })
     },
 
@@ -197,8 +283,24 @@ export const useComposeStore = defineStore('compose', {
       this.touch()
     },
 
+    /** Insère le texte d'une réponse type à la position du curseur (docs/PLAN-v3.md R2.2). */
+    insertCannedResponse(html: string, editor: { insertAtCursor: (content: string) => void } | null) {
+      editor?.insertAtCursor(html)
+      this.touch()
+    },
+
     /** Reprend un brouillon existant, pièces jointes comprises. */
     async openDraft(msg: MessageDetail) {
+      try {
+        await this.openDraftInner(msg)
+      }
+      finally {
+        this.opening = false
+      }
+    },
+
+    async openDraftInner(msg: MessageDetail) {
+      await this.ensureIdentities()
       const api = useMailApi()
       const attachments = await Promise.all(msg.attachments.map(async (a) => {
         const blob = await $fetch<Blob>(api.attachmentUrl(msg.folder, msg.uid, a.id), { responseType: 'blob' })
@@ -216,6 +318,7 @@ export const useComposeStore = defineStore('compose', {
         inReplyTo: msg.inReplyTo,
         references: msg.references,
         draftUid: msg.uid,
+        identityId: this.defaultIdentity()?.id ?? null,
       })
     },
 

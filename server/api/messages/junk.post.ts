@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { listUserFolders } from '../../lib/mail/user-folders'
 import { mailError, requireMail } from '../../utils/mail-session'
 
 const bodySchema = z.object({
@@ -10,9 +11,9 @@ const bodySchema = z.object({
 export default defineEventHandler(async (event) => {
   try {
     const body = await readValidatedBody(event, b => bodySchema.parse(b))
-    const { backend } = await requireMail(event)
+    const { email, backend } = await requireMail(event)
 
-    const folders = await backend.listFolders()
+    const folders = await listUserFolders(backend, email)
     const destination = body.junk
       ? folders.find(f => f.specialUse === 'junk')?.path
       : folders.find(f => f.specialUse === 'inbox')?.path

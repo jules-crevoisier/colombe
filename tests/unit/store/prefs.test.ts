@@ -39,10 +39,12 @@ describe('prefs store', () => {
     expect(() => savePrefs(db, owner, { undoSendSeconds: 15 as any })).toThrow()
   })
 
-  it('should enforce signatureHtml max length of 10000 chars', () => {
+  // R2.8 : 1 Mo pour laisser la place aux images de signature.
+  it('should enforce signatureHtml max length of 1 MB', () => {
     const db = openDatabase(':memory:')
     const owner = 'alice@example.com'
-    const tooLong = 'a'.repeat(10001)
+    expect(() => savePrefs(db, owner, { signatureHtml: `<p>${'a'.repeat(20_000)}</p>` })).not.toThrow()
+    const tooLong = 'a'.repeat(1024 * 1024 + 1)
     expect(() => savePrefs(db, owner, { signatureHtml: tooLong })).toThrow()
   })
 

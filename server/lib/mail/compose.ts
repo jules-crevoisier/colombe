@@ -13,6 +13,48 @@ export interface BuildOptions {
   keepBcc?: boolean
   /** Réutiliser un Message-ID (copie Envoyés identique au message transmis). */
   messageId?: string
+  /** Nom affiché de l'identité d'envoi (R2.1) ; sans valeur, `From` reste l'adresse seule. */
+  fromName?: string
+  /** Adresse « Répondre à » de l'identité (R2.1) ; vide/absent = aucune. */
+  replyTo?: string
+  /**
+   * Convertit chaque image `data:` du HTML en pièce jointe intégrée
+   * (`multipart/related`, Content-ID, `src="cid:…"`) : uniquement pour le
+   * message réellement transmis (ROADMAP R2.1b). Un brouillon garde ses
+   * images en `data:` (jamais activé pour /api/drafts).
+   */
+  convertInlineImages?: boolean
+}
+
+interface InlineImage {
+  cid: string
+  contentType: string
+  content: Buffer
+}
+
+const IMG_TAG_RE = /<img\b[^>]*>/gi
+const SRC_ATTR_RE = /\ssrc="([^"]*)"/i
+const DATA_IMAGE_RE = /^data:image\/(png|jpeg|gif);base64,([A-Za-z0-9+/]+=*)$/i
+
+/**
+ * Remplace chaque `<img src="data:image/…;base64,…">` par `src="cid:…"` et
+ * renvoie le contenu binaire à joindre. On analyse nous-mêmes l'URI `data:` —
+ * on ne passe jamais d'URL/chemin à nodemailer, qui irait la télécharger (SSRF).
+ */
+function extractInlineImages(html: string): { html: string; images: InlineImage[] } {
+  const images: InlineImage[] = []
+  const out = html.replace(IMG_TAG_RE, (tag) => {
+    const srcMatch = SRC_ATTR_RE.exec(tag)
+    const dataMatch = srcMatch ? DATA_IMAGE_RE.exec(srcMatch[1] ?? '') : null
+    if (!dataMatch) return tag
+
+    const format = dataMatch[1]!.toLowerCase()
+    const content = Buffer.from(dataMatch[2] ?? '', 'base64')
+    const cid = `${randomUUID()}@courrielle.inline`
+    images.push({ cid, contentType: `image/${format}`, content })
+    return tag.replace(SRC_ATTR_RE, ` src="cid:${cid}"`)
+  })
+  return { html: out, images }
 }
 
 export function newMessageId(from: string): string {
@@ -25,6 +67,8 @@ export async function buildRawMessage(from: string, payload: ComposePayload, opt
   let html: string | undefined
   let text = payload.text
 
+  const attachments: Mail.Attachment[] = []
+
   if (payload.html && payload.html.trim()) {
     // Sanitize HTML before sending
     html = sanitizeOutgoingHtml(payload.html)
@@ -32,9 +76,18 @@ export async function buildRawMessage(from: string, payload: ComposePayload, opt
     if (!text.trim()) {
       text = htmlToText(html)
     }
+    if (opts.convertInlineImages) {
+      const inline = extractInlineImages(html)
+      html = inline.html
+      attachments.push(...inline.images.map(img => ({
+        filename: `image.${img.contentType.split('/')[1]}`,
+        content: img.content,
+        contentType: img.contentType,
+        cid: img.cid,
+        contentDisposition: 'inline' as const,
+      })))
+    }
   }
-
-  const attachments: Mail.Attachment[] = []
 
   // Add regular attachments
   if (payload.attachments) {
@@ -67,13 +120,15 @@ export async function buildRawMessage(from: string, payload: ComposePayload, opt
   }
 
   const options: Mail.Options = {
-    from,
+    // L'adresse reste toujours celle du login ; seul le nom affiché vient de l'identité (R2.1).
+    from: opts.fromName ? { name: opts.fromName, address: from } : from,
     to: payload.to,
     cc: payload.cc.length > 0 ? payload.cc : undefined,
     bcc: payload.bcc.length > 0 ? payload.bcc : undefined,
     subject: payload.subject,
     text: text || undefined,
     html: html || undefined,
+    replyTo: opts.replyTo || undefined,
     date: new Date(),
     messageId: opts.messageId ?? newMessageId(from),
     inReplyTo: payload.inReplyTo ?? undefined,

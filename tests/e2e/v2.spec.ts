@@ -5,6 +5,7 @@
 import { expect, test } from '@playwright/test'
 import type { Browser, Page } from '@playwright/test'
 import { totpAt } from '../../server/lib/auth/totp'
+import { resetMock } from '../support/reset'
 
 const DEV = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
 const ALICE = { email: 'alice@mmi-troyes.fr', password: 'alice-password' }
@@ -51,8 +52,7 @@ async function aliceSends(browser: Browser, subject: string) {
 }
 
 test.beforeEach(async ({ request }) => {
-  const res = await request.post('/api/__mock/reset', { headers: { origin: 'http://localhost:3000' } })
-  expect(res.status()).toBe(204)
+  await resetMock(request)
 })
 
 test('v2-1. double authentification : activation puis connexion avec code', async ({ page }) => {

@@ -21,6 +21,44 @@ const undoSendOptions = [
   { value: 20, label: '20 s' },
 ] as const
 
+const readingPaneOptions = [
+  { value: 'right', label: 'À droite' },
+  { value: 'none', label: 'Aucun' },
+] as const
+
+const markReadDelayOptions = [
+  { value: 0, label: 'Immédiatement' },
+  { value: 5, label: 'Après 5 s' },
+  { value: 10, label: 'Après 10 s' },
+  { value: -1, label: 'Jamais' },
+] as const
+
+const dateFormatOptions = [
+  { value: 'relative', label: 'Relatif' },
+  { value: 'short', label: 'Court' },
+  { value: 'long', label: 'Long' },
+] as const
+
+const timeFormatOptions = [
+  { value: '24h', label: '24 h' },
+  { value: '12h', label: '12 h' },
+] as const
+
+const idleMinutesOptions = [
+  { value: 15, label: '15 minutes' },
+  { value: 30, label: '30 minutes' },
+  { value: 60, label: '1 heure' },
+  { value: 120, label: '2 heures' },
+] as const
+
+// Liste courte : les fuseaux les plus utiles au département, plus le fuseau actuel s'il diffère.
+const TIME_ZONES = ['Europe/Paris', 'Europe/London', 'America/New_York', 'America/Guadeloupe', 'Indian/Reunion', 'UTC']
+const timeZoneOptions = computed(() => {
+  const zones = new Set(TIME_ZONES)
+  zones.add(prefs.prefs.timeZone)
+  return Array.from(zones)
+})
+
 async function handleNotificationsChange(enabled: boolean) {
   if (enabled) {
     try {
@@ -113,6 +151,106 @@ async function handleNotificationsChange(enabled: boolean) {
         @update:model-value="handleNotificationsChange"
         aria-label="Notifications du bureau"
       />
+    </div>
+
+    <div class="border-t border-border pt-8">
+      <h3 class="mb-6 text-lg font-semibold">Lecture</h3>
+      <div class="space-y-8">
+        <!-- Volet de lecture -->
+        <div class="space-y-2">
+          <Label :for="'pref-reading-pane'" class="text-base font-medium">Volet de lecture</Label>
+          <p class="text-sm text-muted-foreground">Ignoré en dessous de 1024 px de large</p>
+          <Select :model-value="prefs.prefs.readingPane" @update:model-value="(v: string) => void prefs.save({ readingPane: v as 'none' | 'right' })">
+            <SelectTrigger id="pref-reading-pane" class="h-11 w-full text-base sm:w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="opt of readingPaneOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <!-- Marquer comme lu -->
+        <div class="space-y-2">
+          <Label :for="'pref-mark-read'" class="text-base font-medium">Marquer comme lu</Label>
+          <Select :model-value="`${prefs.prefs.markReadDelay}`" @update:model-value="(v: string) => void prefs.save({ markReadDelay: Number(v) as 0 | 5 | 10 | -1 })">
+            <SelectTrigger id="pref-mark-read" class="h-11 w-full text-base sm:w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="opt of markReadDelayOptions" :key="opt.value" :value="`${opt.value}`">
+                {{ opt.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <!-- Fuseau horaire -->
+        <div class="space-y-2">
+          <Label :for="'pref-timezone'" class="text-base font-medium">Fuseau horaire</Label>
+          <Select :model-value="prefs.prefs.timeZone" @update:model-value="(v: string) => void prefs.save({ timeZone: v })">
+            <SelectTrigger id="pref-timezone" class="h-11 w-full text-base sm:w-64">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="zone of timeZoneOptions" :key="zone" :value="zone">
+                {{ zone }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <!-- Format de date -->
+        <div class="space-y-2">
+          <Label :for="'pref-date-format'" class="text-base font-medium">Format de date</Label>
+          <Select :model-value="prefs.prefs.dateFormat" @update:model-value="(v: string) => void prefs.save({ dateFormat: v as 'relative' | 'short' | 'long' })">
+            <SelectTrigger id="pref-date-format" class="h-11 w-full text-base sm:w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="opt of dateFormatOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <!-- Format de l'heure -->
+        <div class="space-y-2">
+          <Label :for="'pref-time-format'" class="text-base font-medium">Format de l'heure</Label>
+          <Select :model-value="prefs.prefs.timeFormat" @update:model-value="(v: string) => void prefs.save({ timeFormat: v as '24h' | '12h' })">
+            <SelectTrigger id="pref-time-format" class="h-11 w-full text-base sm:w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="opt of timeFormatOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </div>
+
+    <div class="border-t border-border pt-8">
+      <h3 class="mb-6 text-lg font-semibold">Compte</h3>
+      <!-- Inactivité (R2.6) : délai avant la boîte « Toujours là ? ». -->
+      <div class="space-y-2">
+        <Label :for="'pref-idle-minutes'" class="text-base font-medium">Déconnexion pour inactivité</Label>
+        <p class="text-sm text-muted-foreground">Délai avant que la messagerie demande « Toujours là ? »</p>
+        <Select :model-value="`${prefs.prefs.idleMinutes}`" @update:model-value="(v: string) => void prefs.save({ idleMinutes: Number(v) as 15 | 30 | 60 | 120 })">
+          <SelectTrigger id="pref-idle-minutes" class="h-11 w-full text-base sm:w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="opt of idleMinutesOptions" :key="opt.value" :value="`${opt.value}`">
+              {{ opt.label }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   </div>
 </template>

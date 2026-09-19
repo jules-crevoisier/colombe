@@ -1,18 +1,23 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import { onKeyStroke } from '@vueuse/core'
-import { Archive, ArrowLeft, ChevronDown, CircleAlert, Download, Eye, FileText, Image as ImageIcon, FolderInput, ImageOff, Mail, Paperclip, Reply, ReplyAll, Forward, Star, Trash2, AlertCircle, CheckCircle2, EllipsisVertical, Share2 } from '@lucide/vue'
+import { onKeyStroke, useMediaQuery } from '@vueuse/core'
+import { Archive, ArrowLeft, ChevronDown, CircleAlert, Download, Eye, FileText, Image as ImageIcon, FolderInput, ImageOff, Mail, Paperclip, Reply, ReplyAll, Forward, Star, Trash2, AlertCircle, CheckCircle2, EllipsisVertical, Share2, UserPlus, ListTree, IdCard } from '@lucide/vue'
 import type { Address, MessageDetail, MessageSummary } from '#shared/types/mail'
 
 definePageMeta({ layout: 'mail' })
 
 const route = useRoute()
 const api = useMailApi()
+const contactsApi = useContactsApi()
 const mail = useMailStore()
 const compose = useComposeStore()
 const { user } = useUserSession()
 const prefsStore = usePrefsStore()
 const thread = ref<MessageSummary[]>([])
+
+/** Volet de lecture (R2.5) : la liste reste visible à droite (ou à gauche du message) à partir de 1024 px. */
+const isDesktop = useMediaQuery('(min-width: 1024px)')
+const isSplitView = computed(() => prefsStore.prefs.readingPane === 'right' && isDesktop.value)
 
 const folderPath = computed(() => String(route.params.folder ?? 'INBOX'))
 const uid = computed(() => Number(route.params.uid))
@@ -33,6 +38,14 @@ const previewAttachment = ref<{ filename: string; contentType: string; id: strin
 const previewContent = ref<{ type: 'image' | 'text'; data: string } | null>(null)
 const receiptDismissed = ref(false)
 const showReadReceiptBanner = computed(() => !receiptDismissed.value && !!msg.value?.readReceiptTo)
+const addingContact = ref(false)
+const permanentDeleteConfirm = ref(false)
+let markReadTimer: ReturnType<typeof setTimeout> | null = null
+
+function cancelMarkReadTimer() {
+  if (markReadTimer) clearTimeout(markReadTimer)
+  markReadTimer = null
+}
 
 const backLink = computed(() => {
   const query = new URLSearchParams()
@@ -48,10 +61,16 @@ async function load() {
   failed.value = false
   showRemote.value = false
   showDetails.value = false
+  cancelMarkReadTimer()
   try {
     const wasUnread = !msg.value || msg.value.uid !== uid.value
     msg.value = await api.message(folderPath.value, uid.value)
-    if (wasUnread) void mail.loadFolders()
+    const pref = prefsStore.prefs.remoteImages
+    showRemote.value = pref === 'always' || (pref === 'contacts' && msg.value.senderInContacts)
+    if (wasUnread) {
+      void mail.loadFolders()
+      scheduleMarkRead()
+    }
     void loadThread()
   }
   catch (err) {
@@ -67,6 +86,27 @@ watch([folderPath, uid], () => {
   receiptDismissed.value = false
   void load()
 }, { immediate: true })
+
+onBeforeUnmount(cancelMarkReadTimer)
+
+/**
+ * `markReadDelay` (R2.5) : 0 = immédiat, 5/10 s = après le délai, -1 = jamais
+ * automatiquement. Le serveur marque déjà « lu » à la lecture (compat.) ; ce
+ * minuteur pilote uniquement l'appel client une fois le backend adapté.
+ */
+function scheduleMarkRead() {
+  const delay = prefsStore.prefs.markReadDelay
+  if (delay === -1) return
+  const targetUid = uid.value
+  const targetFolder = folderPath.value
+  markReadTimer = setTimeout(() => {
+    markReadTimer = null
+    void api.setFlags(targetFolder, [targetUid], { seen: true }).then(() => {
+      if (msg.value && msg.value.uid === targetUid && msg.value.folder === targetFolder) msg.value.seen = true
+      void mail.loadFolders()
+    }).catch(() => null)
+  }, delay * 1000)
+}
 
 /** Autres messages de la conversation (dossier courant + Envoyés), du plus ancien au plus récent. */
 async function loadThread() {
@@ -89,7 +129,7 @@ function threadFolderName(m: MessageSummary): string | null {
 // ─── Raccourcis : r répondre, a répondre à tous, f transférer, e archiver, # supprimer, u retour ───
 function onKey(key: string, action: () => void) {
   onKeyStroke(key, (e) => {
-    if (isTypingTarget(e) || compose.isOpen || !msg.value) return
+    if (isTypingTarget(e) || compose.isOpen || compose.opening || !msg.value) return
     e.preventDefault()
     action()
   })
@@ -123,7 +163,9 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} Mo`
 }
 
-const fullDate = computed(() => (msg.value ? new Date(msg.value.date).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' }) : ''))
+const dateOpts = computed(() => ({ timeZone: prefsStore.prefs.timeZone, dateFormat: prefsStore.prefs.dateFormat, timeFormat: prefsStore.prefs.timeFormat }))
+const fullDate = computed(() => (msg.value ? formatFullDate(msg.value.date, 'fr-FR', dateOpts.value) : ''))
+const html = computed(() => (prefsStore.prefs.preferHtml ? msg.value?.html ?? null : null))
 
 async function act(action: () => Promise<unknown>, done: string) {
   try {
@@ -139,6 +181,15 @@ async function act(action: () => Promise<unknown>, done: string) {
 
 const doArchive = () => archive.value && act(() => api.move(folderPath.value, [uid.value], archive.value!.path), 'Message archivé')
 const doDelete = () => act(() => api.remove(folderPath.value, [uid.value]), folder.value?.specialUse === 'trash' ? 'Message supprimé définitivement' : 'Message placé dans la corbeille')
+/** deleteMode 'permanent' (R2.8) : confirmation avant suppression définitive, quel que soit le dossier. */
+function deleteClicked() {
+  if (prefsStore.prefs.deleteMode === 'permanent') permanentDeleteConfirm.value = true
+  else void doDelete()
+}
+function confirmPermanentDelete() {
+  permanentDeleteConfirm.value = false
+  void doDelete()
+}
 /** Copie : on reste sur le message. */
 async function copyTo(path: string, name: string) {
   try {
@@ -253,6 +304,40 @@ function downloadAttachment(id: string, filename: string) {
   a.click()
 }
 
+/** Bouton « Ajouter aux contacts » (R2.3), masqué si `senderInContacts`. */
+async function addSenderToContacts() {
+  if (!msg.value?.from || addingContact.value) return
+  addingContact.value = true
+  try {
+    await contactsApi.quickAdd(msg.value.from.address, msg.value.from.name)
+    msg.value.senderInContacts = true
+    toast.success('Contact ajouté')
+  }
+  catch (err) {
+    toast.error(errorText(err, 'Impossible d\'ajouter le contact.'))
+  }
+  finally {
+    addingContact.value = false
+  }
+}
+
+function isVcard(a: { filename: string, contentType: string }): boolean {
+  return /\.vcf$/i.test(a.filename) || a.contentType === 'text/vcard' || a.contentType === 'text/x-vcard'
+}
+
+/** Pièce jointe .vcf : « Importer ce contact » (R2.3). */
+async function importVcardAttachment(a: { id: string, filename: string, contentType: string }) {
+  try {
+    const url = api.attachmentUrl(folderPath.value, uid.value, a.id)
+    const blob = await $fetch<Blob>(url, { responseType: 'blob' })
+    const result = await contactsApi.importFile(blob, a.filename)
+    toast.success(result.imported > 0 ? 'Contact importé' : 'Aucun contact importé')
+  }
+  catch (err) {
+    toast.error(errorText(err, 'Impossible d\'importer ce contact.'))
+  }
+}
+
 async function junkSelected() {
   try {
     await api.junk(folderPath.value, [uid.value], true)
@@ -268,7 +353,11 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
 </script>
 
 <template>
-  <article class="flex min-h-0 flex-1 flex-col" aria-labelledby="sujet">
+  <div class="flex h-full min-h-0 flex-1">
+    <div v-if="isSplitView" class="flex h-full min-h-0 w-full max-w-sm shrink-0 flex-col border-r border-border/60">
+      <MailMessageList />
+    </div>
+    <article class="flex min-h-0 min-w-0 flex-1 flex-col" aria-labelledby="sujet">
     <div class="sticky top-16 z-20 flex h-14 shrink-0 items-center gap-1 border-b border-border/60 bg-surface-panel px-2 lg:static lg:h-12 lg:px-3" role="toolbar" aria-label="Actions sur le message">
       <Tooltip>
         <TooltipTrigger as-child>
@@ -280,7 +369,7 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
       </Tooltip>
       <template v-if="msg">
         <MailIconButton v-if="archive && folderPath !== archive.path" :icon="Archive" label="Archiver" @click="doArchive" />
-        <MailIconButton :icon="Trash2" :label="folder?.specialUse === 'trash' ? 'Supprimer définitivement' : 'Supprimer'" @click="doDelete" />
+        <MailIconButton :icon="Trash2" :label="folder?.specialUse === 'trash' ? 'Supprimer définitivement' : 'Supprimer'" @click="deleteClicked" />
         <MailIconButton :icon="Mail" label="Marquer comme non lu" @click="doUnread" />
         <!-- Plus d'actions menu -->
         <DropdownMenu>
@@ -309,6 +398,18 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+            <!-- Mobile : « Déplacer vers » passe dans ce menu (6 boutons ne tiennent pas en 320 px). -->
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger class="sm:hidden">
+                <FolderInput class="size-4" aria-hidden="true" />
+                Déplacer vers…
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent class="w-48">
+                <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="doMove(f.path, f.name)">
+                  {{ f.name }}
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuSeparator />
             <DropdownMenuItem @select="redirectDialogOpen = true">
               <Share2 class="size-4" aria-hidden="true" />
@@ -323,7 +424,7 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
           </DropdownMenuContent>
         </DropdownMenu>
         <DropdownMenu>
-          <MailMenuButton :icon="FolderInput" label="Déplacer vers" />
+          <MailMenuButton :icon="FolderInput" label="Déplacer vers" class="max-sm:hidden" />
           <DropdownMenuContent align="start" class="w-56">
             <DropdownMenuLabel>Déplacer vers</DropdownMenuLabel>
             <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="doMove(f.path, f.name)">{{ f.name }}</DropdownMenuItem>
@@ -365,12 +466,23 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
             <div class="flex flex-wrap items-baseline gap-x-2">
               <span class="font-semibold">{{ msg.from?.name || msg.from?.address || '(expéditeur inconnu)' }}</span>
               <span v-if="msg.from?.name" class="truncate text-xs text-muted-foreground">&lt;{{ msg.from.address }}&gt;</span>
+              <button
+                v-if="msg.from && !msg.senderInContacts"
+                type="button"
+                class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-primary hover:bg-accent disabled:opacity-50"
+                :disabled="addingContact"
+                @click="addSenderToContacts"
+              >
+                <UserPlus class="size-3.5" aria-hidden="true" /> Ajouter aux contacts
+              </button>
             </div>
             <button type="button" class="inline-flex max-w-full items-center gap-1 rounded text-left text-xs text-muted-foreground hover:text-foreground" :aria-expanded="showDetails" @click="showDetails = !showDetails">
               <span class="truncate">à {{ shortList([...msg.to, ...msg.cc]) || '(aucun destinataire)' }}</span>
               <ChevronDown class="size-3.5 shrink-0 transition-transform" :class="{ 'rotate-180': showDetails }" aria-hidden="true" />
               <span class="sr-only">{{ showDetails ? 'Masquer' : 'Afficher' }} les détails</span>
             </button>
+            <!-- Mobile : la date passe sous les destinataires (à droite à partir de 640 px). -->
+            <time class="block text-xs text-muted-foreground sm:hidden" :datetime="msg.date">{{ fullDate }}</time>
             <dl v-if="showDetails" class="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg border p-3 text-xs">
               <dt class="text-muted-foreground">De</dt><dd class="break-all">{{ msg.from ? formatAddress(msg.from) : '—' }}</dd>
               <template v-if="msg.replyTo.length"><dt class="text-muted-foreground">Répondre à</dt><dd class="break-all">{{ msg.replyTo.map(formatAddress).join(', ') }}</dd></template>
@@ -407,7 +519,7 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
           </div>
         </div>
 
-        <MailFrame :html="msg.html" :text="msg.text" :show-remote="showRemote" />
+        <MailFrame :html="html" :text="msg.text" :show-remote="showRemote" />
 
         <section v-if="msg.attachments.length" aria-labelledby="pj-titre" class="flex flex-col gap-2">
           <div class="flex items-center justify-between">
@@ -426,7 +538,7 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
             </template>
           </div>
           <ul class="flex flex-wrap gap-2">
-            <li v-for="a in msg.attachments" :key="a.id">
+            <li v-for="a in msg.attachments" :key="a.id" class="flex items-center gap-2">
               <!-- Aperçu uniquement pour les images et le texte (R1.3) ; le reste se télécharge. -->
               <button
                 v-if="isPreviewable(a.contentType)"
@@ -456,6 +568,9 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
                 <Download class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <span class="sr-only">Télécharger</span>
               </a>
+              <Button v-if="isVcard(a)" variant="outline" class="h-10 shrink-0 rounded-full px-3 text-xs" @click="importVcardAttachment(a)">
+                <IdCard class="size-4" aria-hidden="true" /> Importer ce contact
+              </Button>
             </li>
           </ul>
         </section>
@@ -475,6 +590,9 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
           </Button>
           <Button variant="outline" class="h-11 rounded-full px-5" @click="compose.openForward(msg)">
             <Forward class="size-4" aria-hidden="true" /> Transférer
+          </Button>
+          <Button v-if="msg.listPost" variant="outline" class="h-11 rounded-full px-5" @click="compose.openReply(msg, me, 'list')">
+            <ListTree class="size-4" aria-hidden="true" /> Répondre à la liste
           </Button>
         </div>
       </div>
@@ -502,6 +620,20 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <!-- Suppression définitive (deleteMode: 'permanent', R2.8) -->
+    <AlertDialog :open="permanentDeleteConfirm" @update:open="(v: boolean) => { if (!v) permanentDeleteConfirm = false }">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Supprimer définitivement ?</AlertDialogTitle>
+          <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel class="h-11 rounded-full">Annuler</AlertDialogCancel>
+          <AlertDialogAction class="h-11 rounded-full bg-destructive text-white hover:bg-destructive/90" @click="confirmPermanentDelete">Supprimer</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     <!-- Redirect dialog -->
     <Dialog v-model:open="redirectDialogOpen">
@@ -544,5 +676,6 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  </article>
+    </article>
+  </div>
 </template>

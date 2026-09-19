@@ -1,5 +1,6 @@
 import { test, expect, Page, APIRequestContext, BrowserContext } from '@playwright/test'
 import { AxeBuilder } from '@axe-core/playwright'
+import { resetMock } from '../support/reset'
 
 interface AuditResult {
   screen: string
@@ -20,13 +21,7 @@ async function ensureLoggedIn(page: Page, request: APIRequestContext) {
   // If we're not logged in, we'll be redirected to /login
   if (page.url().includes('/login')) {
     // Reset mock backend
-    try {
-      await request.post('/api/__mock/reset', {
-        headers: { origin: 'http://localhost:3000' },
-      })
-    } catch (e) {
-      // Ignore
-    }
+    await resetMock(request)
 
     // Now login
     const emailField = page.locator('[aria-label="Adresse e-mail"]')

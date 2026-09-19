@@ -40,6 +40,8 @@ const baseSchema = z.object({
   requestDeliveryReceipt: z.boolean().optional(),
   forwardAsAttachment: z.array(messageRefSchema).max(50).optional(),
   origin: messageRefSchema.extend({ kind: z.enum(['reply', 'forward']) }).nullish(),
+  /** Identité d'envoi (R2.1). Absente : identité par défaut. */
+  identityId: z.number().int().positive().optional(),
 })
 
 function checkTotals(data: z.infer<typeof baseSchema>, ctx: z.RefinementCtx, requireRecipient: boolean): void {
@@ -72,5 +74,6 @@ export function toPayload(d: z.infer<typeof baseSchema>): ComposePayload {
     requestDeliveryReceipt: d.requestDeliveryReceipt,
     forwardAsAttachment: d.forwardAsAttachment,
     origin: d.origin,
+    identityId: d.identityId,
   }
 }

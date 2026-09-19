@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import { Archive, EllipsisVertical, FileText, Folder as FolderIcon, FolderPlus, Inbox, Pencil, Send, ShieldAlert, Trash2 } from '@lucide/vue'
+import { Archive, BookUser, ChevronDown, ChevronRight, EllipsisVertical, FileText, Folder as FolderIcon, FolderPlus, HardDrive, Inbox, Pencil, Send, ShieldAlert, Trash2 } from '@lucide/vue'
 import type { Component } from 'vue'
-import type { Folder, SpecialUse } from '#shared/types/mail'
+import type { Folder, QuotaInfo, SpecialUse } from '#shared/types/mail'
 
 const props = defineProps<{ collapsed?: boolean }>()
 const emit = defineEmits<{ navigate: [] }>()
@@ -39,6 +39,64 @@ function newMessage() {
   emit('navigate')
 }
 
+// ─── Arborescence des sous-dossiers (R2.4) : dépliée par défaut ───
+interface FolderRow { folder: Folder, depth: number, hasChildren: boolean }
+const collapsedPaths = ref(new Set<string>())
+
+function parentPathOf(folder: Folder): string | null {
+  if (!folder.delimiter) return null
+  const idx = folder.path.lastIndexOf(folder.delimiter)
+  return idx > 0 ? folder.path.slice(0, idx) : null
+}
+
+function toggleCollapse(path: string) {
+  const next = new Set(collapsedPaths.value)
+  if (next.has(path)) next.delete(path)
+  else next.add(path)
+  collapsedPaths.value = next
+}
+
+const rows = computed<FolderRow[]>(() => {
+  const folders = mail.folders
+  const byPath = new Map(folders.map(f => [f.path, f]))
+  const childrenOf = new Map<string, Folder[]>()
+  for (const f of folders) {
+    const parent = parentPathOf(f)
+    if (parent && byPath.has(parent)) {
+      childrenOf.set(parent, [...(childrenOf.get(parent) ?? []), f])
+    }
+  }
+  const depthCache = new Map<string, number>()
+  function depthOf(f: Folder): number {
+    const cached = depthCache.get(f.path)
+    if (cached !== undefined) return cached
+    const parentPath = parentPathOf(f)
+    const parent = parentPath ? byPath.get(parentPath) : undefined
+    const d = parent ? depthOf(parent) + 1 : 0
+    depthCache.set(f.path, d)
+    return d
+  }
+  const result: FolderRow[] = []
+  function visit(f: Folder) {
+    const children = childrenOf.get(f.path) ?? []
+    result.push({ folder: f, depth: depthOf(f), hasChildren: children.length > 0 })
+    if (collapsedPaths.value.has(f.path)) return
+    for (const child of children) visit(child)
+  }
+  const roots = folders.filter((f) => {
+    const parent = parentPathOf(f)
+    return !parent || !byPath.has(parent)
+  })
+  for (const root of roots) visit(root)
+  return result
+})
+
+/** Dossiers pouvant accueillir un déplacement : ni soi-même, ni un de ses descendants. */
+function moveTargetsFor(folder: Folder): Folder[] {
+  const prefix = folder.delimiter ? `${folder.path}${folder.delimiter}` : null
+  return mail.folders.filter(f => f.path !== folder.path && !(prefix && f.path.startsWith(prefix)))
+}
+
 // ─── Glisser-déposer de messages sur un dossier ───
 const dropTarget = ref<string | null>(null)
 
@@ -67,14 +125,15 @@ async function onDrop(folder: Folder, e: DragEvent) {
 }
 
 // ─── Gestion des dossiers personnels ───
-const dialog = ref<{ mode: 'create' | 'rename'; folder?: Folder } | null>(null)
+const dialog = ref<{ mode: 'create' | 'rename', folder?: Folder, parent?: string } | null>(null)
 const folderName = ref('')
 const nameError = ref('')
 const saving = ref(false)
 const toDelete = ref<Folder | null>(null)
+const toEmpty = ref<Folder | null>(null)
 
-function openCreate() {
-  dialog.value = { mode: 'create' }
+function openCreate(parent?: string) {
+  dialog.value = { mode: 'create', parent }
   folderName.value = ''
   nameError.value = ''
 }
@@ -95,7 +154,7 @@ async function submitFolder() {
   nameError.value = ''
   try {
     if (d.mode === 'create') {
-      const created = await api.createFolder(name)
+      const created = await api.createFolder(name, d.parent)
       toast(`Dossier « ${created.name} » créé`)
     }
     else if (d.folder) {
@@ -130,6 +189,65 @@ async function confirmDelete() {
     toDelete.value = null
   }
 }
+
+async function confirmEmpty() {
+  const folder = toEmpty.value
+  toEmpty.value = null
+  if (!folder) return
+  try {
+    await api.emptyFolder(folder.path)
+    toast(`Dossier « ${folder.name} » vidé`)
+    mail.notifyChange(folder.path)
+    await mail.loadFolders()
+  }
+  catch (err) {
+    toast.error(errorText(err, 'Impossible de vider ce dossier.'))
+  }
+}
+
+// ─── Déplacer vers… ───
+const ROOT_VALUE = '__root__'
+const moveDialog = ref<Folder | null>(null)
+const moveTarget = ref(ROOT_VALUE)
+const moveSaving = ref(false)
+
+function openMove(folder: Folder) {
+  moveDialog.value = folder
+  moveTarget.value = ROOT_VALUE
+}
+
+async function submitMove() {
+  const folder = moveDialog.value
+  if (!folder) return
+  moveSaving.value = true
+  try {
+    await api.moveFolder(folder.path, moveTarget.value === ROOT_VALUE ? null : moveTarget.value)
+    toast(`Dossier « ${folder.name} » déplacé`)
+    moveDialog.value = null
+    await mail.loadFolders()
+  }
+  catch (err) {
+    toast.error(errorText(err, 'Déplacement impossible.'))
+  }
+  finally {
+    moveSaving.value = false
+  }
+}
+
+// ─── Jauge de quota (R2.4) ───
+const quota = ref<QuotaInfo | null>(null)
+onMounted(async () => {
+  try {
+    quota.value = await api.quota()
+  }
+  catch {
+    quota.value = null
+  }
+})
+const quotaRatio = computed(() => {
+  if (!quota.value?.limitBytes) return 0
+  return Math.min(1, quota.value.usedBytes / quota.value.limitBytes)
+})
 </script>
 
 <template>
@@ -157,56 +275,79 @@ async function confirmDelete() {
         </li>
       </template>
       <li
-        v-for="folder in mail.folders"
-        :key="folder.path"
+        v-for="row in rows"
+        :key="row.folder.path"
         class="group relative"
-        @dragover="onDragOver(folder, $event)"
-        @dragleave="dropTarget = dropTarget === folder.path ? null : dropTarget"
-        @drop="onDrop(folder, $event)"
+        @dragover="onDragOver(row.folder, $event)"
+        @dragleave="dropTarget = dropTarget === row.folder.path ? null : dropTarget"
+        @drop="onDrop(row.folder, $event)"
       >
+        <!-- Repli/dépli des sous-dossiers : à côté du lien, jamais imbriqué dans le <a> -->
+        <button
+          v-if="row.hasChildren && !props.collapsed"
+          type="button"
+          class="absolute top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-foreground/10 lg:size-6 lg:rounded"
+          :style="{ left: `${row.depth * 16}px` }"
+          :aria-label="collapsedPaths.has(row.folder.path) ? `Développer ${row.folder.name}` : `Réduire ${row.folder.name}`"
+          :aria-expanded="!collapsedPaths.has(row.folder.path)"
+          @click="toggleCollapse(row.folder.path)"
+        >
+          <component :is="collapsedPaths.has(row.folder.path) ? ChevronRight : ChevronDown" class="size-4" aria-hidden="true" />
+        </button>
+
         <Tooltip :disabled="!props.collapsed">
           <TooltipTrigger as-child>
             <NuxtLink
-              :to="`/mail/${encodeURIComponent(folder.path)}`"
+              :to="`/mail/${encodeURIComponent(row.folder.path)}`"
               class="relative flex h-11 items-center gap-4 rounded-full text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring lg:h-9"
               :class="[
-                current === folder.path ? 'bg-nav-active font-semibold text-nav-active-foreground hover:bg-nav-active' : 'text-foreground',
-                dropTarget === folder.path ? 'outline-2 outline-dashed outline-primary' : '',
-                props.collapsed ? 'w-14 justify-center' : 'pl-4',
-                props.collapsed ? '' : folder.specialUse ? 'pr-3' : 'pr-11',
+                current === row.folder.path ? 'bg-nav-active font-semibold text-nav-active-foreground hover:bg-nav-active' : 'text-foreground',
+                dropTarget === row.folder.path ? 'outline-2 outline-dashed outline-primary' : '',
+                props.collapsed ? 'w-14 justify-center' : '',
+                props.collapsed ? '' : row.folder.specialUse ? 'pr-3' : 'pr-11',
               ]"
-              :aria-current="current === folder.path ? 'page' : undefined"
-              :aria-label="props.collapsed ? `${folder.name}${badge(folder) ? `, ${badge(folder)} non lus` : ''}` : undefined"
+              :style="props.collapsed ? undefined : { paddingLeft: `${16 + row.depth * 16 + (row.hasChildren ? 20 : 0)}px` }"
+              :aria-current="current === row.folder.path ? 'page' : undefined"
+              :aria-label="props.collapsed ? `${row.folder.name}${badge(row.folder) ? `, ${badge(row.folder)} non lus` : ''}` : undefined"
               @click="emit('navigate')"
             >
-              <component :is="iconOf(folder)" class="size-5 shrink-0" aria-hidden="true" />
+              <component :is="iconOf(row.folder)" class="size-5 shrink-0" aria-hidden="true" />
               <template v-if="!props.collapsed">
-                <span class="flex-1 truncate" :class="{ 'font-semibold': badge(folder) > 0 }">{{ folder.name }}</span>
-                <span v-if="badge(folder) > 0" class="text-xs font-semibold tabular-nums" :class="{ 'group-hover:hidden group-focus-within:hidden': !folder.specialUse }">
-                  {{ badge(folder) }}<span class="sr-only">{{ folder.specialUse === 'drafts' ? ' brouillons' : ' non lus' }}</span>
+                <span class="flex-1 truncate" :class="{ 'font-semibold': badge(row.folder) > 0 }">{{ row.folder.name }}</span>
+                <span v-if="badge(row.folder) > 0" class="text-xs font-semibold tabular-nums" :class="{ 'group-hover:hidden group-focus-within:hidden': !row.folder.specialUse }">
+                  {{ badge(row.folder) }}<span class="sr-only">{{ row.folder.specialUse === 'drafts' ? ' brouillons' : ' non lus' }}</span>
                 </span>
               </template>
-              <span v-else-if="badge(folder) > 0" class="absolute top-1 right-1.5 size-2 rounded-full bg-primary" aria-hidden="true" />
+              <span v-else-if="badge(row.folder) > 0" class="absolute top-1 right-1.5 size-2 rounded-full bg-primary" aria-hidden="true" />
             </NuxtLink>
           </TooltipTrigger>
-          <TooltipContent side="right">{{ folder.name }}</TooltipContent>
+          <TooltipContent side="right">{{ row.folder.name }}</TooltipContent>
         </Tooltip>
 
-        <DropdownMenu v-if="!folder.specialUse && !props.collapsed">
+        <DropdownMenu v-if="!row.folder.specialUse && !props.collapsed">
           <DropdownMenuTrigger as-child>
             <button
               type="button"
               class="absolute top-0 right-0 grid size-11 place-items-center rounded-full text-muted-foreground hover:bg-foreground/10 focus-visible:opacity-100 lg:size-9 lg:opacity-0 lg:group-hover:opacity-100"
-              :aria-label="`Actions pour le dossier ${folder.name}`"
+              :aria-label="`Actions pour le dossier ${row.folder.name}`"
             >
               <EllipsisVertical class="size-4" aria-hidden="true" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem @select="openRename(folder)">
+            <DropdownMenuItem @select="openCreate(row.folder.path)">
+              <FolderPlus class="size-4" aria-hidden="true" /> Nouveau sous-dossier
+            </DropdownMenuItem>
+            <DropdownMenuItem @select="openRename(row.folder)">
               <Pencil class="size-4" aria-hidden="true" /> Renommer
             </DropdownMenuItem>
-            <DropdownMenuItem class="text-destructive focus:text-destructive" @select="toDelete = folder">
+            <DropdownMenuItem @select="openMove(row.folder)">
+              <FolderIcon class="size-4" aria-hidden="true" /> Déplacer vers…
+            </DropdownMenuItem>
+            <DropdownMenuItem @select="toEmpty = row.folder">
+              <Trash2 class="size-4" aria-hidden="true" /> Vider le dossier
+            </DropdownMenuItem>
+            <DropdownMenuItem class="text-destructive focus:text-destructive" @select="toDelete = row.folder">
               <Trash2 class="size-4" aria-hidden="true" /> Supprimer
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -218,20 +359,43 @@ async function confirmDelete() {
       </li>
     </ul>
 
+    <NuxtLink
+      to="/contacts"
+      class="flex h-11 items-center gap-4 rounded-full text-sm text-foreground transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring lg:h-9"
+      :class="props.collapsed ? 'w-14 justify-center' : 'pl-4'"
+      :aria-label="props.collapsed ? 'Contacts' : undefined"
+      @click="emit('navigate')"
+    >
+      <BookUser class="size-5 shrink-0" aria-hidden="true" />
+      <span v-if="!props.collapsed">Contacts</span>
+    </NuxtLink>
+
     <button
       v-if="!props.collapsed && mail.loaded"
       type="button"
       class="flex h-11 w-fit items-center gap-3 rounded-full px-4 text-sm text-muted-foreground hover:bg-accent hover:text-foreground lg:h-9"
-      @click="openCreate"
+      @click="openCreate()"
     >
       <FolderPlus class="size-5" aria-hidden="true" /> Nouveau dossier
     </button>
 
+    <!-- Jauge « Espace utilisé » (R2.4), masquée si le serveur ne fournit pas de quota -->
+    <div v-if="!props.collapsed && quota?.limitBytes" class="flex flex-col gap-1.5 px-4 pb-1 text-xs text-muted-foreground">
+      <div class="flex items-center gap-2">
+        <HardDrive class="size-3.5 shrink-0" aria-hidden="true" />
+        <span>Espace utilisé</span>
+      </div>
+      <div class="h-1.5 w-full overflow-hidden rounded-full bg-muted" role="progressbar" :aria-valuenow="Math.round(quotaRatio * 100)" aria-valuemin="0" aria-valuemax="100">
+        <div class="h-full rounded-full bg-primary" :style="{ width: `${quotaRatio * 100}%` }" />
+      </div>
+      <span>{{ formatGigabytes(quota.usedBytes) }} sur {{ formatGigabytes(quota.limitBytes) }}</span>
+    </div>
+
     <Dialog :open="dialog !== null" @update:open="(v: boolean) => { if (!v) dialog = null }">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{{ dialog?.mode === 'rename' ? 'Renommer le dossier' : 'Nouveau dossier' }}</DialogTitle>
-          <DialogDescription>{{ dialog?.mode === 'rename' ? `Nouveau nom pour « ${dialog.folder?.name} »` : 'Le dossier est créé à la racine de votre messagerie.' }}</DialogDescription>
+          <DialogTitle>{{ dialog?.mode === 'rename' ? 'Renommer le dossier' : dialog?.parent ? 'Nouveau sous-dossier' : 'Nouveau dossier' }}</DialogTitle>
+          <DialogDescription>{{ dialog?.mode === 'rename' ? `Nouveau nom pour « ${dialog.folder?.name} »` : dialog?.parent ? `Créé dans « ${mail.byPath(dialog.parent)?.name ?? dialog.parent} ».` : 'Le dossier est créé à la racine de votre messagerie.' }}</DialogDescription>
         </DialogHeader>
         <form class="flex flex-col gap-3" @submit.prevent="submitFolder">
           <Label for="folder-name">Nom du dossier</Label>
@@ -242,6 +406,31 @@ async function confirmDelete() {
             <Button type="submit" class="h-11 rounded-full px-5" :disabled="saving">{{ dialog?.mode === 'rename' ? 'Renommer' : 'Créer' }}</Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Déplacer vers… -->
+    <Dialog :open="moveDialog !== null" @update:open="(v: boolean) => { if (!v) moveDialog = null }">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Déplacer « {{ moveDialog?.name }} »</DialogTitle>
+        </DialogHeader>
+        <div class="flex flex-col gap-3">
+          <Label for="move-target">Destination</Label>
+          <Select :model-value="moveTarget" @update:model-value="(v) => { moveTarget = String(v) }">
+            <SelectTrigger id="move-target" class="h-11 w-full text-base">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem :value="ROOT_VALUE">(Racine)</SelectItem>
+              <SelectItem v-for="f in moveDialog ? moveTargetsFor(moveDialog) : []" :key="f.path" :value="f.path">{{ f.name }}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="ghost" class="h-11 rounded-full px-5" @click="moveDialog = null">Annuler</Button>
+          <Button type="button" class="h-11 rounded-full px-5" :disabled="moveSaving" @click="submitMove">Déplacer</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
 
@@ -256,6 +445,20 @@ async function confirmDelete() {
         <AlertDialogFooter>
           <AlertDialogCancel class="h-11 rounded-full">Annuler</AlertDialogCancel>
           <AlertDialogAction class="h-11 rounded-full bg-destructive text-white hover:bg-destructive/90" @click="confirmDelete">Supprimer</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <!-- Vider le dossier -->
+    <AlertDialog :open="toEmpty !== null" @update:open="(v: boolean) => { if (!v) toEmpty = null }">
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Vider « {{ toEmpty?.name }} » ?</AlertDialogTitle>
+          <AlertDialogDescription>Tous les messages de ce dossier seront supprimés définitivement.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel class="h-11 rounded-full">Annuler</AlertDialogCancel>
+          <AlertDialogAction class="h-11 rounded-full bg-destructive text-white hover:bg-destructive/90" @click="confirmEmpty">Vider</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

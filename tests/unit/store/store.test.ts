@@ -8,8 +8,8 @@ describe('store', () => {
   it('should create the schema and be re-openable (migrations idempotent)', () => {
     const db = openDatabase(':memory:')
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all() as Array<{ name: string }>
-    expect(tables.map(t => t.name)).toEqual(expect.arrayContaining(['contacts', 'prefs', 'recovery_codes', 'schema_version', 'totp']))
-    expect(db.prepare('SELECT version FROM schema_version').get()).toEqual({ version: 1 })
+    expect(tables.map(t => t.name)).toEqual(expect.arrayContaining(['contacts', 'prefs', 'recovery_codes', 'schema_version', 'totp', 'identities', 'responses', 'contact_emails', 'contact_groups', 'contact_group_members', 'login_events']))
+    expect(db.prepare('SELECT version FROM schema_version').get()).toEqual({ version: 2 })
   })
 
   it('should round-trip an encrypted secret and reject tampering or a wrong key', () => {

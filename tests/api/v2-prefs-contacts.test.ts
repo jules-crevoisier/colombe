@@ -120,11 +120,12 @@ describe('prefs API', () => {
     expect(prefs.signatureHtml).toContain('My sig')
   })
 
-  it('should enforce signatureHtml max 10000 chars', async () => {
+  // R2.8 : 1 Mo (images de signature).
+  it('should enforce signatureHtml max 1 MB', async () => {
     const c = await login()
     const res = await c.request('/api/prefs', {
       method: 'PUT',
-      body: { signatureHtml: 'a'.repeat(10001) },
+      body: { signatureHtml: 'a'.repeat(1024 * 1024 + 1) },
     })
     expect(res.status).toBe(400)
   })
@@ -231,9 +232,10 @@ describe('contacts API', () => {
     expect(results.length).toBeLessThanOrEqual(10)
   })
 
-  it('should limit to 50 max for limit parameter', async () => {
+  // La page Contacts (R2.3) liste jusqu'à 500 fiches.
+  it('should limit to 500 max for limit parameter', async () => {
     const c = await login()
-    const res = await c.request('/api/contacts?limit=100')
+    const res = await c.request('/api/contacts?limit=501')
     expect(res.status).toBe(400)
   })
 

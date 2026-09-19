@@ -27,8 +27,24 @@ export default defineConfig({
           // Backend IMAP réel contre GreenMail (docker compose up -d greenmail)
           name: 'integration',
           include: ['tests/integration/**/*.test.ts'],
+          exclude: ['tests/integration/filters.dovecot.test.ts'],
           environment: 'node',
           testTimeout: 30_000,
+          fileParallelism: false,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          // Filtres Sieve contre Dovecot + Pigeonhole réel (docker compose up -d dovecot).
+          // Serveur Nitro construit démarré par le fichier lui-même (beforeAll/afterAll) —
+          // voir tests/integration/filters.dovecot.test.ts. Lancer via `pnpm test:dovecot`
+          // (construit .output d'abord, comme test:api).
+          name: 'integration-dovecot',
+          include: ['tests/integration/filters.dovecot.test.ts'],
+          environment: 'node',
+          testTimeout: 60_000,
+          hookTimeout: 300_000,
           fileParallelism: false,
         },
       },

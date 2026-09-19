@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { listUserFolders } from '../lib/mail/user-folders'
 import { MailError } from '../lib/mail/backend'
 import { mailError, requireMail } from '../utils/mail-session'
 
@@ -12,8 +13,8 @@ const BATCH = 50
 export default defineEventHandler(async (event) => {
   try {
     const { path } = await readValidatedBody(event, b => bodySchema.parse(b))
-    const { backend } = await requireMail(event)
-    const folders = await backend.listFolders()
+    const { email, backend } = await requireMail(event)
+    const folders = await listUserFolders(backend, email, { all: true })
     const folder = folders.find(f => f.path === path)
     if (!folder) throw new MailError('NOT_FOUND', 'Dossier introuvable')
     if (folder.specialUse || path.toUpperCase() === 'INBOX') throw new MailError('INVALID', 'Ce dossier ne peut pas être supprimé')

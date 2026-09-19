@@ -2,10 +2,11 @@ import { ImapFlow } from 'imapflow'
 import type { FetchMessageObject, ListResponse, MessageAddressObject, MessageStructureObject } from 'imapflow'
 import nodemailer from 'nodemailer'
 import type { Transporter } from 'nodemailer'
-import type { Address, Folder, MessageSummary, SpecialUse } from '#shared/types/mail'
+import type { Address, Folder, FolderSize, MessageSummary, QuotaInfo, SpecialUse } from '#shared/types/mail'
 import { MailError } from './backend'
 import type {
   FlagChange,
+  ListFoldersOptions,
   ListOptions,
   ListResult,
   MailBackend,
@@ -273,7 +274,7 @@ export class ImapBackend implements MailBackend {
     return created
   }
 
-  async listFolders(): Promise<Folder[]> {
+  async listFolders(opts: ListFoldersOptions = {}): Promise<Folder[]> {
     const client = await this.imap()
     try {
       const query = { statusQuery: { messages: true, unseen: true } }
@@ -282,6 +283,7 @@ export class ImapBackend implements MailBackend {
 
       return entries
         .filter(e => !e.flags.has('\\Noselect') && !e.flags.has('\\NonExistent'))
+        .filter(e => opts.all || e.subscribed !== false)
         .map((e) => {
           const specialUse = ImapBackend.specialUseOf(e)
           return {
@@ -579,6 +581,51 @@ export class ImapBackend implements MailBackend {
     return this.withMailbox(folder, true, async (client) => {
       const found = await client.search({ all: true }, { uid: true })
       return Array.isArray(found) ? found : []
+    })
+  }
+
+  async subscribeFolder(path: string, subscribed: boolean): Promise<void> {
+    const client = await this.imap()
+    try {
+      const ok = subscribed ? await client.mailboxSubscribe(path) : await client.mailboxUnsubscribe(path)
+      if (!ok) throw new MailError('NOT_FOUND', `Dossier ${path} introuvable`)
+    }
+    catch (err) {
+      if (err instanceof MailError) throw err
+      throw toMailError(err, `Abonnement au dossier ${path}`)
+    }
+  }
+
+  async getQuota(): Promise<QuotaInfo> {
+    const client = await this.imap()
+    try {
+      const result = await client.getQuota('INBOX')
+      if (!result || !result.storage) return { usedBytes: 0, limitBytes: null }
+      // imapflow@2.0.5 : le runtime remplit `.usage` alors que le type déclare `.used` ; on lit les deux.
+      const storage = result.storage as unknown as { used?: number; usage?: number; limit?: number }
+      return { usedBytes: storage.used ?? storage.usage ?? 0, limitBytes: storage.limit ?? null }
+    }
+    catch (err) {
+      throw toMailError(err, 'Quota')
+    }
+  }
+
+  async folderSize(path: string): Promise<FolderSize> {
+    return this.withMailbox(path, true, async (client) => {
+      const status = await client.status(path, { messages: true, size: true }).catch(() => false as const)
+      if (status && typeof status.size === 'number') {
+        return { bytes: status.size, messages: status.messages ?? 0 }
+      }
+
+      // Serveur sans STATUS=SIZE (GreenMail, la plupart des Dovecot par défaut) :
+      // on additionne la taille de chaque message.
+      const found = await client.search({ all: true }, { uid: true })
+      const uids = Array.isArray(found) ? found : []
+      if (!uids.length) return { bytes: 0, messages: 0 }
+
+      const fetched = await client.fetchAll(uidRange(uids), { uid: true, size: true }, { uid: true })
+      const bytes = fetched.reduce((sum, m) => sum + (m.size ?? 0), 0)
+      return { bytes, messages: uids.length }
     })
   }
 

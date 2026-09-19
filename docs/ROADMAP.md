@@ -21,13 +21,23 @@ Les filtres seront donc un gain pour les utilisateurs, pas seulement une parité
 | Vague | Contenu | Taille | Dépend de |
 |---|---|---|---|
 | **R1** (fin) | Tests E2E, API, commit | S | — |
-| **R2** | Identités **+ images dans la signature et la rédaction**, réponses types, carnet complet, dossiers, volet de lecture, réglages, sécurité du compte, **liste en fils** | L | R1 |
+| **R2** | Identités **+ images dans la signature et la rédaction**, réponses types, carnet complet, dossiers, volet de lecture, réglages, sécurité du compte, menu de sélection, réponse à la liste | L | R1 |
 | **F** | **Filtres**, réponse automatique, transfert (Sieve) | M | conteneur Dovecot (dev) ; feu vert admin (prod) |
-| **R3** | Interface FR / EN, page d'aide | M | R2 |
+| **R4** | 42 manques relevés dans la documentation Roundcube ([PLAN-v4.md](PLAN-v4.md)) : actualisation, précédent/suivant, miniatures, archivage par date, mbox, options de signature, mode de l'éditeur, expéditeurs de confiance, photos et recherches de contacts, modes de suppression, liste en fils… | L | R2 |
+| **R3** | Interface FR / EN, page d'aide | M | R2, R4 |
 | **P** | Mise en production, migration depuis Roundcube, pilote puis bascule | M | R2, F si validé |
 
 F peut démarrer en parallèle de R2 : ce sont des fichiers différents (onglet de paramètres,
 client ManageSieve).
+
+### Décisions du 19 septembre 2026
+
+| Vague | Décision | Ce qu'il faut |
+|---|---|---|
+| **A** — Connexion CAS | **CAS de l'URCA via OpenID Connect**, avec un jeton vérifié par Dovecot (`passdb oauth2`, introspection) : ni mot de passe stocké, ni « utilisateur maître » capable d'ouvrir les 348 boîtes. La connexion par mot de passe (+ double authentification) reste disponible pendant la transition. Le code est préparé sans être activé. | DSI URCA : le CAS parle-t-il OIDC ? URL de l'émetteur, enregistrement d'un client, point d'introspection. Table de correspondance identifiant URCA → adresse `@mmi-troyes.fr`. Réglage Dovecot sur le serveur (feu vert admin). |
+| **L** — Annuaire LDAP | **Annuaire global en lecture seule** (comme le carnet LDAP de Roundcube) : autocomplétion et section **« Annuaire »** de la page Contacts. L'authentification reste sur Dovecot. | Adresse du serveur LDAP (URCA ou IUT), base de recherche, compte de lecture, attributs (nom, e-mail, service, téléphone). |
+| **G** — Autres appareils | Page **« Configurer un autre appareil »** : réglages IMAP/SMTP, QR code, profil iPhone/iPad (`.mobileconfig`, sans mot de passe), configuration automatique Thunderbird (`autoconfig`) et Outlook (`autodiscover`), pas-à-pas pour l'application Gmail (Android/iOS). Gmail web ne relève plus les comptes externes depuis 2026 ; le transfert vers Gmail reste bloqué par défaut (règle anti-exfiltration, F). | Pour la configuration automatique : enregistrements DNS `autoconfig.mmi-troyes.fr` / `autodiscover.mmi-troyes.fr` (admin). |
+| **Nom** | **Colombe** (retenu le 19/09 parmi Colombe, Courrielle, Vélin, Hirondelle ; aucun produit de messagerie ni projet libre à ce nom, nom npm libre). Renommage de l'interface, du paquet et de la documentation après la vague R2. | Renommage du dépôt GitHub (avec accord). |
 
 ---
 
@@ -77,8 +87,10 @@ connecté. Le standard est **Sieve**, géré à distance par le protocole **Mana
 3. ManageSieve en écoute sur **127.0.0.1:4190** seulement (Courrielle est sur la même
    machine) : le port n'est pas ouvert sur Internet.
 
-En développement : un conteneur Dovecot avec Pigeonhole, à côté de GreenMail. Il servira
-aussi à tester le backend IMAP contre le vrai logiciel de production.
+En développement : un conteneur Dovecot 2.4.1 avec Pigeonhole (`docker compose up -d
+dovecot`), à côté de GreenMail. Il servira aussi à tester le backend IMAP contre le vrai
+logiciel de production. Contrat détaillé (types, API, libellés) : [PLAN-v4.md](PLAN-v4.md)
+section F.
 
 ### Fonctions
 
@@ -103,7 +115,8 @@ aussi à tester le backend IMAP contre le vrai logiciel de production.
   `PUTSCRIPT`, `CHECKSCRIPT`, `SETACTIVE`), petit et testable, comme le TOTP. Identifiants
   pris dans le même stockage serveur que l'IMAP : rien ne passe par le navigateur.
 - Un script `courrielle` géré par l'application : les règles sont en JSON (en commentaire
-  d'en-tête) et le script Sieve en est **généré**. On ne réanalyse jamais du Sieve arbitraire.
+  d'en-tête) et le script Sieve en est **généré**. Un script écrit à la main (option avancée, PLAN-v4)
+  n'est analysé que pour y refuser les redirections hors domaines autorisés.
 - Si l'utilisateur a déjà un autre script actif : avertissement, puis remplacement avec
   sauvegarde (`courrielle-sauvegarde-AAAA-MM-JJ`).
 - Les fonctions sont affichées selon les capacités annoncées par le serveur (`fileinto`,
@@ -116,7 +129,7 @@ qu'un attaquant installe** : elle continue d'exfiltrer le courrier même après 
 changement de mot de passe. D'où :
 
 - transfert autorisé **uniquement vers les domaines de la liste**
-  `NUXT_MAIL_FORWARD_DOMAINS` (défaut : `mmi-troyes.fr`) ;
+  `MAIL_FORWARD_DOMAINS` (défaut : `mmi-troyes.fr`) ;
 - créer ou modifier un transfert demande de **confirmer son mot de passe** (ou le code de
   double authentification si elle est active) ;
 - chaque changement de transfert envoie un **e-mail d'alerte** au titulaire du compte et

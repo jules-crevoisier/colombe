@@ -399,3 +399,91 @@ export interface ActiveSession {
   userAgent: string
   current: boolean
 }
+
+// ─── F : filtres, réponse automatique, transfert (docs/PLAN-v4.md section F) ───
+
+export type FilterField = 'from' | 'to-cc' | 'subject' | 'size' | 'header' | 'body' | 'date' | 'spam'
+
+export type FilterOp =
+  | 'contains' | 'not-contains' | 'is' | 'is-not' | 'starts-with' | 'matches'
+  | 'over' | 'under' | 'count-over' | 'value-over' | 'before' | 'after'
+
+export interface FilterCondition {
+  field: FilterField
+  /** Nom de l'en-tête si field = 'header'. */
+  header?: string
+  /** Pour les champs d'adresse (from, to-cc). */
+  addressPart?: 'all' | 'localpart' | 'domain'
+  op: FilterOp
+  /** Taille en Ko pour 'size', AAAA-MM-JJ pour 'date'. */
+  value: string
+  caseSensitive?: boolean
+}
+
+export type FilterAction =
+  | { type: 'move' | 'copy'; folder: string }
+  | { type: 'mark-read' | 'flag' | 'delete' | 'stop' }
+  | { type: 'add-flag'; flag: string }
+  | { type: 'redirect'; address: string; keepCopy: boolean }
+  | { type: 'reject'; message: string }
+  | { type: 'add-header'; name: string; value: string }
+  | { type: 'notify'; address: string; message: string }
+
+export interface FilterRule {
+  id: string
+  name: string
+  enabled: boolean
+  match: 'all' | 'any'
+  /** Vide = tous les messages. */
+  conditions: FilterCondition[]
+  /** Au moins une. */
+  actions: FilterAction[]
+}
+
+export interface FilterSetSummary {
+  name: string
+  active: boolean
+  /** false : script modifié à la main, éditable seulement en mode script. */
+  managed: boolean
+}
+
+export interface FilterSet extends FilterSetSummary {
+  rules: FilterRule[]
+  script: string
+}
+
+export interface VacationSettings {
+  enabled: boolean
+  /** AAAA-MM-JJ */
+  from: string | null
+  until: string | null
+  subject: string
+  /** Texte brut. */
+  message: string
+  /** 1 à 30 */
+  days: number
+  /** Adresses supplémentaires reconnues comme siennes. */
+  addresses: string[]
+  /** Toujours l'adresse de connexion. */
+  replyFrom: string
+  incoming: 'keep' | 'discard' | 'redirect' | 'copy'
+  incomingAddress: string | null
+}
+
+export interface ForwardSettings {
+  enabled: boolean
+  address: string
+  keepCopy: boolean
+}
+
+export interface FiltersStatus {
+  available: boolean
+  capabilities: string[]
+  sets: FilterSetSummary[]
+}
+
+/** Corps additionnel des requêtes sensibles (redirection, transfert, script à la main). */
+export interface SecurityConfirmation {
+  confirmPassword?: string
+  totpCode?: string
+}

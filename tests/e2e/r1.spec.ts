@@ -8,6 +8,7 @@
  */
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { resetMock } from '../support/reset'
 
 const DEV = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
 const ALICE = { email: 'alice@mmi-troyes.fr', password: 'alice-password' }
@@ -39,6 +40,8 @@ async function openFolder(page: Page, name: string) {
 const messages = (page: Page) => page.getByRole('list', { name: 'Messages' })
 const messageLink = (page: Page, subject: string) => messages(page).getByRole('link', { name: new RegExp(escape(subject)) })
 const moreActionsButton = (page: Page) => page.getByRole('button', { name: 'Plus d\'actions' })
+// Volet de lecture (R2.5, ≥ 1024 px) : la liste et le message ont chacun leur « Plus d'actions ».
+const messageMoreActions = (page: Page) => page.getByRole('toolbar', { name: 'Actions sur le message' }).getByRole('button', { name: 'Plus d\'actions' })
 
 async function selectMessage(page: Page, subject: string) {
   // Use relative locator: filter with absolute link inside has
@@ -51,8 +54,7 @@ async function selectMessage(page: Page, subject: string) {
 }
 
 test.beforeEach(async ({ request }) => {
-  const res = await request.post('/api/__mock/reset', { headers: { origin: 'http://localhost:3000' } })
-  expect(res.status()).toBe(204)
+  await resetMock(request)
 })
 
 // ============================================================================
@@ -350,7 +352,7 @@ test('R1.3.1 — Plus d\'actions menu on message detail', async ({ page }) => {
   await messageLink(page, GRADES).click()
   await expect(page.getByRole('heading', { name: GRADES })).toBeVisible()
 
-  const moreBtn = moreActionsButton(page)
+  const moreBtn = messageMoreActions(page)
   await expect(moreBtn).toBeVisible()
   await moreBtn.click()
 
@@ -370,7 +372,7 @@ test('R1.3.1 — Imprimer opens new tab with /print URL', async ({ page }) => {
   await messageLink(page, GRADES).click()
   await expect(page.getByRole('heading', { name: GRADES })).toBeVisible()
 
-  await moreActionsButton(page).click()
+  await messageMoreActions(page).click()
 
   const printOption = page.getByRole('menuitem', { name: 'Imprimer' })
   await expect(printOption).toBeVisible()
@@ -389,7 +391,7 @@ test('R1.3.1 — Afficher la source opens dialog "Source du message"', async ({ 
   await messageLink(page, GRADES).click()
   await expect(page.getByRole('heading', { name: GRADES })).toBeVisible()
 
-  await moreActionsButton(page).click()
+  await messageMoreActions(page).click()
 
   const sourceOption = page.getByRole('menuitem', { name: 'Afficher la source' })
   await expect(sourceOption).toBeVisible()
@@ -465,8 +467,8 @@ test('R1.4.1 — Rediriger menuitem and dialog', async ({ page }) => {
 
   await messageLink(page, GRADES).click()
 
-  await expect(moreActionsButton(page)).toBeVisible()
-  await moreActionsButton(page).click()
+  await expect(messageMoreActions(page)).toBeVisible()
+  await messageMoreActions(page).click()
 
   const redirectOption = page.getByRole('menuitem', { name: /Rediriger/ })
   await expect(redirectOption).toBeVisible()
@@ -487,8 +489,8 @@ test('R1.4.1 — Transférer en pièce jointe opens compose with .eml attachment
 
   await messageLink(page, GRADES).click()
 
-  await expect(moreActionsButton(page)).toBeVisible()
-  await moreActionsButton(page).click()
+  await expect(messageMoreActions(page)).toBeVisible()
+  await messageMoreActions(page).click()
 
   const fwdOption = page.getByRole('menuitem', { name: 'Transférer en pièce jointe' })
   await expect(fwdOption).toBeVisible()

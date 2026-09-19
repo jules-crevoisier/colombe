@@ -59,6 +59,16 @@ export default defineNuxtConfig({
       allowedDomain: process.env.MAIL_ALLOWED_DOMAIN || 'mmi-troyes.fr',
       // true uniquement derrière le reverse proxy Apache (voir clientIp())
       trustProxy: process.env.NUXT_MAIL_TRUST_PROXY === 'true',
+      // --- F : filtres, réponse automatique, transfert (ManageSieve) ---
+      // Vide par défaut : le repli sur `mail.host` se fait au moment de la requête
+      // (server/lib/sieve/service.ts), pour rester dynamique même si seul
+      // NUXT_MAIL_HOST est redéfini au démarrage (sans NUXT_MAIL_SIEVE_HOST).
+      sieveHost: process.env.MAIL_SIEVE_HOST || '',
+      sievePort: Number(process.env.MAIL_SIEVE_PORT || 4190),
+      // Domaines autorisés pour tout transfert/redirection/notification (liste séparée par des virgules).
+      forwardDomains: process.env.MAIL_FORWARD_DOMAINS || 'mmi-troyes.fr',
+      // false uniquement en dev, contre le certificat auto-signé du conteneur Dovecot.
+      tlsRejectUnauthorized: process.env.MAIL_TLS_REJECT_UNAUTHORIZED !== 'false',
     },
     session: {
       name: 'wm_session',

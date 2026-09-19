@@ -1,32 +1,79 @@
+export interface DateFormatPrefs {
+  timeZone?: string
+  dateFormat?: 'relative' | 'short' | 'long'
+  timeFormat?: '24h' | '12h'
+}
+
+interface DateParts { day: number, month: number, year: number }
+
+function partsInZone(date: Date, timeZone: string): DateParts {
+  const fmt = new Intl.DateTimeFormat('en-US', { timeZone, day: 'numeric', month: 'numeric', year: 'numeric' })
+  const values = Object.fromEntries(fmt.formatToParts(date).map(p => [p.type, p.value]))
+  return { day: Number(values.day), month: Number(values.month), year: Number(values.year) }
+}
+
 /**
- * Format a message date according to relative time:
+ * Format a message date for the list column, honouring `Prefs.dateFormat` /
+ * `timeFormat` / `timeZone` (R2.5). Sans préférences (rétro-compatibilité) :
  * - Today: HH:mm
  * - This year: "12 sept."
  * - Other years: dd/mm/yyyy
  */
-export function formatMessageDate(dateString: string, locale: string): string {
+export function formatMessageDate(dateString: string, locale: string, prefs?: DateFormatPrefs): string {
+  const { timeZone, dateFormat = 'relative', timeFormat = '24h' } = prefs ?? {}
+  const hour12 = timeFormat === '12h'
   const date = new Date(dateString)
+
+  if (dateFormat === 'short') {
+    return date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric', timeZone })
+  }
+  if (dateFormat === 'long') {
+    return date.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone })
+  }
+
   const now = new Date()
 
-  // Check if today
-  if (
-    date.getUTCDate() === now.getUTCDate() &&
-    date.getUTCMonth() === now.getUTCMonth() &&
-    date.getUTCFullYear() === now.getUTCFullYear()
-  ) {
-    return date.toLocaleString(locale, { hour: '2-digit', minute: '2-digit', hour12: false })
+  if (!timeZone) {
+    // Comportement historique (UTC), conservé tel quel pour la rétro-compatibilité des tests.
+    if (
+      date.getUTCDate() === now.getUTCDate()
+      && date.getUTCMonth() === now.getUTCMonth()
+      && date.getUTCFullYear() === now.getUTCFullYear()
+    ) {
+      return date.toLocaleString(locale, { hour: '2-digit', minute: '2-digit', hour12 })
+    }
+    if (date.getUTCFullYear() === now.getUTCFullYear()) {
+      return date.toLocaleString(locale, { day: 'numeric', month: 'short' })
+    }
+    const day = String(date.getUTCDate()).padStart(2, '0')
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+    const year = date.getUTCFullYear()
+    return `${day}/${month}/${year}`
   }
 
-  // Check if same year
-  if (date.getUTCFullYear() === now.getUTCFullYear()) {
-    return date.toLocaleString(locale, { day: 'numeric', month: 'short' })
+  const dateParts = partsInZone(date, timeZone)
+  const nowParts = partsInZone(now, timeZone)
+  if (dateParts.day === nowParts.day && dateParts.month === nowParts.month && dateParts.year === nowParts.year) {
+    return date.toLocaleString(locale, { hour: '2-digit', minute: '2-digit', hour12, timeZone })
   }
+  if (dateParts.year === nowParts.year) {
+    return date.toLocaleString(locale, { day: 'numeric', month: 'short', timeZone })
+  }
+  return `${String(dateParts.day).padStart(2, '0')}/${String(dateParts.month).padStart(2, '0')}/${dateParts.year}`
+}
 
-  // Past years: dd/mm/yyyy
-  const day = String(date.getUTCDate()).padStart(2, '0')
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-  const year = date.getUTCFullYear()
-  return `${day}/${month}/${year}`
+/**
+ * Date complète (en-tête de lecture, fil de discussion), honorant les mêmes préférences.
+ */
+export function formatFullDate(dateString: string, locale: string, prefs?: DateFormatPrefs): string {
+  const { timeZone, dateFormat = 'relative', timeFormat = '24h' } = prefs ?? {}
+  const hour12 = timeFormat === '12h'
+  const date = new Date(dateString)
+
+  if (dateFormat === 'short') {
+    return date.toLocaleString(locale, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12, timeZone })
+  }
+  return date.toLocaleString(locale, { dateStyle: 'full', timeStyle: 'short', hour12, timeZone })
 }
 
 /**
@@ -71,4 +118,13 @@ export function getAvatarColorClass(email: string): string {
   const index = Math.abs(hash) % colors.length
   const color = colors[index]
   return color || 'bg-red-100'
+}
+
+/**
+ * Formate un volume en Go avec la notation française (virgule décimale).
+ * Ex. 1288490188 -> « 1,2 Go ».
+ */
+export function formatGigabytes(bytes: number): string {
+  const gib = bytes / (1024 * 1024 * 1024)
+  return `${gib.toLocaleString('fr-FR', { maximumFractionDigits: 1, minimumFractionDigits: 1 })} Go`
 }

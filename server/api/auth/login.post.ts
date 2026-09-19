@@ -6,6 +6,7 @@ import { createPending } from '../../lib/auth/pending'
 import { credentialsStore } from '../../lib/session/credentials'
 import { useDb } from '../../lib/store/db'
 import { isTwoFactorEnabled } from '../../lib/store/twofactor'
+import { recordLoginEvent } from '../../lib/store/activity'
 import { ipLoginLimiter, loginLimiter } from '../../lib/session/rate-limit'
 import { clientIp, mailConfig } from '../../utils/mail-session'
 
@@ -42,13 +43,18 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
     })
   }
 
+  const ip = clientIp(event)
+  const userAgent = getRequestHeader(event, 'user-agent') ?? ''
+
   if (!valid) {
     ipLoginLimiter.hit(ipKey)
     loginLimiter.hit(emailKey)
+    recordLoginEvent(useDb(), body.email, ip, userAgent, false)
     throw createError({ statusCode: 401, statusMessage: 'Identifiants incorrects', message: 'Adresse ou mot de passe incorrect.' })
   }
 
-  // Second facteur activé : la session mail ne s'ouvre qu'après le code (POST /api/auth/2fa).
+  // Second facteur activé : pas encore « authentifié » tant que le code n'est pas
+  // vérifié (POST /api/auth/2fa se charge d'enregistrer succès/échec final).
   if (isTwoFactorEnabled(useDb(), body.email)) {
     const pendingId = createPending(body.email, body.password)
     await replaceUserSession(event, { secure: { pendingId } })
@@ -56,7 +62,8 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
   }
 
   loginLimiter.reset(emailKey)
-  const sid = credentialsStore.create(body.email, body.password)
+  recordLoginEvent(useDb(), body.email, ip, userAgent, true)
+  const sid = credentialsStore.create(body.email, body.password, ip, userAgent)
   // replaceUserSession régénère le cookie : protection contre la fixation de session.
   await replaceUserSession(event, { user: { email: body.email }, secure: { sid }, loggedInAt: Date.now() })
   return { user: { email: body.email } }

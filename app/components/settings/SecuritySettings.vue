@@ -1,8 +1,69 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import type { TwoFactorStatus, TwoFactorSetup } from '#shared/types/mail'
+import { LogOut } from '@lucide/vue'
+import type { AccountActivity, ActiveSession, TwoFactorStatus, TwoFactorSetup } from '#shared/types/mail'
 
 const session = useUserSession()
+const settingsApi = useSettingsApi()
+
+const activity = ref<AccountActivity | null>(null)
+const activityLoading = ref(true)
+const sessions = ref<ActiveSession[]>([])
+const sessionsLoading = ref(true)
+const revokeOthersDialog = ref(false)
+const revoking = ref(false)
+
+function formatEventDate(iso: string): string {
+  return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })
+}
+
+async function loadActivity() {
+  activityLoading.value = true
+  try {
+    activity.value = await settingsApi.accountActivity()
+  }
+  catch (err) {
+    if (statusOf(err) === 401) {
+      await session.clear()
+      await navigateTo('/login')
+    }
+  }
+  finally {
+    activityLoading.value = false
+  }
+}
+
+async function loadSessions() {
+  sessionsLoading.value = true
+  try {
+    sessions.value = await settingsApi.sessions()
+  }
+  catch (err) {
+    if (statusOf(err) === 401) {
+      await session.clear()
+      await navigateTo('/login')
+    }
+  }
+  finally {
+    sessionsLoading.value = false
+  }
+}
+
+async function revokeOtherSessions() {
+  revoking.value = true
+  try {
+    await settingsApi.revokeOtherSessions()
+    revokeOthersDialog.value = false
+    toast.success('Les autres sessions ont été déconnectées.')
+    await loadSessions()
+  }
+  catch (err) {
+    toast.error(errorText(err, 'Impossible de déconnecter les autres sessions.'))
+  }
+  finally {
+    revoking.value = false
+  }
+}
 
 const status = ref<TwoFactorStatus | null>(null)
 const setup = ref<TwoFactorSetup | null>(null)
@@ -194,11 +255,83 @@ async function disableTwoFactor() {
   }
 }
 
-onMounted(loadStatus)
+onMounted(() => {
+  void loadStatus()
+  void loadActivity()
+  void loadSessions()
+})
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-10">
+    <!-- Dernière connexion et activité récente (R2.6) -->
+    <div class="space-y-4">
+      <div>
+        <h3 class="text-lg font-semibold">Dernière connexion</h3>
+        <div v-if="activityLoading" class="mt-2"><Skeleton class="h-10 w-full" /></div>
+        <p v-else-if="activity?.lastLogin" class="mt-2 text-sm text-muted-foreground">
+          {{ formatEventDate(activity.lastLogin.at) }} depuis {{ activity.lastLogin.ip }} — {{ activity.lastLogin.userAgent }}
+        </p>
+        <p v-else class="mt-2 text-sm text-muted-foreground">Aucune information disponible.</p>
+      </div>
+
+      <div>
+        <h3 class="text-lg font-semibold">Activité récente</h3>
+        <div v-if="activityLoading" class="mt-2 space-y-2">
+          <Skeleton class="h-10 w-full" />
+          <Skeleton class="h-10 w-full" />
+        </div>
+        <p v-else-if="!activity?.recent.length" class="mt-2 text-sm text-muted-foreground">Aucune activité récente.</p>
+        <ul v-else class="mt-2 flex flex-col gap-2">
+          <li v-for="(event, i) in activity.recent" :key="i" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-4 py-2 text-sm">
+            <span>{{ formatEventDate(event.at) }} — {{ event.ip }} — {{ event.userAgent }}</span>
+            <Badge :variant="event.success ? 'secondary' : 'destructive'">{{ event.success ? 'Réussie' : 'Échouée' }}</Badge>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Sessions actives (R2.6) -->
+    <div class="space-y-4 border-t border-border pt-8">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h3 class="text-lg font-semibold">Sessions actives</h3>
+        <Button variant="outline" class="h-11 rounded-full px-5" :disabled="sessionsLoading || sessions.length <= 1" @click="revokeOthersDialog = true">
+          <LogOut class="size-4" aria-hidden="true" />
+          Déconnecter les autres sessions
+        </Button>
+      </div>
+      <div v-if="sessionsLoading" class="space-y-2">
+        <Skeleton class="h-12 w-full" />
+        <Skeleton class="h-12 w-full" />
+      </div>
+      <ul v-else class="flex flex-col gap-2">
+        <li v-for="s in sessions" :key="s.id" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-4 py-2 text-sm">
+          <span>
+            {{ s.userAgent }} — {{ s.ip }}
+            <span class="text-muted-foreground">— vue {{ formatEventDate(s.lastSeenAt) }}</span>
+          </span>
+          <Badge v-if="s.current" variant="secondary">Session actuelle</Badge>
+        </li>
+      </ul>
+
+      <AlertDialog v-model:open="revokeOthersDialog">
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Déconnecter les autres sessions ?</AlertDialogTitle>
+            <AlertDialogDescription>Tous les autres appareils connectés à ce compte seront déconnectés.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction :disabled="revoking" @click="revokeOtherSessions">
+              {{ revoking ? 'Déconnexion…' : 'Déconnecter les autres sessions' }}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+
+    <!-- Double authentification -->
+    <div class="space-y-6 border-t border-border pt-8">
     <p class="text-sm text-muted-foreground">
       La double authentification protège le webmail. Les logiciels de messagerie (Thunderbird, téléphone) utilisent toujours le mot de passe seul.
     </p>
@@ -432,6 +565,7 @@ onMounted(loadStatus)
           Désactiver
         </Button>
       </div>
+    </div>
     </div>
   </div>
 </template>

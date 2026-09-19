@@ -1,11 +1,12 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { resetMock } from '../support/reset'
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
 
 async function login(page: Page) {
-  await page.request.post('/api/__mock/reset', { headers: { origin: 'http://localhost:3000' } })
+  await resetMock(page.request)
   await page.goto('/login')
   await page.getByLabel('Adresse e-mail').fill('dev@mmi-troyes.fr')
   await page.getByLabel('Mot de passe', { exact: true }).fill('dev-password')

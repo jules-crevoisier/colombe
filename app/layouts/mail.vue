@@ -94,7 +94,7 @@ onKeyStroke('?', (e) => {
   shortcutsOpen.value = true
 })
 onKeyStroke('c', (e) => {
-  if (isTyping(e)) return
+  if (isTyping(e) || compose.opening) return
   e.preventDefault()
   void compose.openNew()
 })

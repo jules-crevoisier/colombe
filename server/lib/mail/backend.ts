@@ -7,7 +7,12 @@
  * l'assainissement sont communs (parse.ts / sanitize.ts), donc le mock
  * exerce exactement le même chemin de rendu que la prod.
  */
-import type { Folder, MessageSummary, SearchField, SortKey } from '#shared/types/mail'
+import type { Folder, FolderSize, MessageSummary, QuotaInfo, SearchField, SortKey } from '#shared/types/mail'
+
+/** Options de `listFolders` : `all: true` inclut les dossiers non abonnés (R2.4). */
+export interface ListFoldersOptions {
+  all?: boolean
+}
 
 export interface MailCredentials {
   email: string
@@ -62,7 +67,8 @@ export interface StoredMessage {
 }
 
 export interface MailBackend {
-  listFolders(): Promise<Folder[]>
+  /** Par défaut, ne renvoie que les dossiers abonnés ; `{ all: true }` renvoie tout (R2.4). */
+  listFolders(opts?: ListFoldersOptions): Promise<Folder[]>
   /** Tri : date décroissante. Page 1 = plus récents. */
   listMessages(folder: string, opts: ListOptions): Promise<ListResult>
   /** Source RFC 822 brute. Lève MailError('NOT_FOUND') si absent. */
@@ -100,6 +106,14 @@ export interface MailBackend {
   setKeywords(folder: string, uids: number[], add: string[], remove: string[]): Promise<void>
   /** Tous les UIDs d'un dossier (pour « marquer tout comme lu », « vider »). */
   allUids(folder: string): Promise<number[]>
+
+  // ─── R2.4 ───
+  /** Abonne / désabonne un dossier (LSUB). */
+  subscribeFolder(path: string, subscribed: boolean): Promise<void>
+  /** Quota du compte (mesuré sur INBOX). `limitBytes: null` si le serveur ne fournit pas de quota. */
+  getQuota(): Promise<QuotaInfo>
+  /** Taille d'un dossier (octets + nombre de messages). */
+  folderSize(path: string): Promise<FolderSize>
 }
 
 export type MailErrorCode = 'AUTH_FAILED' | 'NOT_FOUND' | 'INVALID' | 'UNAVAILABLE'

@@ -1,8 +1,8 @@
-import type { MailBackend, MailCredentials, ListOptions, ListResult, FlagChange, SendEnvelope, StoredMessage } from './backend'
+import type { MailBackend, MailCredentials, ListFoldersOptions, ListOptions, ListResult, FlagChange, SendEnvelope, StoredMessage } from './backend'
 import { MailError } from './backend'
 import { parseMessage } from './parse'
-import type { Folder, MessageSummary, SpecialUse } from '#shared/types/mail'
-import { aliceFixtures, buildFixtureRaw, devFixtures, FOLDERS } from './mock-fixtures'
+import type { Folder, FolderSize, MessageSummary, QuotaInfo, SpecialUse } from '#shared/types/mail'
+import { aliceFixtures, buildFixtureRaw, devFixtures, FOLDERS, MOCK_QUOTA_LIMIT_BYTES } from './mock-fixtures'
 import type { FixtureMessage } from './mock-fixtures'
 import { publishMailboxChange } from '../live/bus'
 
@@ -20,6 +20,8 @@ interface MockFolder {
   delimiter: string
   messages: Map<number, MockMessage>
   nextUid: number
+  /** Abonnement IMAP (R2.4) : `FOLDERS[].subscribed` (défaut true). */
+  subscribed: boolean
 }
 
 export const MOCK_USERS = [
@@ -34,7 +36,7 @@ let storeInitialized = false
 function seedUser(email: string, fixtures: FixtureMessage[]): void {
   const folders = new Map<string, MockFolder>()
   for (const f of FOLDERS) {
-    folders.set(f.path, { path: f.path, name: f.name, specialUse: f.specialUse, delimiter: '.', messages: new Map(), nextUid: 1 })
+    folders.set(f.path, { path: f.path, name: f.name, specialUse: f.specialUse, delimiter: '.', messages: new Map(), nextUid: 1, subscribed: f.subscribed ?? true })
   }
   // UID croissants dans l'ordre chronologique, comme sur un vrai serveur IMAP.
   const sorted = fixtures.map((m, i) => ({ m, i })).sort((a, b) => a.m.date.getTime() - b.m.date.getTime())
@@ -76,7 +78,7 @@ export class MockBackend implements MailBackend {
     ensureStore()
   }
 
-  async listFolders(): Promise<Folder[]> {
+  async listFolders(opts: ListFoldersOptions = {}): Promise<Folder[]> {
     const userFolders = mockStore.get(this.email)
     if (!userFolders) {
       throw new MailError('AUTH_FAILED', 'User not found')
@@ -86,8 +88,9 @@ export class MockBackend implements MailBackend {
 
     // Order: special folders first, then custom
     const specialOrder = ['inbox', 'sent', 'drafts', 'archive', 'junk', 'trash']
-    const specialFolders = Array.from(userFolders.values()).filter(f => f.specialUse)
-    const customFolders = Array.from(userFolders.values()).filter(f => !f.specialUse)
+    const all = Array.from(userFolders.values()).filter(f => opts.all || f.subscribed)
+    const specialFolders = all.filter(f => f.specialUse)
+    const customFolders = all.filter(f => !f.specialUse)
 
     // Sort special folders by order
     specialFolders.sort((a, b) => {
@@ -108,8 +111,7 @@ export class MockBackend implements MailBackend {
         delimiter: folder.delimiter,
         unread,
         total: folder.messages.size,
-        // Filtrage des non-abonnés et ?all=1 : R2.4.
-        subscribed: true,
+        subscribed: folder.subscribed,
       })
     }
 
@@ -381,6 +383,7 @@ export class MockBackend implements MailBackend {
       delimiter: '.',
       messages: new Map(),
       nextUid: 1,
+      subscribed: true,
     })
 
     publishMailboxChange(this.email, path)
@@ -636,6 +639,55 @@ export class MockBackend implements MailBackend {
     }
 
     return Array.from(folderData.messages.keys())
+  }
+
+  async subscribeFolder(path: string, subscribed: boolean): Promise<void> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folder = userFolders.get(path)
+    if (!folder) {
+      throw new MailError('NOT_FOUND', `Folder ${path} not found`)
+    }
+
+    folder.subscribed = subscribed
+  }
+
+  async getQuota(): Promise<QuotaInfo> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    let usedBytes = 0
+    for (const folder of userFolders.values()) {
+      for (const msg of folder.messages.values()) {
+        usedBytes += msg.raw.length
+      }
+    }
+
+    return { usedBytes, limitBytes: MOCK_QUOTA_LIMIT_BYTES }
+  }
+
+  async folderSize(path: string): Promise<FolderSize> {
+    const userFolders = mockStore.get(this.email)
+    if (!userFolders) {
+      throw new MailError('AUTH_FAILED', 'User not found')
+    }
+
+    const folderData = userFolders.get(path)
+    if (!folderData) {
+      throw new MailError('NOT_FOUND', `Folder ${path} not found`)
+    }
+
+    let bytes = 0
+    for (const msg of folderData.messages.values()) {
+      bytes += msg.raw.length
+    }
+
+    return { bytes, messages: folderData.messages.size }
   }
 }
 

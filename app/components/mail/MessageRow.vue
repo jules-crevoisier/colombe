@@ -21,8 +21,10 @@ const person = computed(() => {
 })
 const initials = computed(() => getInitials(who.value?.name || who.value?.address.split('@')[0] || '?'))
 const avatarColor = computed(() => getAvatarColorClass(who.value?.address ?? ''))
-const date = computed(() => formatMessageDate(props.message.date, 'fr-FR'))
-const fullDate = computed(() => new Date(props.message.date).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' }))
+const prefsStore = usePrefsStore()
+const dateOpts = computed(() => ({ timeZone: prefsStore.prefs.timeZone, dateFormat: prefsStore.prefs.dateFormat, timeFormat: prefsStore.prefs.timeFormat }))
+const date = computed(() => formatMessageDate(props.message.date, 'fr-FR', dateOpts.value))
+const fullDate = computed(() => formatFullDate(props.message.date, 'fr-FR', dateOpts.value))
 const weight = computed(() => (props.message.seen ? 'text-foreground/85' : 'font-bold text-foreground'))
 
 function onLinkClick(e: MouseEvent) {

@@ -14,3 +14,17 @@ services:
     ports:
       - "127.0.0.1:3025:3025"   # SMTP
       - "127.0.0.1:3143:3143"   # IMAP
+
+  # Dovecot + Pigeonhole (Sieve, ManageSieve) : le logiciel du serveur de production.
+  # Sert aux filtres (vague F) et aux tests d'intégration IMAP au plus près de la prod.
+  # Usage : docker compose up -d dovecot
+  # Tout utilisateur @mmi-troyes.fr se connecte avec le mot de passe ci-dessous.
+  # STARTTLS obligatoire (certificat auto-signé de l'image) : comme en production.
+  dovecot:
+    image: dovecot/dovecot:2.4.1
+    environment:
+      USER_PASSWORD: dovecot-test-password
+    ports:
+      - "127.0.0.1:3144:31143"   # IMAP (STARTTLS)
+      - "127.0.0.1:4190:34190"   # ManageSieve (STARTTLS)
+      - "127.0.0.1:3024:31024"   # LMTP sur TLS (livraison, pour exécuter les filtres)

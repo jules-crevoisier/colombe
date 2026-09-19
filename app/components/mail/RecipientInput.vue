@@ -1,22 +1,29 @@
 <script setup lang="ts">
 import { watchDebounced } from '@vueuse/core'
-import { X } from '@lucide/vue'
+import { X, Users } from '@lucide/vue'
 import type { Contact } from '#shared/types/mail'
 
 /**
  * Champ destinataires en « puces » avec autocomplétion (motif ARIA combobox).
  * Entrée, virgule, point-virgule ou sortie du champ valident une adresse saisie.
+ * Les groupes de contacts apparaissent dans la liste (« {nom} ({n} membres) ») ;
+ * en choisir un ajoute une puce par membre (docs/PLAN-v3.md R2.3 / R2.8).
  */
 const props = defineProps<{ label: string; id: string; autofocus?: boolean }>()
 const model = defineModel<string[]>({ required: true })
 const emit = defineEmits<{ change: [] }>()
 
+type Suggestion =
+  | { kind: 'contact', contact: Contact }
+  | { kind: 'group', id: number, name: string, emails: string[] }
+
 const draft = ref('')
 const input = ref<HTMLInputElement | null>(null)
-const suggestions = ref<Contact[]>([])
+const suggestions = ref<Suggestion[]>([])
 const active = ref(-1)
 const open = computed(() => suggestions.value.length > 0)
 const listId = computed(() => `${props.id}-suggestions`)
+const contactsApi = useContactsApi()
 
 watchDebounced(draft, async (q) => {
   const query = q.trim()
@@ -25,9 +32,13 @@ watchDebounced(draft, async (q) => {
     return
   }
   try {
-    const found = await $fetch<Contact[]>('/api/contacts', { query: { q: query, limit: 6 } })
+    const result = await contactsApi.searchWithGroups(query, 6)
     const taken = new Set(model.value.map(a => a.toLowerCase()))
-    suggestions.value = found.filter(c => !taken.has(c.email.toLowerCase()))
+    const contactSuggestions: Suggestion[] = result.contacts
+      .filter(c => !taken.has(c.email.toLowerCase()))
+      .map(contact => ({ kind: 'contact', contact }))
+    const groupSuggestions: Suggestion[] = result.groups.map(g => ({ kind: 'group', id: g.id, name: g.name, emails: g.emails }))
+    suggestions.value = [...groupSuggestions, ...contactSuggestions]
     active.value = suggestions.value.length ? 0 : -1
   }
   catch {
@@ -49,10 +60,10 @@ function commit() {
   add(parsed)
 }
 
-function pick(contact: Contact) {
+function pick(suggestion: Suggestion) {
   draft.value = ''
   suggestions.value = []
-  add([contact.email])
+  add(suggestion.kind === 'group' ? suggestion.emails : [suggestion.contact.email])
   input.value?.focus()
 }
 
@@ -158,23 +169,33 @@ onMounted(() => {
       class="absolute top-full left-0 z-50 mt-1 w-full max-w-md overflow-hidden rounded-xl border bg-popover py-1 shadow-lg"
     >
       <li
-        v-for="(c, i) in suggestions"
+        v-for="(s, i) in suggestions"
         :id="`${listId}-${i}`"
-        :key="c.id"
+        :key="s.kind === 'group' ? `group-${s.id}` : `contact-${s.contact.id}`"
         role="option"
         :aria-selected="i === active"
         class="flex min-h-11 cursor-pointer items-center gap-3 px-3 py-1.5"
         :class="i === active ? 'bg-accent' : ''"
-        @mousedown.prevent="pick(c)"
+        @mousedown.prevent="pick(s)"
         @mouseenter="active = i"
       >
-        <span class="grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold text-white" :class="getAvatarColorClass(c.email)" aria-hidden="true">
-          {{ getInitials(c.name || c.email.split('@')[0] || '?') }}
-        </span>
-        <span class="flex min-w-0 flex-col">
-          <span v-if="c.name" class="truncate text-sm font-medium">{{ c.name }}</span>
-          <span class="truncate text-xs text-muted-foreground">{{ c.email }}</span>
-        </span>
+        <template v-if="s.kind === 'group'">
+          <span class="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground" aria-hidden="true">
+            <Users class="size-4" />
+          </span>
+          <span class="flex min-w-0 flex-col">
+            <span class="truncate text-sm font-medium">{{ s.name }} ({{ s.emails.length }} membre{{ s.emails.length > 1 ? 's' : '' }})</span>
+          </span>
+        </template>
+        <template v-else>
+          <span class="grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold text-white" :class="getAvatarColorClass(s.contact.email)" aria-hidden="true">
+            {{ getInitials(s.contact.name || s.contact.email.split('@')[0] || '?') }}
+          </span>
+          <span class="flex min-w-0 flex-col">
+            <span v-if="s.contact.name" class="truncate text-sm font-medium">{{ s.contact.name }}</span>
+            <span class="truncate text-xs text-muted-foreground">{{ s.contact.email }}</span>
+          </span>
+        </template>
       </li>
     </ul>
   </div>

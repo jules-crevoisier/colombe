@@ -1,0 +1,286 @@
+<script setup lang="ts">
+import { toast } from 'vue-sonner'
+import { watchDebounced } from '@vueuse/core'
+import { FileDown, FolderOpen, Plus, Search, Users, UsersRound } from '@lucide/vue'
+import type { Contact, ContactDetail, ContactDetailInput, ContactGroup } from '#shared/types/mail'
+
+definePageMeta({ layout: 'mail' })
+
+const api = useContactsApi()
+
+const contacts = ref<Contact[]>([])
+const groups = ref<ContactGroup[]>([])
+const loading = ref(true)
+const failed = ref(false)
+const search = ref('')
+/** 'all' | 'collected' | un id de groupe. */
+const view = ref<'all' | 'collected' | number>('all')
+const selectedId = ref<number | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
+
+async function loadGroups() {
+  try {
+    groups.value = await api.groups()
+  }
+  catch {
+    // Les groupes sont secondaires : la liste des contacts reste utilisable sans eux.
+  }
+}
+
+async function loadContacts() {
+  loading.value = true
+  failed.value = false
+  try {
+    contacts.value = await api.list({
+      q: search.value.trim() || undefined,
+      limit: 200,
+      scope: view.value === 'collected' ? 'collected' : 'all',
+      groupId: typeof view.value === 'number' ? view.value : undefined,
+    })
+  }
+  catch {
+    failed.value = true
+  }
+  finally {
+    loading.value = false
+  }
+}
+
+watchDebounced(search, () => void loadContacts(), { debounce: 250 })
+watch(view, () => void loadContacts())
+
+onMounted(() => {
+  void loadGroups()
+  void loadContacts()
+})
+
+function selectContact(id: number) {
+  selectedId.value = id
+}
+function closeDetail() {
+  selectedId.value = null
+}
+function onDeleted() {
+  selectedId.value = null
+  void loadContacts()
+}
+function onSaved(updated: ContactDetail) {
+  const idx = contacts.value.findIndex(c => c.id === updated.id)
+  const existing = contacts.value[idx]
+  if (existing) contacts.value[idx] = { ...existing, name: updated.name, email: updated.email }
+  else void loadContacts()
+}
+
+// ─── Nouveau contact ───
+const createOpen = ref(false)
+function emptyContactInput(): ContactDetailInput {
+  return {
+    firstName: '',
+    lastName: '',
+    displayName: '',
+    emails: [{ label: 'other', address: '' }],
+    phones: [],
+    organization: '',
+    jobTitle: '',
+    address: null,
+    birthday: null,
+    notes: '',
+  }
+}
+const createForm = ref<ContactDetailInput>(emptyContactInput())
+function openCreate() {
+  createForm.value = emptyContactInput()
+  createOpen.value = true
+}
+async function submitCreate(input: ContactDetailInput) {
+  try {
+    const created = await api.create(input)
+    createOpen.value = false
+    toast.success('Contact ajouté')
+    await loadContacts()
+    selectedId.value = created.id
+  }
+  catch (err) {
+    toast.error(errorText(err, 'Impossible de créer le contact.'))
+  }
+}
+
+// ─── Nouveau groupe ───
+const groupDialogOpen = ref(false)
+const newGroupName = ref('')
+const groupSaving = ref(false)
+function openCreateGroup() {
+  newGroupName.value = ''
+  groupDialogOpen.value = true
+}
+async function submitCreateGroup() {
+  const name = newGroupName.value.trim()
+  if (!name) return
+  groupSaving.value = true
+  try {
+    await api.createGroup(name)
+    groupDialogOpen.value = false
+    toast.success('Groupe créé')
+    await loadGroups()
+  }
+  catch (err) {
+    toast.error(errorText(err, 'Impossible de créer le groupe.'))
+  }
+  finally {
+    groupSaving.value = false
+  }
+}
+
+// ─── Importer / Exporter ───
+async function importFiles(e: Event) {
+  const files = (e.target as HTMLInputElement).files
+  const file = files?.[0]
+  if (!file) return
+  try {
+    const result = await api.importFile(file, file.name)
+    toast(`${result.imported} contact${result.imported > 1 ? 's' : ''} importé${result.imported > 1 ? 's' : ''}${result.skipped ? `, ${result.skipped} ignoré${result.skipped > 1 ? 's' : ''}` : ''}`)
+    await loadContacts()
+  }
+  catch (err) {
+    toast.error(errorText(err, 'Import impossible.'))
+  }
+  if (fileInput.value) fileInput.value.value = ''
+}
+
+useHead({ title: 'Contacts' })
+</script>
+
+<template>
+  <div class="flex h-full min-h-0 flex-col lg:flex-row">
+    <!-- Groupes (à gauche sur bureau, bandeau en haut sur mobile) -->
+    <nav aria-label="Groupes de contacts" class="flex shrink-0 gap-1 overflow-x-auto border-b border-border/60 p-2 [scrollbar-width:none] lg:w-56 lg:flex-col lg:overflow-visible lg:border-r lg:border-b-0 lg:p-3">
+      <button
+        type="button"
+        class="flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap hover:bg-accent lg:h-9"
+        :class="view === 'all' ? 'bg-nav-active font-semibold text-nav-active-foreground hover:bg-nav-active' : ''"
+        @click="view = 'all'"
+      >
+        <FolderOpen class="size-4 shrink-0" aria-hidden="true" /> <span>Tous les contacts</span>
+      </button>
+      <button
+        type="button"
+        class="flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap hover:bg-accent lg:h-9"
+        :class="view === 'collected' ? 'bg-nav-active font-semibold text-nav-active-foreground hover:bg-nav-active' : ''"
+        @click="view = 'collected'"
+      >
+        <Users class="size-4 shrink-0" aria-hidden="true" /> <span>Adresses collectées</span>
+      </button>
+      <div class="my-1 hidden border-t border-border/60 lg:block" />
+      <button
+        v-for="g in groups"
+        :key="g.id"
+        type="button"
+        class="flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap hover:bg-accent lg:h-9"
+        :class="view === g.id ? 'bg-nav-active font-semibold text-nav-active-foreground hover:bg-nav-active' : ''"
+        @click="view = g.id"
+      >
+        <span class="truncate">{{ g.name }}</span>
+        <span class="shrink-0 text-xs text-muted-foreground">{{ g.memberCount }}</span>
+      </button>
+      <button type="button" class="flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap text-muted-foreground hover:bg-accent lg:h-9" @click="openCreateGroup">
+        <Plus class="size-4 shrink-0" aria-hidden="true" /> Nouveau groupe
+      </button>
+    </nav>
+
+    <!-- Liste -->
+    <div class="min-w-0 flex-1 flex-col overflow-hidden" :class="selectedId !== null ? 'hidden lg:flex' : 'flex'">
+      <div class="flex shrink-0 flex-col gap-3 border-b border-border/60 p-3">
+        <div class="flex items-center justify-between gap-2">
+          <h1 class="text-xl font-medium">Contacts</h1>
+          <div class="flex flex-wrap gap-2">
+            <Button class="h-10 rounded-full px-4 text-sm" @click="openCreate">
+              <Plus class="size-4" aria-hidden="true" /> Nouveau contact
+            </Button>
+            <Button variant="outline" class="h-10 rounded-full px-4 text-sm" @click="fileInput?.click()">
+              Importer
+            </Button>
+            <input ref="fileInput" type="file" accept=".vcf,.csv,text/vcard,text/csv" hidden @change="importFiles">
+            <Button as-child variant="outline" class="h-10 rounded-full px-4 text-sm">
+              <a :href="api.exportVcfUrl()">
+                <FileDown class="size-4" aria-hidden="true" /> Exporter (.vcf)
+              </a>
+            </Button>
+          </div>
+        </div>
+        <div class="relative">
+          <Search class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Input
+            v-model="search"
+            type="search"
+            placeholder="Rechercher un contact"
+            aria-label="Rechercher un contact"
+            class="h-11 pl-9 text-base"
+          />
+        </div>
+      </div>
+
+      <div class="min-h-0 flex-1 overflow-y-auto">
+        <div v-if="loading" class="flex flex-col gap-2 p-3">
+          <Skeleton v-for="n in 6" :key="n" class="h-14 w-full rounded-xl" />
+        </div>
+        <p v-else-if="failed" role="alert" class="p-6 text-sm text-destructive">Impossible de charger les contacts.</p>
+        <div v-else-if="!contacts.length" class="flex flex-col items-center gap-2 p-10 text-center text-muted-foreground">
+          <UsersRound class="size-10 opacity-60" aria-hidden="true" />
+          <p>{{ search ? 'Aucun contact trouvé.' : 'Aucun contact pour le moment.' }}</p>
+        </div>
+        <ul v-else aria-label="Contacts" class="flex flex-col">
+          <li v-for="c in contacts" :key="c.id">
+            <button
+              type="button"
+              class="flex w-full items-center gap-3 border-b border-border/60 px-3 py-2.5 text-left hover:bg-accent"
+              :class="selectedId === c.id ? 'bg-row-selected' : ''"
+              @click="selectContact(c.id)"
+            >
+              <span class="grid size-10 shrink-0 place-items-center rounded-full text-sm font-semibold text-white" :class="getAvatarColorClass(c.email)" aria-hidden="true">
+                {{ getInitials(c.name || c.email) }}
+              </span>
+              <span class="flex min-w-0 flex-col">
+                <span class="truncate text-sm font-medium">{{ c.name || c.email }}</span>
+                <span class="truncate text-xs text-muted-foreground">{{ c.email }}</span>
+              </span>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Fiche -->
+    <div v-if="selectedId !== null" class="min-w-0 flex-1 border-border/60 lg:border-l">
+      <ContactsContactDetailPanel :id="selectedId" :groups="groups" @close="closeDetail" @deleted="onDeleted" @saved="onSaved" />
+    </div>
+
+    <!-- Nouveau contact -->
+    <Dialog :open="createOpen" @update:open="(v: boolean) => { if (!v) createOpen = false }">
+      <DialogContent class="flex max-h-[85dvh] flex-col gap-0 sm:max-w-2xl">
+        <DialogHeader class="border-b px-6 py-4">
+          <DialogTitle>Nouveau contact</DialogTitle>
+        </DialogHeader>
+        <div class="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          <ContactsContactForm v-model="createForm" submit-label="Enregistrer" @submit="submitCreate" @cancel="createOpen = false" />
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Nouveau groupe -->
+    <Dialog :open="groupDialogOpen" @update:open="(v: boolean) => { if (!v) groupDialogOpen = false }">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Nouveau groupe</DialogTitle>
+        </DialogHeader>
+        <form class="flex flex-col gap-3" @submit.prevent="submitCreateGroup">
+          <Label for="group-name">Nom</Label>
+          <Input id="group-name" v-model="newGroupName" maxlength="100" autocomplete="off" class="h-11 text-base" />
+          <DialogFooter>
+            <Button type="button" variant="ghost" class="h-11 rounded-full px-5" @click="groupDialogOpen = false">Annuler</Button>
+            <Button type="submit" class="h-11 rounded-full px-5" :disabled="groupSaving || !newGroupName.trim()">Enregistrer</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  </div>
+</template>

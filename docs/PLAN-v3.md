@@ -293,6 +293,30 @@ Types : `shared/types/mail.ts` section « R2 » (source de vérité). Complémen
   (confirmation **« Supprimer définitivement ? »**) au lieu de déplacer vers la Corbeille.
 - **Déconnexion** (`POST /api/auth/logout`) : applique `logoutEmptyTrash` et `logoutExpunge`
   avant de fermer la session.
+- **Fiche contact** (`PUT /api/contacts/:id` remplace la fiche entière, tous les champs sont
+  requis) : `firstName`, `lastName`, `displayName`, `emails: { label: 'home' | 'work' |
+  'other', address }[]` (au moins une ; la première est l'adresse principale),
+  `phones: { label: 'home' | 'work' | 'mobile' | 'other', number }[]`, `organization`,
+  `jobTitle`, `address: { street, postalCode, city, country } | null`,
+  `birthday: 'AAAA-MM-JJ' | null`, `notes`. Libellés affichés : « Domicile », « Travail »,
+  « Mobile », « Autre ».
+- **`POST /api/__mock/reset`** (backend mémoire uniquement) remet **tout** à l'état initial :
+  messages, filtres, et toutes les données locales (préférences, identités, réponses types,
+  contacts, groupes, journal de connexion, double authentification).
+- **Insérer une image** (éditeur) : le bouton ouvre le sélecteur de fichier, puis la boîte
+  **« Insérer une image »** avec **« Texte alternatif »**, la largeur (**« Petite »**,
+  **« Moyenne »**, **« Originale »**) et les boutons **« Annuler »** / **« Insérer »**.
+- **Dates** : en format « relatif », seule une date du jour affiche l'heure ; la date
+  complète en tête d'un message ouvert affiche toujours l'heure (au format choisi).
+- **Libellés complémentaires** : bouton du menu de sélection **« Options de sélection »** ;
+  suppression d'une identité confirmée par la boîte **« Supprimer cette identité ? »**
+  (bouton **« Supprimer l'identité »**) ; chaque section des paramètres a un titre (h2)
+  identique à son onglet ; la liste des contacts est une liste nommée **« Contacts »** ;
+  l'onglet Dossiers est un tableau (une ligne par dossier, interrupteur « Afficher {nom} »).
+- **Sous-dossiers** : dépliés par défaut ; bouton **« Réduire {nom} »** / **« Développer {nom} »**
+  sur un dossier qui a des sous-dossiers. Paramètres : sections `?tab=general`, `identities`,
+  `responses`, `display`, `compose`, `folders`, `server`, `security`, `contacts`
+  (`?tab=signature` ouvre `identities`).
 - **Groupes dans l'autocomplétion** : un groupe apparaît sous la forme
   **« {nom du groupe} ({n} membres) »** ; le choisir ajoute une puce par membre.
 - **Sessions** : `ActiveSession.id` est une empreinte (8 caractères hexadécimaux), jamais le

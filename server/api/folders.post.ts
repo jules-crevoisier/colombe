@@ -10,7 +10,7 @@ export default defineEventHandler(async (event): Promise<Folder> => {
   try {
     const { name, parent } = await readValidatedBody(event, b => bodySchema.parse(b))
     const { backend } = await requireMail(event)
-    const folders = await backend.listFolders()
+    const folders = await backend.listFolders({ all: true })
     const delimiter = delimiterOf(folders)
     if (name.includes(delimiter)) throw new MailError('INVALID', `Le nom ne peut pas contenir « ${delimiter} »`)
     if (parent && !folders.some(f => f.path === parent)) throw new MailError('NOT_FOUND', 'Dossier parent introuvable')
