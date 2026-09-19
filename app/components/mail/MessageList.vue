@@ -339,6 +339,8 @@ function setOrder(value: string) {
 async function markAllAsRead() {
   try {
     await api.markFolderRead(folderPath.value)
+    // Affichage immédiat (la page visible passe en « lu »), puis rechargement en arrière-plan.
+    if (data.value) data.value = { ...data.value, items: data.value.items.map(m => ({ ...m, seen: true })) }
     cacheStore.invalidateFolderLists(folderPath.value)
     toast('Tous les messages marqués comme lus')
     await Promise.all([load(), mail.loadFolders()])
