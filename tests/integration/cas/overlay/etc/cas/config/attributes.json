@@ -1,0 +1,14 @@
+{
+  "dev": {
+    "mail": ["dev@universite.example"],
+    "uid": ["dev"],
+    "givenName": ["Dev"],
+    "sn": ["Webmail"]
+  },
+  "alice": {
+    "mail": ["alice@universite.example"],
+    "uid": ["alice"],
+    "givenName": ["Alice"],
+    "sn": ["Martin"]
+  }
+}

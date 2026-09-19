@@ -1,0 +1,23 @@
+{
+  "@class": "org.apereo.cas.services.OidcRegisteredService",
+  "clientId": "colombe",
+  "clientSecret": "colombe-cas-test-secret",
+  "serviceId": "^http://localhost:39322/api/auth/oidc/callback$",
+  "name": "Colombe (webmail)",
+  "id": 10001,
+  "description": "Client OIDC de Colombe — banc d'essai CAS (tests/integration/cas).",
+  "evaluationOrder": 10,
+  "scopes": ["java.util.HashSet", ["openid", "email", "profile"]],
+  "supportedGrantTypes": ["java.util.HashSet", ["authorization_code", "password", "refresh_token"]],
+  "supportedResponseTypes": ["java.util.HashSet", ["code"]],
+  "signIdToken": true,
+  "bypassApprovalPrompt": true,
+  "usernameAttributeProvider": {
+    "@class": "org.apereo.cas.services.PrincipalAttributeRegisteredServiceUsernameProvider",
+    "usernameAttribute": "mail"
+  },
+  "attributeReleasePolicy": {
+    "@class": "org.apereo.cas.oidc.claims.OidcScopeFreeAttributeReleasePolicy",
+    "allowedAttributes": ["java.util.ArrayList", ["mail", "uid", "givenName", "sn"]]
+  }
+}

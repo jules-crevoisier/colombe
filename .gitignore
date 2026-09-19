@@ -16,3 +16,6 @@ playwright-report
 .claude/worktrees/
 release/
 CLAUDE.local.md
+# Banc d'essai CAS (docker-compose.cas.yml) : trousseau de clés OIDC généré par CAS lui-même
+# au premier démarrage — jamais un secret à committer.
+tests/integration/cas/overlay/etc/cas/config/keystore.jwks

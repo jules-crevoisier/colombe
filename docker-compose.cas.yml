@@ -1,0 +1,62 @@
+# Banc d'essai de la connexion unique OIDC (deuxième fournisseur), jamais exposé hors de la
+# machine : Apereo CAS 7.1.6 (fournisseur OIDC, image construite localement) + Dovecot 2.4
+# (IMAP, ManageSieve, soumission SMTP) qui valide les jetons par introspection + Mailpit
+# (relais SMTP de la soumission). Miroir de docker-compose.sso.yml (Keycloak) — voir ce
+# fichier et tests/integration/sso/ pour le premier banc testé.
+#
+# Usage : docker compose -f docker-compose.cas.yml build   (première fois : long, Gradle
+#           télécharge les dépendances de CAS — voir tests/integration/cas/overlay/)
+#         docker compose -f docker-compose.cas.yml up -d --wait
+#         pnpm test:cas
+#         docker compose -f docker-compose.cas.yml down
+#
+# Comptes CAS (etc/cas/config/cas.properties) : dev / dev-sso-password, alice / alice-sso-password.
+# Pas de mode utilisateur maître dans ce banc (voir docker-compose.sso.yml pour ce mode, testé
+# avec Keycloak uniquement).
+name: colombe-sso-cas
+
+services:
+  cas:
+    build:
+      context: ./tests/integration/cas/overlay
+      dockerfile: Dockerfile
+    image: colombe-cas:7.1.6
+    # etc/cas/config (cas.properties, attributes.json) et etc/cas/services (déclarations OIDC)
+    # sont montés par-dessus ce qui a été COPY-é dans l'image au build (voir overlay/Dockerfile) :
+    # permet d'ajuster la configuration sans reconstruire l'image Gradle à chaque essai.
+    # config en écriture : CAS y génère seul son trousseau de clés OIDC (keystore.jwks) au
+    # premier démarrage s'il est absent (cas.authn.oidc.jwks.file-system.jwks-file).
+    volumes:
+      - ./tests/integration/cas/overlay/etc/cas/config:/etc/cas/config
+      - ./tests/integration/cas/overlay/etc/cas/services:/etc/cas/services:ro
+    ports:
+      - "127.0.0.1:8444:8080"
+    # /cas/actuator/health répond 403 par défaut (accès restreint, non ouvert dans ce banc) :
+    # on vérifie plutôt que la page de connexion répond, preuve suffisante que CAS est prêt.
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf \"GET /cas/login HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q \"200\" <&3'"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 60s
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "127.0.0.1:18026:8025"   # API/interface web (lecture des messages relayés)
+
+  dovecot-cas:
+    image: dovecot/dovecot:2.4.1
+    depends_on:
+      cas:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      USER_PASSWORD: dovecot-cas-unused-password
+    volumes:
+      - ./tests/integration/cas/dovecot-cas.conf:/etc/dovecot/conf.d/auth.conf:ro
+    ports:
+      - "127.0.0.1:3146:31143"   # IMAP (STARTTLS)
+      - "127.0.0.1:4192:34190"   # ManageSieve (STARTTLS)
+      - "127.0.0.1:3588:31587"   # Soumission SMTP (STARTTLS)

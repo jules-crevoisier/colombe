@@ -1,0 +1,68 @@
+# Banc d'essai de la connexion unique via une passerelle SAML : un IdP SAML autonome
+# (kristophjunge/test-saml-idp, SimpleSAMLphp) fédéré dans Keycloak (Identity Provider =
+# SAML), Keycloak restant le fournisseur OpenID Connect vu par Colombe et par Dovecot —
+# exactement comme docker-compose.sso.yml, avec un saut SAML en amont, invisible de
+# Colombe (qui ne parle que OIDC). Reproduit l'architecture recommandée pour la fédération
+# RENATER pure (IdP SAML sans greffon OIDC) : docs/admin/connexion-unique.md,
+# §Fédération RENATER / SAML seul.
+#
+# Usage : docker compose -f docker-compose.saml.yml up -d --wait
+#         pnpm test:saml
+#         docker compose -f docker-compose.saml.yml down
+#
+# Comptes SimpleSAMLphp (IdP) : user1 / user1pass (user1@example.com), user2 / user2pass
+# (user2@example.com) — comptes par défaut de l'image, non modifiables sans recompiler.
+name: colombe-sso-saml
+
+services:
+  saml-idp:
+    image: kristophjunge/test-saml-idp:1.15
+    environment:
+      # SP = ce royaume Keycloak (entité SP par défaut : <KC_HOSTNAME>/realms/<royaume>).
+      SIMPLESAMLPHP_SP_ENTITY_ID: http://localhost:8280/realms/colombe
+      SIMPLESAMLPHP_SP_ASSERTION_CONSUMER_SERVICE: http://localhost:8280/realms/colombe/broker/saml-idp/endpoint
+      SIMPLESAMLPHP_SP_SINGLE_LOGOUT_SERVICE: http://localhost:8280/realms/colombe/broker/saml-idp/endpoint
+    ports:
+      - "127.0.0.1:8081:8080"
+
+  keycloak-saml:
+    image: quay.io/keycloak/keycloak:26.3.3
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # Émetteur fixe (« iss »), identique pour le navigateur (localhost:8280) et Dovecot
+      # (keycloak-saml:8080 en interne) — même rôle que dans docker-compose.sso.yml.
+      KC_HOSTNAME: http://localhost:8280
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./tests/integration/saml/keycloak-saml-realm.json:/opt/keycloak/data/import/colombe.json:ro
+    ports:
+      - "127.0.0.1:8280:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "127.0.0.1:18027:8025"   # API/interface web (lecture des messages relayés)
+
+  dovecot-saml:
+    image: dovecot/dovecot:2.4.1
+    depends_on:
+      keycloak-saml:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      USER_PASSWORD: dovecot-saml-unused-password
+    volumes:
+      - ./tests/integration/saml/dovecot-saml.conf:/etc/dovecot/conf.d/auth.conf:ro
+    ports:
+      - "127.0.0.1:3147:31143"   # IMAP (STARTTLS)
+      - "127.0.0.1:4193:34190"   # ManageSieve (STARTTLS)
+      - "127.0.0.1:3589:31587"   # Soumission SMTP (STARTTLS)

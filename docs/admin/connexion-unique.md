@@ -12,19 +12,34 @@ ce qu'ils voient à l'écran, les messages d'erreur, la déconnexion.
 
 ## Testé, et pas testé
 
-Cette fonctionnalité a été testée **de bout en bout** avec la combinaison suivante (banc
-d'essai `docker-compose.sso.yml`, `pnpm test:sso`) :
+Cette fonctionnalité a été testée **de bout en bout** avec quatre bancs d'essai, chacun
+dans son propre `docker-compose.*.yml` et sa propre commande `pnpm test:*`, avec de vrais
+conteneurs (pas de simulation) :
 
-- **Keycloak 26.3.3** comme fournisseur d'identité (flux code d'autorisation + PKCE).
-- **Dovecot 2.4** pour IMAP, la soumission SMTP et ManageSieve, jetons validés par
+- **`docker-compose.sso.yml` / `pnpm test:sso`** — **Keycloak 26.3.3** comme fournisseur
+  d'identité de référence (flux code d'autorisation + PKCE), **Dovecot 2.4** pour IMAP, la
+  soumission SMTP (relayée par Dovecot lui-même) et ManageSieve, jetons validés par
   introspection (RFC 7662), mécanismes SASL **XOAUTH2** et **OAUTHBEARER**, ainsi que le
   **mode utilisateur maître**.
+- **`docker-compose.cas.yml` / `pnpm test:cas`** — **Apereo CAS 7.1.6** (§CAS ci-dessous)
+  comme second fournisseur d'identité OIDC, choisi pour ses différences structurelles avec
+  Keycloak (webflow à deux sauts, attributs personnalisés absents du jeton par défaut sans
+  configuration explicite, cookie de session OAuth marqué `Secure` sans condition…), qui ont
+  mis à l'épreuve — et confirmé correct — le repli UserInfo déjà présent dans `exchangeCode`.
+  IMAP, soumission SMTP et ManageSieve couverts comme pour Keycloak ; le mode utilisateur
+  maître n'est testé qu'avec Keycloak.
+- **`docker-compose.saml.yml` / `pnpm test:saml`** — la passerelle **Keycloak SP
+  SAML + OP OIDC** recommandée pour une fédération RENATER/SAML seule (§ci-dessous),
+  IdP SAML `kristophjunge/test-saml-idp` (SimpleSAMLphp 1.15), Dovecot 2.4 comme au banc
+  Keycloak direct.
+- **`docker-compose.postfix.yml` / `pnpm test:postfix`** — soumission SMTP par connexion
+  unique à travers un vrai **Postfix** (3.7.11) en frontal, pas la soumission Dovecot
+  utilisée par les trois bancs précédents (§Postfix ci-dessous).
 
-Tout le reste de cette page — Dovecot 2.3, Postfix en frontal SASL, CAS, Shibboleth,
-Microsoft Entra ID, Google Workspace, une passerelle SAML — est documenté de bonne foi à
-partir du protocole et du code de Colombe, mais **n'a pas été vérifié contre un vrai
-serveur**. Chaque section non testée est marquée comme telle : testez en pré-production
-avant de couper l'ancienne authentification.
+Tout le reste de cette page — Dovecot 2.3, Shibboleth, Microsoft Entra ID, Google
+Workspace — est documenté de bonne foi à partir du protocole et du code de Colombe, mais
+**n'a pas été vérifié contre un vrai serveur**. Chaque section non testée est marquée comme
+telle : testez en pré-production avant de couper l'ancienne authentification.
 
 ## Comment Colombe accède à la messagerie après une connexion unique
 
@@ -148,36 +163,87 @@ officielle de Dovecot pour votre version exacte —
 — et validez en pré-production. Le principe côté Colombe ne change pas : c'est
 uniquement la configuration Dovecot qui diffère entre 2.3 et 2.4.
 
-## Postfix (soumission SMTP) — non testé
+## Postfix (soumission SMTP) — testé (3.7.11, Debian 12)
 
 Colombe envoie le courrier via la soumission SMTP authentifiée (comme pour un compte par
 mot de passe). Pour qu'un compte connecté en OIDC puisse envoyer, la soumission Postfix
-doit accepter XOAUTH2/OAUTHBEARER et les faire valider par Dovecot :
+doit accepter XOAUTH2/OAUTHBEARER et les faire valider par Dovecot — **testé de bout en
+bout** (banc d'essai `docker-compose.postfix.yml`, `pnpm test:postfix`) : Postfix (3.7.11,
+paquet Debian 12) en frontal de soumission (587), Dovecot 2.4 en second conteneur derrière
+un socket SASL **TCP** (pas un socket Unix partagé — Postfix et Dovecot sont deux
+conteneurs, deux systèmes de fichiers), jetons validés par introspection Keycloak (même
+royaume que le banc Keycloak direct), messages relayés jusqu'à Mailpit.
 
 ```
-# main.cf
+# main.cf (Postfix)
 smtpd_sasl_type = dovecot
-smtpd_sasl_path = private/auth
+smtpd_sasl_path = inet:dovecot-postfix:12345
 smtpd_sasl_auth_enable = yes
+smtpd_sasl_security_options = noanonymous
+smtpd_relay_restrictions = permit_sasl_authenticated, reject
+smtpd_recipient_restrictions = permit_sasl_authenticated, reject
 ```
 
-Avec `auth_mechanisms = plain login xoauth2 oauthbearer` côté Dovecot (même bloc `oauth2
-{ }` que pour IMAP), Postfix devrait proposer les mêmes mécanismes SASL en délégant à
-Dovecot. **Ce chemin n'a pas été testé** par le développeur de Colombe (le banc d'essai
-`docker-compose.sso.yml` relaie la soumission SMTP vers Mailpit sans Postfix
-intermédiaire) — vérifiez-le avant mise en production si l'envoi par connexion unique est
-requis.
+```
+# auth.conf (Dovecot 2.4) — même bloc oauth2 { } que pour IMAP, plus un service auth exposé
+# en TCP puisque Postfix tourne dans un conteneur séparé (pas de socket Unix partageable
+# sans complications de propriétaire/permissions entre deux images différentes) :
+# https://doc.dovecot.org/main/howto/sasl/postfix.html, « TCP-based authentication ».
+auth_mechanisms = plain login xoauth2 oauthbearer
+
+oauth2 {
+  introspection_mode = post
+  introspection_url = http://dovecot:<secret>@keycloak:8080/realms/<royaume>/protocol/openid-connect/token/introspect
+  username_attribute = email
+  active_attribute = active
+  active_value = true
+}
+
+service auth {
+  inet_listener auth-postfix {
+    port = 12345
+  }
+}
+```
+
+```
+# master.cf (Postfix) — soumission (587), authentification obligatoire
+submission inet n       -       n       -       -       smtpd
+  -o syslog_name=postfix/submission
+  -o smtpd_tls_security_level=encrypt
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_reject_unlisted_recipient=no
+  -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
+  -o smtpd_recipient_restrictions=permit_sasl_authenticated,reject
+  -o milter_macro_daemon_name=ORIGINATING
+```
+
+Points d'attention (banc d'essai testé, `tests/integration/postfix/`) :
+
+- **Socket TCP, pas Unix** : avec Postfix et Dovecot dans deux conteneurs différents, un
+  socket Unix partagé exige un volume monté aux mêmes chemin/permissions des deux côtés, et
+  les utilisateurs `postfix`/`dovecot` n'ont pas le même UID d'une image à l'autre — le
+  service auth TCP de Dovecot (`inet_listener`, `smtpd_sasl_path = inet:<hôte>:<port>`)
+  évite ce problème et fonctionne aussi bien pour un déploiement multi-machines.
+- **`smtpd_relay_restrictions` et `smtpd_recipient_restrictions`** doivent tous les deux
+  exiger `permit_sasl_authenticated` : `smtpd_relay_restrictions` seul ne suffit pas selon
+  la version de Postfix et la présence de `mynetworks`.
+- Debian n'exécute plus les services chrootés par défaut (`master.cf` généré avec
+  `chroot = n` partout) : plus besoin de dupliquer les bibliothèques de résolution de noms
+  dans le chroot, contrairement aux anciennes recettes Postfix/Dovecot.
 
 ::: warning Longueur de ligne SMTP et jetons OIDC
 Un jeton d'accès OIDC encodé (JWT en base64) peut atteindre **~2 Ko**. Colombe l'envoie
 volontairement **après le défi `334` du serveur** (`AUTH XOAUTH2` / `AUTH OAUTHBEARER`,
 puis la réponse sur sa propre ligne), jamais en une seule ligne `AUTH <mécanisme>
 <réponse>` — une réponse initiale sur la ligne `AUTH` aurait dépassé la limite de
-longueur de commande de la soumission Dovecot (« 500 5.5.2 Line too long »). Vérifiez
-néanmoins `smtpd_soft_error_limit`/`line_length_limit` côté Postfix : la valeur par défaut
-(`line_length_limit = 2048`) est suffisante dans la plupart des cas, mais un fournisseur
-d'identité aux jetons particulièrement verbeux (revendications additionnelles) peut s'en
-approcher.
+longueur de commande de la soumission Dovecot (« 500 5.5.2 Line too long »). **Vérifié** :
+un jeton d'accès Keycloak réel du banc d'essai fait environ 1,3 Ko une fois encodé, largement
+sous `line_length_limit = 2048` (valeur par défaut de Postfix, testée telle quelle, sans la
+modifier) — un fournisseur d'identité aux jetons particulièrement verbeux (revendications
+additionnelles) peut néanmoins s'en approcher ; le test échoue explicitement si jamais un
+jeton dépassait 2 Ko pour vous alerter plus tôt qu'un « 500 5.5.2 Line too long » en
+production.
 :::
 
 ## Par fournisseur d'identité
@@ -208,22 +274,133 @@ transposable à un royaume de production :
   Keycloak si vous choisissez de demander cette portée (voir l'avertissement plus haut sur
   `OIDC_SCOPES`) — sinon la portée est ignorée silencieusement par Keycloak.
 
-### CAS 6+ (protocole OIDC) — non testé
+### CAS 7.x (protocole OIDC) — testé
 
-CAS 6 et plus expose un point de terminaison OpenID Connect (en plus du protocole CAS
-historique, que Colombe ne parle pas). Non testé par le développeur ; à partir du
-protocole :
+Configuration exacte du banc d'essai (`docker-compose.cas.yml`, `tests/integration/cas/`),
+transposable à un déploiement CAS de production :
 
-- Les attributs (adresse, nom) peuvent n'être exposés que via **UserInfo**, pas dans le
-  jeton d'identité lui-même selon la configuration du serveur CAS — Colombe gère déjà ce
-  cas (`exchangeCode` interroge UserInfo si la revendication `OIDC_EMAIL_CLAIM` est absente
-  du jeton d'identité), donc à vérifier plutôt que corriger.
-- Si CAS n'expose que `uid` (identifiant sans domaine), fixez `OIDC_EMAIL_CLAIM=uid` et
-  `MAIL_LOGIN_DEFAULT_DOMAIN=univ-exemple.fr` pour que Colombe complète l'adresse. Si un
-  attribut `mail` complet est exposé, préférez `OIDC_EMAIL_CLAIM=mail`.
-- Les jetons d'accès CAS sont parfois opaques (pas un JWT auto-porteur) : dans ce cas
-  Dovecot doit valider par **introspection** plutôt que par vérification locale de
-  signature — voir le bloc `oauth2 { introspection_url = … }` plus haut.
+- **Apereo CAS 7.1.6**, construit localement depuis le gabarit officiel
+  [`apereo/cas-overlay-template`](https://github.com/apereo/cas-overlay-template) (branche
+  `7.1`), avec le module `cas-server-support-oidc` (et
+  `cas-server-support-json-service-registry` pour déclarer les services en JSON) ajoutés à
+  `build.gradle`. Le [CAS Initializr](https://github.com/apereo/cas-initializr) (public
+  `getcas.apereo.org`, ou son image Docker `apereo/cas-initializr`) génère normalement ce
+  même gabarit, mais s'est révélé peu fiable pour cet essai (limite de débit stricte côté
+  service public ; l'image Docker autohébergée nécessite en plus une base MongoDB pour son
+  propre registre interne de modules, sans quoi elle refuse tout jeton CAS demandé). Cloner
+  directement le gabarit officiel — la méthode d'installation alternative que CAS documente
+  lui-même — est tout aussi correct et plus simple à reproduire.
+- **Client Colombe** (`colombe`, `etc/cas/services/colombe-10001.json`) : confidentiel, flux
+  standard + PKCE S256, URI de redirection exacte. Trois réglages **indispensables**, sans
+  quoi le flux échoue silencieusement ou reste bloqué sur le formulaire de connexion (voir
+  « Pièges » ci-dessous) :
+  - `"bypassApprovalPrompt": true` — sinon CAS affiche un écran de consentement OAuth
+    (« Approve Access ») que ce banc ne pilote pas ;
+  - `"usernameAttributeProvider"` avec `PrincipalAttributeRegisteredServiceUsernameProvider`
+    sur l'attribut `mail` — sans quoi le `sub` du jeton est l'identifiant CAS nu (`dev`), pas
+    l'adresse de messagerie, et Dovecot (qui compare le `sub` d'introspection à l'identité
+    SASL envoyée par Colombe) refuse le jeton ;
+  - `"attributeReleasePolicy"` de type `org.apereo.cas.oidc.claims.OidcScopeFreeAttributeReleasePolicy`
+    (pas `ReturnAllowedAttributeReleasePolicy`, qui est le style protocole CAS classique) —
+    seule cette classe **OIDC-consciente** place les attributs personnalisés (`mail`, `uid`)
+    directement dans le jeton d'identité ; l'autre les relègue dans un objet `attributes`
+    imbriqué côté UserInfo, invisible pour `openid-client`.
+- **Client Dovecot** (`dovecot`, `etc/cas/services/dovecot-10002.json`) : confidentiel,
+  **séparé** du client Colombe, sans flux standard ni grant — sert uniquement à
+  authentifier les appels d'introspection.
+- **Comptes statiques** (`etc/cas/config/cas.properties`) :
+  `cas.authn.accept.users=dev::dev-sso-password,alice::alice-sso-password`, avec les
+  attributs (`mail`, `uid`, `givenName`, `sn`) fournis par un dépôt JSON statique
+  (`cas.authn.attribute-repository.json[0].location`, voir `etc/cas/config/attributes.json`)
+  — `uid` porte l'identifiant nu (« dev »), `mail` l'adresse complète, pour tester les deux
+  valeurs possibles d'`OIDC_EMAIL_CLAIM`.
+- **`cas.server.name`** : comme `KC_HOSTNAME` pour Keycloak, à fixer explicitement
+  (`http://localhost:8444` dans le banc) pour que l'émetteur (`iss`) soit identique que la
+  requête vienne du navigateur/Colombe (`localhost:8444`) ou de Dovecot depuis le réseau
+  interne Docker (`cas:8080`).
+
+Extrait testé du bloc `oauth2 { }` (`tests/integration/cas/dovecot-cas.conf`) :
+
+```
+oauth2 {
+  introspection_mode = post
+  introspection_url = http://<identifiant>:<secret>@cas.interne:8080/cas/oidc/introspect
+  username_attribute = sub
+  active_attribute = active
+  active_value = true
+}
+```
+
+Points d'attention propres à CAS (constatés en pilotant un vrai conteneur, pas déduits du
+protocole) :
+
+- **`/oidc/introspect` ne renvoie jamais les attributs relâchés par `attributeReleasePolicy`**
+  — seulement les champs RFC 7662 standard (`active`, `sub`, `scope`, `iat`, `exp`, `iss`,
+  `aud`, `client_id`…). `sub` vaut par défaut l'identifiant CAS nu (« dev »), jamais
+  l'adresse de messagerie que Colombe envoie en SASL — d'où le `usernameAttributeProvider`
+  ci-dessus, qui fixe le `sub` du client `colombe` sur l'attribut `mail`. **Sans ce réglage,
+  aucun jeton n'ouvre jamais la boîte**, quel que soit le mode d'obtention.
+- **Le grant « password » (ROPC) est bien supporté** par CAS 7.1.6 (`/oidc/oidcAccessToken`,
+  `grant_type=password`, activé pour le seul client `colombe` via `supportedGrantTypes`) —
+  contrairement à l'hypothèse de départ qu'il faudrait s'en passer. Mais son jeton porte un
+  `sub` différent de celui du flux code d'autorisation pour le **même** utilisateur : ROPC
+  contourne le webflow CAS (et donc `usernameAttributeProvider`, qui s'applique à la
+  résolution du principal lors de la validation de ticket) et retombe sur l'identifiant nu.
+  **Un jeton ROPC est un jeton CAS valide, mais Dovecot le refuse** dans cette configuration
+  — testé et documenté (`cas.dovecot.test.ts`), pas une supposition. Utilisez le flux code
+  d'autorisation (le vrai formulaire de connexion) pour obtenir des jetons compatibles
+  Dovecot ; ROPC reste utile pour vérifier rapidement qu'un compte/mot de passe fonctionne
+  côté CAS lui-même.
+- **Attributs personnalisés : dans le jeton d'identité, pas seulement UserInfo** — avec
+  `OidcScopeFreeAttributeReleasePolicy`, `mail`/`uid` apparaissent directement, aplatis,
+  dans les revendications du jeton d'identité (`exchangeCode` n'a donc pas besoin de son
+  repli UserInfo dans cette configuration). `/oidc/oidcProfile` (UserInfo) les renvoie aussi,
+  mais imbriqués sous une clé `attributes` (`{"attributes":{"mail":"…"}}`) plutôt qu'à plat
+  — une réponse UserInfo non standard que `openid-client` ne sait pas lire nativement. Le
+  repli UserInfo de Colombe reste donc utile pour d'autres fournisseurs (Shibboleth,
+  oidc-provider…), mais ne sauverait pas une configuration CAS qui n'utiliserait que
+  `ReturnAllowedAttributeReleasePolicy` (protocole CAS classique) sans le compléter par une
+  classe OIDC-consciente.
+- **Formulaire de connexion en deux temps** : contrairement à Keycloak, une requête non
+  authentifiée vers `/oidc/oidcAuthorize` répond par une redirection **séparée** vers
+  `/login?service=…` avant de servir le formulaire — un saut de plus à suivre. Le formulaire
+  lui-même exige un champ caché `execution` (jeton anti-rejeu du webflow Spring), en plus de
+  `username`/`password`/`_eventId=submit`.
+- **Écran de consentement par défaut** (« Approve Access ») : à la différence du royaume
+  Keycloak de ce banc, un `OidcRegisteredService` CAS fraîchement déclaré **exige** une
+  confirmation explicite de l'utilisateur avant de délivrer un code — `bypassApprovalPrompt:
+  true` la supprime pour un client interne de confiance comme Colombe (voir plus haut).
+- **Cookie de réplication de session marqué `Secure` sans condition** : le flux
+  code+PKCE/OAuth de CAS porte son état (entre `/oidc/oidcAuthorize` et
+  `/oauth2.0/callbackAuthorize`) dans un cookie (`DISSESSIONOauthOidcServerSupport`) émis
+  avec l'attribut `Secure`, quel que soit `server.ssl.enabled`. Sur ce banc, volontairement
+  en http:// simple (boucle locale, comme Keycloak), ce cookie n'était donc **jamais
+  renvoyé** par le client, et CAS retombait sur une redirection finale sans paramètre
+  `code` — un échec silencieux, sans erreur explicite côté CAS. Réglage qui corrige ceci
+  (`etc/cas/config/cas.properties`) :
+  ```
+  cas.authn.oauth.session-replication.cookie.secure=false
+  cas.authn.oauth.session-replication.cookie.same-site-policy=lax
+  ```
+  En production (CAS derrière TLS, comme il se doit), ce problème ne se pose pas — mais si
+  vous testez CAS en local sans certificat, c'est le premier réglage à vérifier.
+- **`refresh_token` non délivré sans `offline_access`** : conforme au comportement attendu
+  (voir l'avertissement plus haut sur `OIDC_SCOPES`) — CAS ne renvoie de jeton de
+  rafraîchissement que si la portée `offline_access` est demandée, ce que Colombe
+  déconseille par défaut. `supportedGrantTypes` du client déclare bien `refresh_token`
+  (le mécanisme existe), simplement il n'est pas sollicité avec `OIDC_SCOPES=openid email
+  profile`.
+- **Déconnexion** : `end_session_endpoint` = `<issuer>/oidcLogout`, annoncé normalement dans
+  le document de découverte. Testé jusqu'à la redirection initiée par Colombe
+  (`id_token_hint` + `post_logout_redirect_uri`) ; le comportement de CAS *après* cette
+  redirection (fin de session CAS, éventuel retour vers `post_logout_redirect_uri`) n'a pas
+  été vérifié en détail au-delà de la présence de l'URL dans la réponse — à confirmer en
+  pré-production si la déconnexion complète chez le fournisseur est requise.
+- **`OIDC_EMAIL_CLAIM=mail` et `OIDC_EMAIL_CLAIM=uid` + `MAIL_LOGIN_DEFAULT_DOMAIN`
+  fonctionnent tous les deux**, testés contre le même CAS (`cas.dovecot.test.ts` couvre les
+  deux configurations avec deux instances Colombe distinctes) : `mail` porte l'adresse
+  complète, `uid` l'identifiant nu que Colombe complète avec
+  `MAIL_LOGIN_DEFAULT_DOMAIN=universite.example`.
 
 ### Shibboleth IdP 5 (greffon OIDC) — non testé
 
@@ -233,7 +410,7 @@ attributs potentiellement disponibles seulement via UserInfo (géré par Colombe
 `OIDC_EMAIL_CLAIM` à faire correspondre à l'attribut réellement publié
 (`mail`, `uid` + `MAIL_LOGIN_DEFAULT_DOMAIN`…), jetons opaques → introspection Dovecot.
 
-### Fédération RENATER / SAML seul — passerelle recommandée (non testée)
+### Fédération RENATER / SAML seul — passerelle recommandée (testée : Keycloak 26 + SimpleSAMLphp 1.15)
 
 Si votre fournisseur d'identité ne parle que SAML (fédération RENATER pure, sans greffon
 OIDC), Colombe ne peut pas s'y connecter directement : il ne parle **que** OpenID Connect
@@ -242,13 +419,82 @@ OIDC), Colombe ne peut pas s'y connecter directement : il ne parle **que** OpenI
 **passerelle OIDC devant le SAML** :
 
 - [SATOSA](https://github.com/IdentityPython/SATOSA) (proxy d'identité dédié, parle SAML
-  côté fédération et OIDC côté Colombe), ou
-- Keycloak configuré comme **SP SAML** (côté fédération RENATER) **et OP OIDC** (côté
-  Colombe) — un seul Keycloak peut jouer les deux rôles.
+  côté fédération et OIDC côté Colombe) — **non testée** avec Colombe, ou
+- Keycloak configuré comme **SP SAML** (côté fédération RENATER, Identity Provider =
+  SAML) **et OP OIDC** (côté Colombe) — un seul Keycloak peut jouer les deux rôles.
+  **Testé de bout en bout** (banc d'essai `docker-compose.saml.yml`, `pnpm test:saml`) :
+  Keycloak 26.3.3 avec un IdP SAML `kristophjunge/test-saml-idp` (SimpleSAMLphp 1.15,
+  comptes de test par défaut `user1`/`user1pass`, `user2`/`user2pass`) fédéré en amont,
+  Dovecot 2.4 validant les jetons OIDC de Keycloak par introspection exactement comme dans
+  le banc Keycloak direct, Mailpit pour la soumission SMTP.
 
-Cette architecture n'a pas été testée avec Colombe, mais c'est la même mécanique que
-Keycloak testé plus haut une fois la passerelle en place : Colombe ne voit jamais le SAML,
-seulement l'OIDC exposé par la passerelle.
+Colombe ne voit jamais le SAML : il ne parle qu'OIDC à Keycloak, exactement comme dans le
+banc Keycloak testé plus haut — le SAML n'apparaît que dans la configuration de l'Identity
+Provider Keycloak et dans la page de connexion (Keycloak affiche un bouton pour l'IdP
+fédéré à côté de son propre formulaire).
+
+Configuration exacte du banc d'essai (`tests/integration/saml/keycloak-saml-realm.json`,
+bloc `identityProviders`) :
+
+```
+{
+  "alias": "saml-idp",
+  "providerId": "saml",
+  "updateProfileFirstLoginMode": "off",
+  "trustEmail": true,
+  "config": {
+    "principalType": "ATTRIBUTE",
+    "principalAttribute": "email",
+    "postBindingResponse": "true",
+    "postBindingAuthnRequest": "true",
+    "wantAssertionsSigned": "false",
+    "validateSignature": "false",
+    "singleSignOnServiceUrl": "<url SSOService.php de l'IdP SAML>",
+    "idpEntityId": "<url metadata.php de l'IdP SAML>"
+  }
+}
+```
+
+Et un mapper qui fait passer l'attribut SAML `mail`/`email` dans l'utilisateur Keycloak
+(ensuite exposé à Colombe comme n'importe quel claim OIDC `email`) :
+
+```
+{
+  "identityProviderAlias": "saml-idp",
+  "identityProviderMapper": "saml-user-attribute-idp-mapper",
+  "config": { "attribute.name": "email", "user.attribute": "email", "syncMode": "FORCE" }
+}
+```
+
+Points d'attention découverts en testant (à transposer à votre IdP SAML réel — Shibboleth,
+un ADFS, la fédération RENATER — dont les noms d'attributs et le NameID diffèrent de
+SimpleSAMLphp) :
+
+- **`principalType: ATTRIBUTE` plutôt que le NameID par défaut (`SUBJECT`)** : de nombreux
+  IdP SAML (dont SimpleSAMLphp par défaut, et couramment Shibboleth) émettent un NameID
+  **transitoire**, différent à chaque session. Keycloak lie l'identité fédérée sur ce
+  NameID par défaut : avec un NameID transitoire, chaque connexion ressemblerait à un tout
+  premier login, et Keycloak proposerait à répétition un écran « Un compte avec cette
+  adresse existe déjà, comment continuer ? » au lieu de reconnaître l'utilisateur. Fixer
+  `principalType=ATTRIBUTE` avec `principalAttribute` sur un attribut **stable** (l'adresse
+  de messagerie, ou `eduPersonPrincipalName` en fédération RENATER/Shibboleth) résout ça.
+- **Premier login = écran « Update Account Information »** : même avec
+  `updateProfileFirstLoginMode: off`, le tout premier login d'un compte fédéré passe par un
+  écran de complétion de profil (nom d'utilisateur, prénom, nom — l'e-mail vient de l'IdP)
+  avant de créer le compte Keycloak ; les connexions suivantes du même compte l'évitent
+  (identité déjà liée). C'est un comportement Keycloak normal à prévoir dans le mode
+  opératoire des utilisateurs, pas un dysfonctionnement.
+- **Longueur du nom d'utilisateur** : si vous dérivez le nom d'utilisateur Keycloak d'un
+  attribut SAML court (ex. un `uid` numérique comme dans SimpleSAMLphp), Keycloak exige au
+  moins 3 caractères — préfixez le gabarit du mapper (`saml-username-idp-mapper`,
+  `template`) plutôt que d'utiliser l'attribut brut.
+- **`validateSignature: false`** dans ce banc (comme `sslRequired: none` du royaume
+  Keycloak testé plus haut) : acceptable en test local, à revoir en production selon que
+  votre IdP SAML publie des métadonnées signées vérifiables.
+- **Non testé** : déconnexion SAML (Single Logout) à travers la passerelle — ce banc ne
+  vérifie que la connexion ; `OIDC_LOGOUT` continue de rediriger vers Keycloak comme dans
+  le banc direct, mais Keycloak ne relaie pas nécessairement la déconnexion jusqu'à l'IdP
+  SAML sans configuration SLO supplémentaire.
 
 ### Microsoft Entra ID — non testé
 
@@ -315,8 +561,8 @@ Avant d'ouvrir la connexion unique à tous les utilisateurs :
 2. La page de connexion affiche le bouton de connexion unique avec le bon libellé.
 3. Une connexion complète aboutit sur `/mail/INBOX` avec le courrier de l'utilisateur
    visible (IMAP validé par le jeton ou le mode master).
-4. L'envoi d'un message fonctionne (soumission SMTP — voir §Postfix, non testé par le
-   développeur : à vérifier en particulier).
+4. L'envoi d'un message fonctionne (soumission SMTP — voir §Postfix ci-dessus si Postfix
+   est en frontal plutôt que la soumission Dovecot).
 5. Les filtres (ManageSieve) se chargent sous **Paramètres → Filtres**.
 6. La déconnexion ramène bien vers le fournisseur d'identité (si `OIDC_LOGOUT=true`) ou
    vers `COLOMBE_PORTAL_URL`, sans laisser de session ouverte côté Colombe.
