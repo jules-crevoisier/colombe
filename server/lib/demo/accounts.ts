@@ -12,6 +12,7 @@
  * effets de bord (mailbox, base, sessions), avec une horloge injectable.
  */
 import { randomBytes } from 'node:crypto'
+import type { AppLocale } from '#shared/types/i18n'
 import { createDemoMailbox, deleteMockMailbox } from '../mail/mock'
 import { credentialsStore } from '../session/credentials'
 import { useDb } from '../store/db'
@@ -49,10 +50,15 @@ export function overflow(records: DemoAccountRecord[], maxAccounts: number): Dem
   return [...records].sort((a, b) => a.createdAt - b.createdAt).slice(0, records.length - maxAccounts)
 }
 
-/** Préférences + identité par défaut d'un compte visiteur : jamais la boîte « Bienvenue ». */
-function seedAccountRecord(email: string, now: number): void {
+/**
+ * Préférences + identité par défaut d'un compte visiteur : jamais la boîte « Bienvenue »,
+ * langue = celle résolue de la requête qui a créé le compte (`locale`, cf. `create`) pour
+ * que l'interface corresponde dès le premier écran — un changement ultérieur dans les
+ * réglages ne re-seed jamais la boîte (contenu figé à la création).
+ */
+function seedAccountRecord(email: string, now: number, locale: AppLocale): void {
   const db = useDb()
-  savePrefs(db, email, { welcomed: true })
+  savePrefs(db, email, { welcomed: true, language: locale })
   db.prepare(
     `INSERT INTO identities (owner, name, reply_to, bcc, organization, signature_html, is_default, created_at)
      VALUES (?, ?, '', '', '', '', 1, ?)`
@@ -70,13 +76,18 @@ export class DemoAccountManager {
     return this.accounts.size
   }
 
-  /** Crée un compte visiteur, l'enregistre pour l'éviction, applique aussitôt `maxAccounts`. */
-  create(domain: string, maxAccounts: number): string {
+  /**
+   * Crée un compte visiteur, l'enregistre pour l'éviction, applique aussitôt `maxAccounts`.
+   * `locale` : langue résolue de la requête POST /api/auth/demo (server/lib/i18n,
+   * `Accept-Language`) — détermine la boîte d'échantillon (fr/en) et la préférence
+   * de langue du compte.
+   */
+  create(domain: string, maxAccounts: number, locale: AppLocale = 'fr'): string {
     const now = this.clock.now()
     const email = generateVisitorEmail(domain)
     this.accounts.set(email, { email, createdAt: now })
-    createDemoMailbox(email, VISITOR_DISPLAY_NAME, now)
-    seedAccountRecord(email, now)
+    createDemoMailbox(email, VISITOR_DISPLAY_NAME, now, locale)
+    seedAccountRecord(email, now, locale)
 
     for (const stale of overflow([...this.accounts.values()], maxAccounts)) this.evict(stale.email)
     return email

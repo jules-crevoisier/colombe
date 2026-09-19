@@ -66,6 +66,31 @@ describe('DemoAccountManager', () => {
     expect(identity).toMatchObject({ name: VISITOR_DISPLAY_NAME, is_default: 1 })
   })
 
+  it('create(locale: "en") seedé en anglais, prefs.language "en"', async () => {
+    const manager = new DemoAccountManager()
+    const email = manager.create('universite.example', 200, 'en')
+
+    const backend = new MockBackend(email)
+    const result = await backend.listMessages('INBOX', { page: 1, pageSize: 100 })
+    expect(result.items.some(m => m.subject === 'The Campus Newsletter — September')).toBe(true)
+    expect(result.items.some(m => m.subject.includes('Facture'))).toBe(false)
+
+    const prefs = getPrefs(useDb(), email)
+    expect(prefs.language).toBe('en')
+  })
+
+  it('create() sans locale reste français (comportement historique), prefs.language "fr"', async () => {
+    const manager = new DemoAccountManager()
+    const email = manager.create('universite.example', 200)
+
+    const backend = new MockBackend(email)
+    const result = await backend.listMessages('INBOX', { page: 1, pageSize: 100 })
+    expect(result.items.some(m => m.subject === 'La lettre du campus — septembre')).toBe(true)
+
+    const prefs = getPrefs(useDb(), email)
+    expect(prefs.language).toBe('fr')
+  })
+
   it('create() évince aussitôt le plus ancien compte au-delà de maxAccounts', () => {
     const manager = new DemoAccountManager()
     const first = manager.create('universite.example', 2)

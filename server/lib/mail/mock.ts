@@ -2,6 +2,7 @@ import type { MailBackend, MailCredentials, ListFoldersOptions, ListOptions, Lis
 import { MailError } from './backend'
 import { parseMessage } from './parse'
 import type { Folder, FolderSize, MessageSummary, QuotaInfo, SpecialUse } from '#shared/types/mail'
+import type { AppLocale } from '#shared/types/i18n'
 import { aliceFixtures, buildFixtureRaw, devFixtures, FOLDERS, MOCK_QUOTA_LIMIT_BYTES } from './mock-fixtures'
 import type { FixtureMessage } from './mock-fixtures'
 import { publishMailboxChange } from '../live/bus'
@@ -70,13 +71,15 @@ export function resetMockStore(): void {
 
 /**
  * Ajoute une boîte (démo, server/lib/demo/accounts.ts) : même jeu de données que
- * `dev`, adressé au titulaire indiqué. N'ajoute PAS l'adresse à `MOCK_USERS` — un
- * compte démo ne se connecte jamais par mot de passe (POST /api/auth/login est
- * désactivé en démo), il obtient directement une session via POST /api/auth/demo.
+ * `dev`, adressé au titulaire indiqué, dans la langue résolue de la requête qui a
+ * créé le compte (`locale`, français par défaut — server/lib/mail/fixtures/{fr,en}.ts).
+ * N'ajoute PAS l'adresse à `MOCK_USERS` — un compte démo ne se connecte jamais par
+ * mot de passe (POST /api/auth/login est désactivé en démo), il obtient directement
+ * une session via POST /api/auth/demo.
  */
-export function createDemoMailbox(email: string, displayName: string, now: number): void {
+export function createDemoMailbox(email: string, displayName: string, now: number, locale: AppLocale = 'fr'): void {
   ensureStore()
-  seedUser(email, devFixtures(now, `${displayName} <${email}>`))
+  seedUser(email, devFixtures(now, `${displayName} <${email}>`, locale))
 }
 
 /** Retire une boîte (éviction d'un compte démo expiré ou en surnombre). */

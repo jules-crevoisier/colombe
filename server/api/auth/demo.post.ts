@@ -5,7 +5,7 @@ import { demoAccounts } from '../../lib/demo/accounts'
 import { demoLimiter } from '../../lib/session/rate-limit'
 import { credentialsStore } from '../../lib/session/credentials'
 import { clientIp } from '../../utils/mail-session'
-import { serverT } from '../../lib/i18n'
+import { serverT, requestLocale } from '../../lib/i18n'
 
 /**
  * Démo publique (COLOMBE_DEMO=true) : crée un compte visiteur jetable
@@ -26,7 +26,10 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
   demoLimiter.hit(ipKey)
 
   const domain = config.login.domains[0] ?? 'universite.example'
-  const email = demoAccounts.create(domain, config.demo.maxAccounts)
+  // Langue de la boîte d'échantillon + préférence du compte : celle de la requête qui crée
+  // le visiteur (Accept-Language), même résolution que le reste de l'API (server/lib/i18n).
+  const locale = requestLocale(event)
+  const email = demoAccounts.create(domain, config.demo.maxAccounts, locale)
 
   const ip = clientIp(event)
   const userAgent = getRequestHeader(event, 'user-agent') ?? ''
