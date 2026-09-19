@@ -40,3 +40,17 @@ export interface ClientServerSettings {
   /** Identifiant à saisir : l'adresse complète ou la partie avant @. */
   username: 'email' | 'localpart'
 }
+
+/** GET /api/devices/settings (authentifié) : ce que l'utilisateur saisit dans un autre logiciel. */
+export interface DeviceSettings {
+  /** Adresse de l'utilisateur connecté. */
+  email: string
+  /** Identifiant à saisir (adresse complète ou partie avant @, selon MAIL_LOGIN_USERNAME). */
+  username: string
+  imap: { host: string; port: number; security: ClientSecurity } | null
+  smtp: { host: string; port: number; security: ClientSecurity } | null
+  /** Domaines vers lesquels le transfert automatique est autorisé (MAIL_FORWARD_DOMAINS). */
+  forwardDomains: string[]
+  /** Nom du produit (pour les libellés et le nom du profil). */
+  productName: string
+}
