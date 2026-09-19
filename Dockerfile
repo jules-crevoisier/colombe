@@ -41,7 +41,7 @@ COPY --from=build /app/.output/ ./
 # puis élagués des fichiers réservés au poste de développement. Tolérant à
 # l'absence de certains d'entre eux (écrits par ailleurs).
 COPY --from=build /app/scripts/ ./scripts/
-RUN rm -f ./scripts/with-build-lock.mjs ./scripts/deploy.sh ./scripts/check-deploy-secrets.mjs
+RUN rm -f ./scripts/with-build-lock.mjs ./scripts/deploy-ssh.sh ./scripts/check-deploy-secrets.mjs
 
 # Les scripts d'administration importent directement la configuration runtime
 # (TypeScript exécuté nativement par Node 24, sans étape de compilation) : le

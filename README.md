@@ -80,3 +80,9 @@ nodemailer · mailparser · DOMPurify · TipTap · SQLite intégré à Node (`no
 
 Historique de conception : [docs/dev/](docs/dev/). Journal des versions :
 [CHANGELOG.md](CHANGELOG.md).
+
+## Licence
+
+Colombe est un logiciel libre sous licence [GNU AGPL-3.0](LICENSE) (ou toute version
+ultérieure). Vous pouvez l'utiliser, l'étudier, le modifier et le redistribuer ; si vous
+proposez une version modifiée en ligne, vous devez en publier le code source.

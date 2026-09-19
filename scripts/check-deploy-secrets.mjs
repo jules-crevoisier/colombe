@@ -1,8 +1,8 @@
 // Vérifie qu'aucun secret du .env de développement n'est présent dans le build de déploiement.
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
-const env = Object.fromEntries(readFileSync('.env', 'utf8').split(/\r?\n/)
+const env = Object.fromEntries((existsSync('.env') ? readFileSync('.env', 'utf8') : '').split(/\r?\n/)
   .filter(l => /^[A-Z_]+=/.test(l)).map(l => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()]))
 const secrets = ['NUXT_SESSION_PASSWORD', 'WEBMAIL_DATA_KEY'].map(k => [k, env[k]]).filter(([, v]) => v && v.length >= 8)
 

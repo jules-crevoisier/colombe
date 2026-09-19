@@ -82,7 +82,7 @@ cpSync(cd('.output'), releaseDir, { recursive: true })
 // Scripts d'administration : copie tolérante (certains sont écrits par
 // ailleurs et peuvent ne pas encore exister), en excluant les outils réservés
 // au poste de développement.
-const devOnlyScripts = new Set(['with-build-lock.mjs', 'deploy.sh', 'check-deploy-secrets.mjs', 'build-release.mjs'])
+const devOnlyScripts = new Set(['with-build-lock.mjs', 'deploy-ssh.sh', 'check-deploy-secrets.mjs', 'build-release.mjs'])
 const scriptsSrc = cd('scripts')
 const scriptsDest = join(releaseDir, 'scripts')
 if (existsSync(scriptsSrc)) {
