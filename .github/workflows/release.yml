@@ -3,6 +3,8 @@ name: Release
 on:
   push:
     tags: ['v*']
+  # Relancer une release existante : gh workflow run release.yml --ref vX.Y.Z
+  workflow_dispatch:
 
 permissions:
   contents: write
