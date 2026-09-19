@@ -74,17 +74,8 @@ export default defineConfigWithTheme<ColombeThemeConfig>({
   base: '/',
   cleanUrls: true,
   outDir: '.vitepress/dist',
-  // dev/ : notes de conception internes. Les fichiers en capitales sont l'ancienne
-  // documentation (avant le site), remplacée par les pages en minuscules ; on les écarte
-  // par leur nom exact (la comparaison est sensible à la casse).
-  srcExclude: [
-    'dev/**',
-    'admin/INSTALLATION.md',
-    'admin/CONFIGURATION.md',
-    'admin/MIGRATION-ROUNDCUBE.md',
-    'admin/SECURITE.md',
-    'guide/AUTRES-APPLICATIONS.md',
-  ],
+  // dev/ : notes de conception internes, hors du site.
+  srcExclude: ['dev/**'],
   // Aucune police chargée depuis l'extérieur ; celles du thème sont importées localement.
   useWebFonts: false,
   head,

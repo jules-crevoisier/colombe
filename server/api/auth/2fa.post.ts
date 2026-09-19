@@ -34,7 +34,7 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
     // Authentification définitivement échouée : c'est ici, pas à /api/auth/login, que la
     // double authentification tranche succès/échec (voir ROADMAP R2.6).
     recordLoginEvent(useDb(), pending.email, ip, userAgent, false)
-    // Une ligne par échec, pour fail2ban (voir docs/admin/CONFIGURATION.md).
+    // Une ligne par échec, pour fail2ban (voir docs/admin/configuration.md).
     console.warn(`[colombe] auth-failure ip=${logSafe(ip)} user=${logSafe(pending.email)}`)
     if (failPending(pendingId)) {
       await clearUserSession(event)

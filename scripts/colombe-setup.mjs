@@ -439,7 +439,7 @@ async function main() {
     'Stockage local': {
       WEBMAIL_DATA_DIR: env.WEBMAIL_DATA_DIR,
     },
-  }, 'Généré par colombe-setup.mjs — voir docs/admin/CONFIGURATION.md')
+  }, 'Généré par colombe-setup.mjs — voir docs/admin/configuration.md')
 
   try {
     writeEnvFile(outPath, content, { force: Boolean(args.force) })

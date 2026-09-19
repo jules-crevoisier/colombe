@@ -62,7 +62,7 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
     ipLoginLimiter.hit(ipKey)
     loginLimiter.hit(emailKey)
     recordLoginEvent(useDb(), email, ip, userAgent, false)
-    // Une ligne par échec, pour fail2ban (voir docs/admin/CONFIGURATION.md).
+    // Une ligne par échec, pour fail2ban (voir docs/admin/configuration.md).
     console.warn(`[colombe] auth-failure ip=${logSafe(ip)} user=${logSafe(email)}`)
     throw createError({ statusCode: 401, statusMessage: 'Identifiants incorrects', message: 'Adresse ou mot de passe incorrect.' })
   }

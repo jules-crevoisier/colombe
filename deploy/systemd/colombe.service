@@ -1,5 +1,5 @@
 # Service systemd pour une installation bare-metal (release tarball) derrière
-# Apache ou Nginx. Voir docs/admin/INSTALLATION.md pour le déploiement de
+# Apache ou Nginx. Voir docs/admin/installation-archive.md pour le déploiement de
 # référence, et ../apache/colombe.conf ou ../nginx/colombe.conf pour le proxy.
 #
 # Installation :

@@ -6,7 +6,7 @@
 # fait alors confiance à X-Forwarded-For pour la dernière valeur). Le
 # bannissement doit se faire sur l'hôte qui reçoit réellement les connexions
 # du client — dans l'installation standard (Apache/Nginx et Colombe sur la
-# même machine, voir docs/admin/INSTALLATION.md), c'est le même hôte que celui-ci.
+# même machine, voir docs/admin/securite.md), c'est le même hôte que celui-ci.
 #
 # Installation :
 #   sudo cp colombe.conf /etc/fail2ban/filter.d/

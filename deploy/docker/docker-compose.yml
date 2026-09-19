@@ -1,5 +1,5 @@
 # Installation Docker de Colombe. Voir colombe.env.example pour les variables
-# à fournir, et docs/admin/CONFIGURATION.md pour la référence complète.
+# à fournir, et docs/admin/configuration.md pour la référence complète.
 #
 # Usage :
 #   cp colombe.env.example colombe.env   # puis remplir

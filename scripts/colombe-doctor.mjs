@@ -127,7 +127,7 @@ async function main() {
       note(`NUXT_APP_BASE_URL (« ${process.env.NUXT_APP_BASE_URL} ») ne se termine pas par un « / ».`)
     }
     if (config.production && !config.trustProxy) {
-      note('NODE_ENV=production et MAIL_TRUST_PROXY=false : si Colombe est derrière un reverse proxy, l\'IP client dans les journaux sera fausse (voir docs/admin/CONFIGURATION.md).')
+      note('NODE_ENV=production et MAIL_TRUST_PROXY=false : si Colombe est derrière un reverse proxy, l\'IP client dans les journaux sera fausse (voir docs/admin/configuration.md).')
     }
     const badForward = config.forwardDomains.filter(d => PUBLIC_PROVIDERS.includes(d))
     if (badForward.length) {

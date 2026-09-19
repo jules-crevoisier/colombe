@@ -1,7 +1,7 @@
 /**
  * Configuration de Colombe, lue au DÉMARRAGE depuis les variables d'environnement
  * (et non figée au moment du build) : une même archive de release sert n'importe
- * quel établissement. Référence complète : docs/admin/CONFIGURATION.md.
+ * quel établissement. Référence complète : docs/admin/configuration.md.
  *
  * Aucune dépendance à Nuxt : testable seul et réutilisable par les scripts.
  */
@@ -85,7 +85,7 @@ export class ConfigError extends Error {
   readonly problems: string[]
 
   constructor(problems: string[]) {
-    super(`Configuration invalide :\n${problems.map(p => `  - ${p}`).join('\n')}\nVoir docs/admin/CONFIGURATION.md.`)
+    super(`Configuration invalide :\n${problems.map(p => `  - ${p}`).join('\n')}\nVoir docs/admin/configuration.md.`)
     this.name = 'ConfigError'
     this.problems = problems
   }

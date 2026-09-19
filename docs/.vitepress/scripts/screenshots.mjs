@@ -67,7 +67,24 @@ async function login(page) {
   await page.getByRole('button', { name: 'Se connecter' }).click()
   await page.waitForURL(/\/mail\//, { timeout: 20_000 })
   await dismissWelcome(page)
+  await hideTestMessages(page)
   await page.locator('li[data-uid]').first().waitFor({ timeout: 20_000 })
+}
+
+/**
+ * Le jeu de démonstration contient un faux message d'hameçonnage (il sert aux tests de
+ * l'assainisseur). Utile dans la démo, déroutant en vitrine : on le supprime avant les captures.
+ */
+async function hideTestMessages(page) {
+  const origin = new URL(baseUrl).origin
+  const res = await page.request.get(`${baseUrl}/api/messages?folder=INBOX&pageSize=100`)
+  if (!res.ok()) return
+  const { items = [] } = await res.json()
+  const uids = items.filter(m => /Facture impayée/.test(m.subject ?? '')).map(m => m.uid)
+  if (uids.length) {
+    await page.request.post(`${baseUrl}/api/messages/delete`, { data: { folder: 'INBOX', uids }, headers: { origin } })
+    await page.reload({ waitUntil: 'networkidle' })
+  }
 }
 
 /** Première connexion : la boîte « Bienvenue » demande le nom affiché. */
