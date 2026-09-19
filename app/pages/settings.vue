@@ -21,6 +21,7 @@ const SECTIONS = [
   { value: 'filters', label: 'Filtres' },
   { value: 'vacation', label: 'Réponse automatique' },
   { value: 'forward', label: 'Transfert' },
+  { value: 'devices', label: 'Autres applications' },
   { value: 'server', label: 'Serveur' },
   { value: 'security', label: 'Sécurité' },
   { value: 'contacts', label: 'Contacts' },
@@ -122,6 +123,10 @@ useHead({
             <TabsContent value="forward" class="outline-none">
               <h2 class="mb-5 font-heading text-2xl font-medium tracking-[-0.01em]">{{ sectionLabel('forward') }}</h2>
               <SettingsForwardSettings />
+            </TabsContent>
+            <TabsContent value="devices" class="outline-none">
+              <h2 class="mb-5 font-heading text-2xl font-medium tracking-[-0.01em]">{{ sectionLabel('devices') }}</h2>
+              <SettingsDevicesSettings />
             </TabsContent>
             <TabsContent value="server" class="outline-none">
               <h2 class="mb-5 font-heading text-2xl font-medium tracking-[-0.01em]">{{ sectionLabel('server') }}</h2>
