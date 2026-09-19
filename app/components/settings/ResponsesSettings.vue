@@ -143,10 +143,10 @@ onMounted(load)
         </div>
 
         <div class="flex flex-wrap items-center justify-end gap-3">
-          <Button v-if="selected" type="button" variant="destructive" class="h-11 rounded-full px-6" @click="deleteDialogOpen = true">
+          <Button v-if="selected" type="button" variant="destructive" class="h-11 rounded-lg px-6" @click="deleteDialogOpen = true">
             Supprimer
           </Button>
-          <Button type="submit" class="h-11 rounded-full px-6" :disabled="saving">
+          <Button type="submit" class="h-11 rounded-lg px-6" :disabled="saving">
             {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
           </Button>
         </div>

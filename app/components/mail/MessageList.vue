@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import { onKeyStroke } from '@vueuse/core'
-import { Archive, ArrowDownUp, ChevronLeft, ChevronRight, CircleAlert, Download, EllipsisVertical, FolderInput, Inbox, ListChecks, Mail, MailOpen, RefreshCw, SearchX, Trash2, X } from '@lucide/vue'
+import { Archive, ArrowDownUp, ChevronLeft, ChevronRight, CircleAlert, Download, EllipsisVertical, FolderInput, ListChecks, Mail, MailOpen, RefreshCw, Search as SearchIcon, Trash2, X } from '@lucide/vue'
 import type { MessagePage, MessageSummary, SortKey } from '#shared/types/mail'
 
 const route = useRoute()
@@ -357,14 +357,18 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
 </script>
 
 <template>
-  <section class="flex min-h-0 flex-1 flex-col" :aria-labelledby="'titre-dossier'">
-    <h1 id="titre-dossier" class="px-4 pt-4 pb-1 text-xl font-medium lg:sr-only">
-      {{ q ? `Résultats pour « ${q} »` : folderName }}
-    </h1>
+  <section class="@container flex min-h-0 flex-1 flex-col" :aria-labelledby="'titre-dossier'">
+    <!-- En-tête du dossier : titre en serif, comme l'en-tête d'une lettre. -->
+    <div class="flex items-baseline gap-3 px-4 pt-5 pb-1 lg:px-5">
+      <h1 id="titre-dossier" class="min-w-0 truncate font-heading text-[26px] leading-tight font-medium tracking-[-0.015em] @3xl:text-[28px]">
+        {{ q ? `Résultats pour « ${q} »` : folderName }}
+      </h1>
+      <span v-if="!q && folder && folder.unread > 0 && folder.specialUse !== 'drafts'" class="shrink-0 text-sm text-muted-foreground tabular-nums" aria-hidden="true">{{ folder.unread }} non lu{{ folder.unread > 1 ? 's' : '' }}</span>
+    </div>
 
     <!-- Barre d'outils -->
-    <div class="sticky top-16 z-20 flex h-14 shrink-0 items-center gap-1 border-b border-border/60 bg-surface-panel px-2 lg:static lg:h-12 lg:px-3" role="toolbar" aria-label="Actions sur les messages">
-      <label class="grid size-11 cursor-pointer place-items-center rounded-full hover:bg-accent lg:size-10">
+    <div class="sticky top-16 z-20 flex h-14 shrink-0 items-center gap-0.5 border-b border-border bg-surface-panel px-2 lg:static lg:h-12 lg:px-3" role="toolbar" aria-label="Actions sur les messages">
+      <label class="grid size-11 cursor-pointer place-items-center rounded-lg hover:bg-accent lg:size-10">
         <span class="sr-only">{{ allState === true ? 'Tout désélectionner' : 'Tout sélectionner' }}</span>
         <Checkbox :model-value="allState" :disabled="!items.length" @update:model-value="toggleAll" />
       </label>
@@ -424,7 +428,7 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
         </DropdownMenu>
       </template>
       <template v-else>
-        <span class="px-1 text-sm font-medium tabular-nums" aria-live="polite">{{ selected.size }}</span>
+        <span class="mx-1 grid h-6 min-w-6 place-items-center rounded-md bg-primary px-1.5 text-xs font-semibold text-primary-foreground tabular-nums" aria-live="polite">{{ selected.size }}</span>
         <MailIconButton v-if="archive && folderPath !== archive.path" :icon="Archive" label="Archiver" @click="moveSelected(archive.path, archive.name)" />
         <MailIconButton :icon="Trash2" :label="folder?.specialUse === 'trash' ? 'Supprimer définitivement' : 'Supprimer'" @click="removeSelected" />
         <MailIconButton v-if="selectionUnread" :icon="MailOpen" label="Marquer comme lu" @click="markSeen(true)" />
@@ -474,7 +478,7 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
       <template v-if="(isTrash || isJunk) && !selected.size">
         <AlertDialog>
           <AlertDialogTrigger as-child>
-            <button type="button" class="ml-auto h-10 rounded-full px-4 text-sm font-medium text-destructive hover:bg-accent">
+            <button type="button" class="ml-auto h-11 rounded-lg px-3 text-sm font-semibold text-destructive hover:bg-destructive/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:h-9">
               {{ isTrash ? 'Vider la corbeille' : 'Vider le spam' }}
             </button>
           </AlertDialogTrigger>
@@ -487,7 +491,7 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
             </AlertDialogDescription>
             <AlertDialogFooter>
               <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction class="bg-destructive text-white hover:bg-destructive/90" @click="emptyFolderConfirm">
+              <AlertDialogAction class="bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="emptyFolderConfirm">
                 Vider
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -502,11 +506,12 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
       </div>
     </div>
 
-    <div v-if="q" class="flex items-center gap-2 border-b border-border/60 px-4 py-2 text-sm">
-      <span class="min-w-0 flex-1 truncate" aria-live="polite">
+    <div v-if="q" class="flex items-center gap-2 border-b border-border bg-surface-app/50 px-4 py-1.5 text-sm">
+      <SearchIcon class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <span class="min-w-0 flex-1 truncate text-muted-foreground" aria-live="polite">
         {{ loading ? 'Recherche…' : `${total} résultat${total > 1 ? 's' : ''} dans ${folderName}` }}
       </span>
-      <NuxtLink :to="`/mail/${encodeURIComponent(folderPath)}`" class="inline-flex h-9 items-center gap-1 rounded-full px-3 font-medium text-primary hover:bg-accent">
+      <NuxtLink :to="`/mail/${encodeURIComponent(folderPath)}`" class="inline-flex h-11 items-center gap-1 rounded-lg px-3 font-semibold text-primary hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring lg:h-9">
         <X class="size-4" aria-hidden="true" /> Effacer
       </NuxtLink>
     </div>
@@ -514,11 +519,11 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
     <div class="min-h-0 flex-1 overflow-y-auto pb-24 lg:pb-0">
       <!-- Chargement -->
       <ul v-if="loading" aria-busy="true" aria-label="Chargement des messages">
-        <li v-for="n in 10" :key="n" class="flex items-center gap-3 border-b border-border/60 px-4 py-3 lg:h-10 lg:py-0">
+        <li v-for="n in 10" :key="n" class="flex items-center gap-3 border-b border-border px-4 py-3 @3xl:h-11 @3xl:py-0">
           <Skeleton class="size-10 shrink-0 rounded-full lg:size-4 lg:rounded" />
-          <div class="flex flex-1 flex-col gap-2 lg:flex-row lg:items-center lg:gap-4">
-            <Skeleton class="h-3.5 w-32 lg:w-48" />
-            <Skeleton class="h-3.5 w-3/4 lg:flex-1" />
+          <div class="flex flex-1 flex-col gap-2 @3xl:flex-row @3xl:items-center @3xl:gap-4">
+            <Skeleton class="h-3.5 w-32 @3xl:w-48" />
+            <Skeleton class="h-3.5 w-3/4 @3xl:flex-1" />
           </div>
         </li>
       </ul>
@@ -526,15 +531,16 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
       <!-- Erreur -->
       <div v-else-if="failed" class="flex flex-col items-center gap-3 px-6 py-16 text-center" role="alert">
         <CircleAlert class="size-10 text-destructive" aria-hidden="true" />
-        <p class="font-medium">Impossible de charger les messages.</p>
-        <Button variant="outline" class="h-11 rounded-full px-6" @click="load()">Réessayer</Button>
+        <p class="font-heading text-xl font-medium">Impossible de charger les messages.</p>
+        <Button variant="outline" class="h-11 px-6" @click="load()">Réessayer</Button>
       </div>
 
-      <!-- Vide -->
-      <div v-else-if="!items.length" class="flex flex-col items-center gap-3 px-6 py-16 text-center text-muted-foreground">
-        <component :is="q ? SearchX : Inbox" class="size-12 opacity-60" aria-hidden="true" />
-        <p v-if="q" class="text-base">Aucun résultat pour « {{ q }} ».</p>
-        <p v-else class="text-base">Aucun message dans ce dossier.</p>
+      <!-- Vide : la colombe, et une phrase simple. -->
+      <div v-else-if="!items.length" class="flex animate-settle flex-col items-center px-6 py-16 text-center @3xl:py-24">
+        <BrandDove class="mb-5 w-44 @3xl:w-52" :trail="!q" />
+        <p class="font-heading text-[22px] leading-snug font-medium text-foreground">{{ q ? 'Rien trouvé' : 'Tout est calme ici' }}</p>
+        <p v-if="q" class="mt-1 max-w-xs text-base text-muted-foreground">Aucun résultat pour « {{ q }} ».</p>
+        <p v-else class="mt-1 max-w-xs text-base text-muted-foreground">Aucun message dans ce dossier.</p>
       </div>
 
       <ul v-else aria-label="Messages" @focusin="onRowFocus">
@@ -565,8 +571,8 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel class="h-11 rounded-full">Annuler</AlertDialogCancel>
-          <AlertDialogAction class="h-11 rounded-full bg-destructive text-white hover:bg-destructive/90" @click="confirmPermanentDelete">Supprimer</AlertDialogAction>
+          <AlertDialogCancel class="h-11 rounded-lg">Annuler</AlertDialogCancel>
+          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmPermanentDelete">Supprimer</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

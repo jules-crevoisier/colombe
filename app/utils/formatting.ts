@@ -100,24 +100,32 @@ export function getInitials(name: string): string {
   return (firstWord.charAt(0) + lastWord.charAt(0)).toUpperCase()
 }
 
+/** Hachage stable d'une adresse (ou d'une chaîne) vers un indice de couleur. */
+function avatarIndex(email: string, count: number): number {
+  let hash = 0
+  for (let i = 0; i < email.length; i++) {
+    hash = ((hash << 5) - hash) + email.charCodeAt(i)
+    hash = hash & hash // entier 32 bits
+  }
+  return Math.abs(hash) % count
+}
+
 /**
  * Generate a deterministic avatar color class from an email or string.
- * Teintes saturées : texte blanc lisible (contraste AA).
+ * Teintes saturées : texte blanc lisible (contraste AA). Conservé pour compatibilité ;
+ * l'interface utilise getAvatarTone (encres de l'identité « Pli »).
  */
 export function getAvatarColorClass(email: string): string {
   const colors = ['bg-red-700', 'bg-blue-700', 'bg-emerald-700', 'bg-amber-700', 'bg-violet-700', 'bg-pink-700'] as const
+  return colors[avatarIndex(email, colors.length)] ?? 'bg-red-700'
+}
 
-  // Simple hash function
-  let hash = 0
-  for (let i = 0; i < email.length; i++) {
-    const char = email.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash // Convert to 32bit integer
-  }
-
-  const index = Math.abs(hash) % colors.length
-  const color = colors[index]
-  return color || 'bg-red-100'
+/**
+ * Classe d'avatar de l'identité « Pli » : six encres sourdes définies dans
+ * assets/css/tailwind.css (.avatar-tone-1 … 6), texte blanc ≥ 7:1 en clair et en sombre.
+ */
+export function getAvatarTone(email: string): string {
+  return `avatar-tone-${avatarIndex(email, 6) + 1}`
 }
 
 /**

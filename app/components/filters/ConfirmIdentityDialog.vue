@@ -139,8 +139,8 @@ defineExpose({ request, withConfirmation })
         </div>
         <p v-if="error" role="alert" class="text-sm font-medium text-destructive">{{ error }}</p>
         <DialogFooter class="gap-2 sm:justify-end">
-          <Button type="button" variant="outline" class="h-11 rounded-full px-6" @click="cancel">Annuler</Button>
-          <Button type="submit" class="h-11 rounded-full px-6">Confirmer</Button>
+          <Button type="button" variant="outline" class="h-11 rounded-lg px-6" @click="cancel">Annuler</Button>
+          <Button type="submit" class="h-11 rounded-lg px-6">Confirmer</Button>
         </DialogFooter>
       </form>
     </DialogContent>

@@ -129,17 +129,17 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="relative flex min-h-11 flex-wrap items-center gap-1 border-b border-border/60 py-1" @click="input?.focus()">
-    <label :for="id" class="pr-1 text-sm text-muted-foreground">{{ label }}</label>
+  <div class="relative flex min-h-12 flex-wrap items-center gap-1.5 border-b border-border py-1.5" @click="input?.focus()">
+    <label :for="id" class="w-9 shrink-0 text-sm text-muted-foreground">{{ label }}</label>
     <span
       v-for="(addr, i) in model"
       :key="addr"
-      class="inline-flex h-7 max-w-full items-center gap-1 rounded-full border pr-1 pl-2.5 text-sm"
+      class="inline-flex h-8 max-w-full items-center gap-1 rounded-md border pr-1 pl-2.5 text-sm"
       :class="validateEmailAddress(addr) ? 'border-border bg-secondary' : 'border-destructive bg-destructive/10 text-destructive'"
     >
       <span class="truncate">{{ addr }}</span>
       <span v-if="!validateEmailAddress(addr)" class="sr-only">(adresse invalide)</span>
-      <button type="button" class="grid size-5 shrink-0 place-items-center rounded-full hover:bg-foreground/10" :aria-label="`Retirer ${addr}`" @click.stop="remove(i)">
+      <button type="button" class="grid size-6 shrink-0 place-items-center rounded-sm hover:bg-foreground/10" :aria-label="`Retirer ${addr}`" @click.stop="remove(i)">
         <X class="size-3.5" aria-hidden="true" />
       </button>
     </span>
@@ -166,7 +166,7 @@ onMounted(() => {
       :id="listId"
       role="listbox"
       :aria-label="`Suggestions pour ${label}`"
-      class="absolute top-full left-0 z-50 mt-1 w-full max-w-md overflow-hidden rounded-xl border bg-popover py-1 shadow-lg"
+      class="absolute top-full left-0 z-50 mt-1 w-full max-w-md overflow-hidden rounded-lg border border-border bg-popover p-1 shadow-float"
     >
       <li
         v-for="(s, i) in suggestions"
@@ -174,7 +174,7 @@ onMounted(() => {
         :key="s.kind === 'group' ? `group-${s.id}` : `contact-${s.contact.id}`"
         role="option"
         :aria-selected="i === active"
-        class="flex min-h-11 cursor-pointer items-center gap-3 px-3 py-1.5"
+        class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2.5 py-1.5"
         :class="i === active ? 'bg-accent' : ''"
         @mousedown.prevent="pick(s)"
         @mouseenter="active = i"
@@ -188,7 +188,7 @@ onMounted(() => {
           </span>
         </template>
         <template v-else>
-          <span class="grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold text-white" :class="getAvatarColorClass(s.contact.email)" aria-hidden="true">
+          <span class="grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold text-white" :class="getAvatarTone(s.contact.email)" aria-hidden="true">
             {{ getInitials(s.contact.name || s.contact.email.split('@')[0] || '?') }}
           </span>
           <span class="flex min-w-0 flex-col">

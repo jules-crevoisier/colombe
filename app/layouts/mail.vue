@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SearchField } from '#shared/types/mail'
 import { onKeyStroke, useColorMode, useDocumentVisibility, useIntervalFn } from '@vueuse/core'
-import { Keyboard, LogOut, Menu, Moon, Pencil, Search, Settings, Sun, X, Sliders } from '@lucide/vue'
+import { Keyboard, LogOut, Menu, Moon, PenLine, Search, Settings, Sun, X, Sliders } from '@lucide/vue'
 import type { MessageQuery } from '#shared/types/mail'
 
 const mail = useMailStore()
@@ -138,158 +138,179 @@ useHead({
 </script>
 
 <template>
-  <div class="flex min-h-[100dvh] flex-col bg-surface-app lg:h-[100dvh]">
-    <a href="#contenu" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-full focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground">
+  <div class="flex min-h-[100dvh] bg-surface-app lg:h-[100dvh]">
+    <a href="#contenu" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2.5 focus:text-primary-foreground">
       Aller au contenu
     </a>
 
-    <header class="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-1 bg-surface-app px-2 lg:static lg:gap-2 lg:px-4">
-      <MailIconButton :icon="Menu" label="Menu principal" @click="toggleMenu" />
-      <NuxtLink to="/mail/INBOX" class="hidden items-center gap-2 pr-6 text-lg font-medium tracking-tight md:flex lg:w-[200px]">
-        <BrandLogo class="size-8" />
-        Colombe
-      </NuxtLink>
-
-      <form role="search" class="min-w-0 flex-1 lg:max-w-3xl" @submit.prevent="submitSearch">
-        <div class="group relative flex h-12 items-center rounded-full bg-search transition-colors focus-within:bg-surface-panel focus-within:shadow-md">
-          <button type="submit" class="grid size-12 shrink-0 place-items-center rounded-full text-muted-foreground" aria-label="Lancer la recherche">
-            <Search class="size-5" aria-hidden="true" />
-          </button>
-          <label for="search" class="sr-only">Rechercher dans les messages</label>
-          <input
-            id="search"
-            ref="searchInput"
-            v-model="search"
-            type="search"
-            enterkeyhint="search"
-            autocomplete="off"
-            placeholder="Rechercher dans les messages"
-            class="h-full min-w-0 flex-1 bg-transparent pr-2 text-base outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden"
-            @keydown.esc="clearSearch"
-          >
-          <!-- Search options button -->
-          <Popover v-model:open="searchOptionsOpen">
-            <PopoverTrigger as-child>
-              <button type="button" class="mr-1 grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent" aria-label="Options de recherche">
-                <Sliders class="size-4" aria-hidden="true" />
-              </button>
-            </PopoverTrigger>
-            <!-- Contrôles natifs (cases, boutons radio, dates) : accessibles et sans dépendance. -->
-            <PopoverContent align="end" :collision-padding="8" class="max-h-[var(--reka-popover-content-available-height)] w-[min(calc(100vw-2rem),24rem)] overflow-y-auto overscroll-contain p-4">
-              <form class="flex flex-col gap-4" aria-label="Options de recherche" @submit.prevent="submitSearch">
-                <fieldset class="flex flex-col gap-1">
-                  <legend class="mb-1 text-sm font-medium">Chercher dans</legend>
-                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="subject" class="size-5 shrink-0 accent-[var(--primary)]"> Objet</label>
-                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="from" class="size-5 shrink-0 accent-[var(--primary)]"> Expéditeur</label>
-                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="to" class="size-5 shrink-0 accent-[var(--primary)]"> Destinataires</label>
-                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="body" class="size-5 shrink-0 accent-[var(--primary)]"> Corps du message</label>
-                </fieldset>
-                <fieldset class="flex flex-col gap-1">
-                  <legend class="mb-1 text-sm font-medium">Portée</legend>
-                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.scope" type="radio" name="search-scope" value="folder" class="size-5 shrink-0 accent-[var(--primary)]"> Ce dossier</label>
-                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.scope" type="radio" name="search-scope" value="all" class="size-5 shrink-0 accent-[var(--primary)]"> Tous les dossiers</label>
-                </fieldset>
-                <fieldset class="flex flex-col gap-1">
-                  <legend class="mb-1 text-sm font-medium">Filtres</legend>
-                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.unread" type="checkbox" class="size-5 shrink-0 accent-[var(--primary)]"> Non lus</label>
-                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.flagged" type="checkbox" class="size-5 shrink-0 accent-[var(--primary)]"> Suivis</label>
-                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.unanswered" type="checkbox" class="size-5 shrink-0 accent-[var(--primary)]"> Sans réponse</label>
-                  <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.attachments" type="checkbox" class="size-5 shrink-0 accent-[var(--primary)]"> Avec pièce jointe</label>
-                </fieldset>
-                <div class="grid grid-cols-2 gap-3">
-                  <div class="flex flex-col gap-1">
-                    <Label for="search-since">Du</Label>
-                    <Input id="search-since" v-model="searchOptions.since" type="date" class="h-11 text-base" />
-                  </div>
-                  <div class="flex flex-col gap-1">
-                    <Label for="search-before">Au</Label>
-                    <Input id="search-before" v-model="searchOptions.before" type="date" class="h-11 text-base" />
-                  </div>
-                </div>
-                <div class="flex gap-2 pt-1">
-                  <Button type="button" variant="outline" class="h-11 flex-1 rounded-full" @click="resetSearchOptions">Réinitialiser</Button>
-                  <Button type="submit" class="h-11 flex-1 rounded-full">Rechercher</Button>
-                </div>
-                <Button type="button" variant="outline" class="h-11 w-full rounded-full" @click="createFilterFromSearch">Créer un filtre</Button>
-              </form>
-            </PopoverContent>
-          </Popover>
-
-          <button v-if="search" type="button" class="mr-1 grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent" aria-label="Effacer la recherche" @click="clearSearch">
-            <X class="size-5" aria-hidden="true" />
-          </button>
-        </div>
-      </form>
-
-      <MailIconButton class="hidden sm:inline-flex" :icon="isDark ? Sun : Moon" :label="isDark ? 'Passer en mode clair' : 'Passer en mode sombre'" @click="mode = isDark ? 'light' : 'dark'" />
-
-      <DropdownMenu>
-        <DropdownMenuTrigger as-child>
-          <button type="button" class="grid size-11 shrink-0 place-items-center rounded-full hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring" :aria-label="`Compte ${email}`">
-            <span class="grid size-8 place-items-center rounded-full text-sm font-semibold text-white" :class="getAvatarColorClass(email)">
-              {{ getInitials(email.split('@')[0]?.replace(/[._-]+/g, ' ') ?? '') }}
-            </span>
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" class="w-64">
-          <DropdownMenuLabel class="font-normal">
-            <span class="block text-xs text-muted-foreground">Connecté en tant que</span>
-            <span class="block truncate font-medium">{{ email }}</span>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem class="sm:hidden" @select="mode = isDark ? 'light' : 'dark'">
-            <component :is="isDark ? Sun : Moon" class="size-4" aria-hidden="true" />
-            {{ isDark ? 'Mode clair' : 'Mode sombre' }}
-          </DropdownMenuItem>
-          <DropdownMenuItem @select="navigateTo('/settings')">
-            <Settings class="size-4" aria-hidden="true" />
-            Paramètres
-          </DropdownMenuItem>
-          <DropdownMenuItem @select="shortcutsOpen = true">
-            <Keyboard class="size-4" aria-hidden="true" />
-            Raccourcis clavier
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem @select="api.logout()">
-            <LogOut class="size-4" aria-hidden="true" />
-            Se déconnecter
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </header>
-
-    <div class="flex min-h-0 flex-1">
-      <aside
-        class="hidden shrink-0 flex-col py-2 transition-[width] duration-200 lg:flex"
-        :class="railCollapsed ? 'w-[88px] items-center px-2' : 'w-64 pr-3 pl-3'"
+    <!-- Bureau (≥ 1024 px) : colonne pleine hauteur, la marque en tête, puis les dossiers. -->
+    <aside
+      class="hidden shrink-0 flex-col pb-3 transition-[width] duration-200 ease-out lg:flex"
+      :class="railCollapsed ? 'w-[76px] items-center px-2' : 'w-[248px] px-3'"
+    >
+      <NuxtLink
+        to="/mail/INBOX"
+        class="mb-2 flex h-16 shrink-0 items-center gap-2.5 rounded-lg px-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        :class="railCollapsed ? 'justify-center' : ''"
+        :aria-label="railCollapsed ? 'Colombe' : undefined"
       >
-        <MailFolderNav :collapsed="railCollapsed" />
-      </aside>
+        <BrandLogo class="size-8 shrink-0" />
+        <span v-if="!railCollapsed" class="font-heading text-[23px] leading-none font-semibold tracking-[-0.01em]">Colombe</span>
+      </NuxtLink>
+      <MailFolderNav :collapsed="railCollapsed" />
+    </aside>
 
-      <main id="contenu" class="flex min-w-0 flex-1 flex-col bg-surface-panel lg:mr-4 lg:mb-4 lg:overflow-hidden lg:rounded-2xl">
+    <div class="flex min-w-0 flex-1 flex-col">
+      <header class="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-1 bg-surface-app px-2 sm:gap-2 lg:static lg:pr-3 lg:pl-0">
+        <MailIconButton :icon="Menu" label="Menu principal" @click="toggleMenu" />
+        <NuxtLink to="/mail/INBOX" class="hidden items-center gap-2 rounded-lg pr-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:flex lg:hidden">
+          <BrandLogo class="size-8" />
+          <span class="font-heading text-[22px] leading-none font-semibold tracking-[-0.01em]">Colombe</span>
+        </NuxtLink>
+
+        <form role="search" class="min-w-0 flex-1 lg:max-w-2xl" @submit.prevent="submitSearch">
+          <div class="group relative flex h-11 items-center rounded-lg border border-border bg-search transition-[border-color,box-shadow] focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklab,var(--ring)_18%,transparent)] lg:h-10">
+            <button type="submit" class="grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring lg:size-10" aria-label="Lancer la recherche">
+              <Search class="size-[18px]" aria-hidden="true" />
+            </button>
+            <label for="search" class="sr-only">Rechercher dans les messages</label>
+            <input
+              id="search"
+              ref="searchInput"
+              v-model="search"
+              type="search"
+              enterkeyhint="search"
+              autocomplete="off"
+              placeholder="Rechercher dans les messages"
+              class="peer h-full min-w-0 flex-1 bg-transparent pr-2 text-base outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden"
+              @keydown.esc="clearSearch"
+            >
+            <kbd v-if="!search" class="mr-1 hidden h-6 min-w-6 place-items-center rounded border border-border px-1.5 font-sans text-xs text-muted-foreground peer-focus:hidden lg:grid" aria-hidden="true">/</kbd>
+            <!-- Options de recherche -->
+            <Popover v-model:open="searchOptionsOpen">
+              <PopoverTrigger as-child>
+                <button type="button" class="mr-0.5 grid size-10 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=open]:bg-accent lg:size-9" aria-label="Options de recherche">
+                  <Sliders class="size-4" aria-hidden="true" />
+                </button>
+              </PopoverTrigger>
+              <!-- Contrôles natifs (cases, boutons radio, dates) : accessibles et sans dépendance. -->
+              <PopoverContent align="end" :collision-padding="8" class="max-h-[var(--reka-popover-content-available-height)] w-[min(calc(100vw-2rem),24rem)] overflow-y-auto overscroll-contain p-4">
+                <form class="flex flex-col gap-4" aria-label="Options de recherche" @submit.prevent="submitSearch">
+                  <fieldset class="flex flex-col gap-0.5">
+                    <legend class="mb-1.5 text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">Chercher dans</legend>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="subject" class="size-[18px] shrink-0"> Objet</label>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="from" class="size-[18px] shrink-0"> Expéditeur</label>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="to" class="size-[18px] shrink-0"> Destinataires</label>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="body" class="size-[18px] shrink-0"> Corps du message</label>
+                  </fieldset>
+                  <fieldset class="flex flex-col gap-0.5">
+                    <legend class="mb-1.5 text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">Portée</legend>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.scope" type="radio" name="search-scope" value="folder" class="size-[18px] shrink-0"> Ce dossier</label>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.scope" type="radio" name="search-scope" value="all" class="size-[18px] shrink-0"> Tous les dossiers</label>
+                  </fieldset>
+                  <fieldset class="flex flex-col gap-0.5">
+                    <legend class="mb-1.5 text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">Filtres</legend>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.unread" type="checkbox" class="size-[18px] shrink-0"> Non lus</label>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.flagged" type="checkbox" class="size-[18px] shrink-0"> Suivis</label>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.unanswered" type="checkbox" class="size-[18px] shrink-0"> Sans réponse</label>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.attachments" type="checkbox" class="size-[18px] shrink-0"> Avec pièce jointe</label>
+                  </fieldset>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="flex flex-col gap-1.5">
+                      <Label for="search-since">Du</Label>
+                      <Input id="search-since" v-model="searchOptions.since" type="date" class="h-11 text-base" />
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                      <Label for="search-before">Au</Label>
+                      <Input id="search-before" v-model="searchOptions.before" type="date" class="h-11 text-base" />
+                    </div>
+                  </div>
+                  <div class="flex gap-2 border-t border-border pt-4">
+                    <Button type="button" variant="outline" class="h-11 flex-1" @click="resetSearchOptions">Réinitialiser</Button>
+                    <Button type="submit" class="h-11 flex-1">Rechercher</Button>
+                  </div>
+                  <Button type="button" variant="ghost" class="h-11 w-full" @click="createFilterFromSearch">Créer un filtre</Button>
+                </form>
+              </PopoverContent>
+            </Popover>
+
+            <button v-if="search" type="button" class="mr-0.5 grid size-10 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring lg:size-9" aria-label="Effacer la recherche" @click="clearSearch">
+              <X class="size-[18px]" aria-hidden="true" />
+            </button>
+          </div>
+        </form>
+
+        <div class="flex shrink-0 items-center gap-1 lg:ml-auto">
+          <MailIconButton class="hidden sm:inline-flex" :icon="isDark ? Sun : Moon" :label="isDark ? 'Passer en mode clair' : 'Passer en mode sombre'" @click="mode = isDark ? 'light' : 'dark'" />
+
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <button type="button" class="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[state=open]:bg-accent" :aria-label="`Compte ${email}`">
+                <span class="grid size-8 place-items-center rounded-full text-[13px] font-semibold text-white" :class="getAvatarTone(email)">
+                  {{ getInitials(email.split('@')[0]?.replace(/[._-]+/g, ' ') ?? '') }}
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" class="w-64">
+              <DropdownMenuLabel class="font-normal">
+                <span class="block text-xs text-muted-foreground">Connecté en tant que</span>
+                <span class="block truncate font-medium">{{ email }}</span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem class="sm:hidden" @select="mode = isDark ? 'light' : 'dark'">
+                <component :is="isDark ? Sun : Moon" class="size-4" aria-hidden="true" />
+                {{ isDark ? 'Mode clair' : 'Mode sombre' }}
+              </DropdownMenuItem>
+              <DropdownMenuItem @select="navigateTo('/settings')">
+                <Settings class="size-4" aria-hidden="true" />
+                Paramètres
+              </DropdownMenuItem>
+              <DropdownMenuItem @select="shortcutsOpen = true">
+                <Keyboard class="size-4" aria-hidden="true" />
+                Raccourcis clavier
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem @select="api.logout()">
+                <LogOut class="size-4" aria-hidden="true" />
+                Se déconnecter
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+
+      <!-- La feuille : posée sur le bureau à partir de 1024 px. -->
+      <main id="contenu" class="flex min-w-0 flex-1 flex-col bg-surface-panel lg:mr-3 lg:mb-3 lg:overflow-hidden lg:rounded-xl lg:border lg:border-border lg:shadow-sheet">
         <slot />
       </main>
     </div>
 
     <Sheet v-model:open="drawerOpen">
-      <SheetContent side="left" class="w-[85vw] max-w-80 bg-surface-app p-3 pt-4">
-        <SheetHeader class="p-1 pb-2">
-          <SheetTitle class="text-left text-lg font-medium">Colombe</SheetTitle>
+      <SheetContent side="left" class="w-[86vw] max-w-80 gap-2 border-border bg-surface-app p-3">
+        <SheetHeader class="flex-row items-center gap-2.5 p-1 pb-2">
+          <BrandLogo class="size-8 shrink-0" />
+          <SheetTitle class="font-heading text-[22px] leading-none font-semibold tracking-[-0.01em]">Colombe</SheetTitle>
           <SheetDescription class="sr-only">Navigation entre les dossiers</SheetDescription>
         </SheetHeader>
         <MailFolderNav @navigate="drawerOpen = false" />
       </SheetContent>
     </Sheet>
 
-    <button
+    <!-- Mobile : « Nouveau message », une lettre au coin replié. L'ombre est portée par
+         l'enveloppe : le coin découpé du bouton rognerait une ombre posée sur le bouton. -->
+    <div
       v-if="!compose.isOpen && !route.path.startsWith('/settings')"
-      type="button"
-      class="fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-20 flex h-14 items-center gap-3 rounded-2xl bg-compose px-5 font-medium text-compose-foreground shadow-lg lg:hidden"
-      @click="compose.openNew()"
+      class="fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-20 drop-shadow-[0_10px_16px_rgb(13_19_36/0.28)] lg:hidden"
     >
-      <Pencil class="size-5" aria-hidden="true" />
-      Nouveau message
-    </button>
+      <button
+        type="button"
+        class="fold-corner flex h-14 items-center gap-2.5 rounded-lg bg-compose pr-6 pl-5 text-[15px] font-semibold text-compose-foreground active:translate-y-px"
+        @click="compose.openNew()"
+      >
+        <PenLine class="size-5" aria-hidden="true" />
+        Nouveau message
+      </button>
+    </div>
 
     <MailComposeWindow />
     <MailShortcutsDialog v-model:open="shortcutsOpen" />

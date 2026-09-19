@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import { onKeyStroke } from '@vueuse/core'
-import { FileText, Mail, Maximize2, Minimize2, Minus, Paperclip, Send, Settings, Trash2, X } from '@lucide/vue'
+import { ChevronUp, FileText, Mail, Maximize2, Minimize2, Minus, Paperclip, Send, Settings, Trash2, X } from '@lucide/vue'
 import type { CannedResponse } from '#shared/types/mail'
+
+/*
+ * Rédaction : une feuille qui glisse depuis la droite (bureau) ou qui recouvre l'écran
+ * (mobile). Non modale sur bureau : la liste reste lisible et utilisable à gauche.
+ * Réduite, elle devient un onglet « lettre » à l'encre, en bas à droite.
+ */
 
 const compose = useComposeStore()
 const prefsStore = usePrefsStore()
@@ -126,28 +132,33 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
     v-if="compose.isOpen"
     role="dialog"
     aria-labelledby="compose-title"
-    class="fixed inset-0 z-40 flex flex-col bg-surface-panel lg:inset-auto lg:right-6 lg:bottom-0 lg:overflow-hidden lg:rounded-t-xl lg:shadow-2xl"
+    class="fixed inset-0 z-40 flex animate-sheet-up flex-col bg-surface-panel lg:inset-auto lg:animate-sheet-right lg:overflow-hidden lg:border-border lg:shadow-float"
     :class="[
-      compose.minimized ? 'lg:w-80' : compose.expanded ? 'lg:top-10 lg:right-[10vw] lg:left-[10vw] lg:rounded-xl lg:bottom-10' : 'lg:h-[min(640px,85dvh)] lg:w-[560px]',
-      compose.minimized ? 'hidden lg:flex' : '',
+      compose.minimized
+        ? 'hidden lg:right-6 lg:bottom-0 lg:flex lg:w-80 lg:rounded-t-lg lg:border lg:border-b-0'
+        : compose.expanded
+          ? 'lg:top-0 lg:right-0 lg:bottom-0 lg:w-[min(1080px,calc(100vw-2rem))] lg:border-l'
+          : 'lg:top-0 lg:right-0 lg:bottom-0 lg:w-[min(640px,calc(100vw-2rem))] lg:border-l',
     ]"
     @keydown.esc="compose.close()"
   >
     <header
-      class="flex h-14 shrink-0 items-center gap-1 border-b border-border/60 pr-1 pl-4 lg:h-10 lg:cursor-pointer lg:border-0 lg:bg-secondary lg:pl-4"
+      class="flex h-14 shrink-0 items-center gap-1 border-b border-border pr-1.5 pl-4 lg:pl-5"
+      :class="compose.minimized ? 'lg:h-12 lg:cursor-pointer lg:border-b-0 lg:bg-compose lg:text-compose-foreground' : 'lg:h-16'"
       @click.self="compose.minimized = !compose.minimized"
     >
-      <h2 id="compose-title" class="min-w-0 flex-1 truncate text-base font-medium lg:text-sm" @click="compose.minimized = !compose.minimized">{{ compose.title }}</h2>
-      <MailIconButton class="hidden lg:inline-flex" :icon="Minus" :label="compose.minimized ? 'Agrandir' : 'Réduire'" @click="compose.minimized = !compose.minimized" />
-      <MailIconButton class="hidden lg:inline-flex" :icon="compose.expanded ? Minimize2 : Maximize2" :label="compose.expanded ? 'Quitter le plein écran' : 'Plein écran'" @click="compose.expanded = !compose.expanded; compose.minimized = false" />
-      <MailIconButton :icon="X" label="Enregistrer et fermer" @click="compose.close()" />
+      <span class="mr-1 hidden size-2 shrink-0 rounded-full bg-beak lg:block" :class="compose.minimized ? '' : 'lg:hidden'" aria-hidden="true" />
+      <h2 id="compose-title" class="min-w-0 flex-1 truncate font-heading text-xl font-medium tracking-[-0.01em]" :class="compose.minimized ? 'lg:font-sans lg:text-sm lg:font-semibold lg:tracking-normal' : 'lg:text-[22px]'" @click="compose.minimized = !compose.minimized">{{ compose.title }}</h2>
+      <MailIconButton class="hidden lg:inline-flex" :class="compose.minimized ? 'text-compose-foreground hover:bg-white/10 hover:text-compose-foreground' : ''" :icon="compose.minimized ? ChevronUp : Minus" :label="compose.minimized ? 'Agrandir' : 'Réduire'" @click="compose.minimized = !compose.minimized" />
+      <MailIconButton class="hidden lg:inline-flex" :class="compose.minimized ? 'text-compose-foreground hover:bg-white/10 hover:text-compose-foreground' : ''" :icon="compose.expanded ? Minimize2 : Maximize2" :label="compose.expanded ? 'Quitter le plein écran' : 'Plein écran'" @click="compose.expanded = !compose.expanded; compose.minimized = false" />
+      <MailIconButton :class="compose.minimized ? 'lg:text-compose-foreground lg:hover:bg-white/10 lg:hover:text-compose-foreground' : ''" :icon="X" label="Enregistrer et fermer" @click="compose.close()" />
     </header>
 
-    <form v-show="!compose.minimized" class="flex min-h-0 flex-1 flex-col relative" @submit.prevent="onSend" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
-      <div class="px-4">
+    <form v-show="!compose.minimized" class="relative flex min-h-0 flex-1 flex-col" @submit.prevent="onSend" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
+      <div class="px-4 lg:px-5">
         <!-- Sélecteur d'identité : affiché seulement si plusieurs identités existent (docs/PLAN-v3.md R2.1). -->
-        <div v-if="compose.showIdentityPicker" class="flex min-h-11 items-center gap-2 border-b border-border/60 py-1">
-          <label for="compose-from" class="pr-1 text-sm text-muted-foreground">De</label>
+        <div v-if="compose.showIdentityPicker" class="flex min-h-12 items-center gap-1.5 border-b border-border py-1">
+          <label for="compose-from" class="w-9 shrink-0 text-sm text-muted-foreground">De</label>
           <Select :model-value="`${compose.identityId}`" @update:model-value="(v) => compose.setIdentity(Number(v))">
             <SelectTrigger id="compose-from" class="h-9 flex-1 border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0">
               <SelectValue />
@@ -163,15 +174,15 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
           <div class="min-w-0 flex-1">
             <MailRecipientInput id="compose-to" ref="toField" v-model="compose.to" label="À" :autofocus="!compose.to.length" @change="compose.touch()" />
           </div>
-          <button v-if="!compose.showCc" type="button" class="h-11 shrink-0 px-2 text-sm text-muted-foreground hover:text-foreground hover:underline" @click="compose.showCc = true">Cc Cci</button>
+          <button v-if="!compose.showCc" type="button" class="mt-0.5 h-11 shrink-0 rounded-md px-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" @click="compose.showCc = true">Cc Cci</button>
         </div>
         <template v-if="compose.showCc">
           <MailRecipientInput id="compose-cc" ref="ccField" v-model="compose.cc" label="Cc" @change="compose.touch()" />
           <MailRecipientInput id="compose-bcc" ref="bccField" v-model="compose.bcc" label="Cci" @change="compose.touch()" />
         </template>
-        <div class="flex min-h-11 items-center border-b border-border/60">
+        <div class="flex min-h-12 items-center border-b border-border">
           <label for="compose-subject" class="sr-only">Objet</label>
-          <input id="compose-subject" v-model="compose.subject" placeholder="Objet" maxlength="998" class="h-11 w-full bg-transparent text-base outline-none placeholder:text-muted-foreground" @input="compose.touch()">
+          <input id="compose-subject" v-model="compose.subject" placeholder="Objet" maxlength="998" class="h-12 w-full bg-transparent font-heading text-lg font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground" @input="compose.touch()">
         </div>
       </div>
 
@@ -189,33 +200,34 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
         />
       </div>
 
-      <ul v-if="compose.attachments.length || compose.forwardAsAttachment.length" class="flex flex-col gap-1 px-4 pb-2" aria-label="Pièces jointes">
-        <li v-for="(name, i) in compose.forwardAsAttachmentNames" :key="`eml-${i}`" class="flex h-9 items-center gap-2 rounded-lg bg-secondary pr-1 pl-3 text-sm">
+      <ul v-if="compose.attachments.length || compose.forwardAsAttachment.length" class="flex flex-col gap-1.5 px-4 pb-2 lg:px-5" aria-label="Pièces jointes">
+        <li v-for="(name, i) in compose.forwardAsAttachmentNames" :key="`eml-${i}`" class="flex h-11 items-center gap-2 rounded-md border border-border bg-surface-app/60 pr-1 pl-3 text-sm">
           <Mail class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <span class="min-w-0 flex-1 truncate font-medium">{{ name }}</span>
-          <button type="button" class="grid size-8 place-items-center rounded-full hover:bg-foreground/10" :aria-label="`Retirer ${name}`" @click="compose.removeForwardedMessage(i)">
+          <button type="button" class="grid size-9 place-items-center rounded-md hover:bg-foreground/10 focus-visible:outline-2 focus-visible:outline-ring" :aria-label="`Retirer ${name}`" @click="compose.removeForwardedMessage(i)">
             <X class="size-4" aria-hidden="true" />
           </button>
         </li>
-        <li v-for="(a, i) in compose.attachments" :key="`${a.filename}-${i}`" class="flex h-9 items-center gap-2 rounded-lg bg-secondary pr-1 pl-3 text-sm">
+        <li v-for="(a, i) in compose.attachments" :key="`${a.filename}-${i}`" class="flex h-11 items-center gap-2 rounded-md border border-border bg-surface-app/60 pr-1 pl-3 text-sm">
+          <Paperclip class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <span class="min-w-0 flex-1 truncate font-medium">{{ a.filename }}</span>
-          <span class="text-xs text-muted-foreground">{{ formatSize(a.size) }}</span>
-          <button type="button" class="grid size-8 place-items-center rounded-full hover:bg-foreground/10" :aria-label="`Retirer ${a.filename}`" @click="compose.removeAttachment(i)">
+          <span class="text-xs text-muted-foreground tabular-nums">{{ formatSize(a.size) }}</span>
+          <button type="button" class="grid size-9 place-items-center rounded-md hover:bg-foreground/10 focus-visible:outline-2 focus-visible:outline-ring" :aria-label="`Retirer ${a.filename}`" @click="compose.removeAttachment(i)">
             <X class="size-4" aria-hidden="true" />
           </button>
         </li>
       </ul>
 
-      <!-- Drag & drop overlay -->
+      <!-- Glisser-déposer : un cadre en pointillés, comme une enveloppe à remplir -->
       <div
         v-if="dragOver"
-        class="pointer-events-none absolute inset-0 flex items-center justify-center rounded-t-xl bg-primary/10 text-center"
+        class="pointer-events-none absolute inset-3 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-surface-panel/90 text-center"
       >
-        <p class="text-lg font-medium text-primary">Déposez les fichiers ici</p>
+        <p class="font-heading text-xl font-medium text-primary">Déposez les fichiers ici</p>
       </div>
 
-      <footer class="flex shrink-0 flex-wrap items-center gap-1 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <Button type="submit" class="h-11 rounded-full px-6 font-medium" :disabled="compose.sending">
+      <footer class="flex shrink-0 flex-wrap items-center gap-0.5 border-t border-border px-2 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:gap-1 sm:px-3 lg:px-4">
+        <Button type="submit" variant="beak" class="h-11 px-4 sm:mr-1 sm:px-6" :disabled="compose.sending">
           <Send class="size-4" aria-hidden="true" />
           {{ compose.sending ? 'Envoi…' : 'Envoyer' }}
         </Button>

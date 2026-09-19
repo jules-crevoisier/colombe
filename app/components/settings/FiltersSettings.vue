@@ -229,8 +229,8 @@ async function saveScript(): Promise<void> {
             <div class="flex flex-wrap items-center gap-1">
               <MailIconButton :icon="ChevronUp" label="Monter" :disabled="index === 0" @click="moveRule(rule, -1)" />
               <MailIconButton :icon="ChevronDown" label="Descendre" :disabled="index === activeRules.length - 1" @click="moveRule(rule, 1)" />
-              <Button variant="outline" class="h-11 rounded-full px-4" @click="openEditFilter(rule)">Modifier</Button>
-              <Button variant="outline" class="h-11 rounded-full px-4" @click="deleteRule(rule)">Supprimer</Button>
+              <Button variant="outline" class="h-11 rounded-lg px-4" @click="openEditFilter(rule)">Modifier</Button>
+              <Button variant="outline" class="h-11 rounded-lg px-4" @click="deleteRule(rule)">Supprimer</Button>
             </div>
           </li>
         </ul>
@@ -268,17 +268,17 @@ async function saveScript(): Promise<void> {
           </div>
 
           <div class="flex flex-wrap gap-2">
-            <Button variant="outline" class="h-11 rounded-full px-5" @click="newSetDialogOpen = true">Nouvel ensemble</Button>
-            <Button variant="outline" class="h-11 rounded-full px-5" :disabled="!selectedSetName || activating" @click="activateSelectedSet">Activer</Button>
-            <Button variant="outline" class="h-11 rounded-full px-5" :disabled="!selectedSetName" @click="deleteSetDialogOpen = true">Supprimer l'ensemble</Button>
-            <Button v-if="selectedSetName" variant="outline" class="h-11 rounded-full px-5" as-child>
+            <Button variant="outline" class="h-11 rounded-lg px-5" @click="newSetDialogOpen = true">Nouvel ensemble</Button>
+            <Button variant="outline" class="h-11 rounded-lg px-5" :disabled="!selectedSetName || activating" @click="activateSelectedSet">Activer</Button>
+            <Button variant="outline" class="h-11 rounded-lg px-5" :disabled="!selectedSetName" @click="deleteSetDialogOpen = true">Supprimer l'ensemble</Button>
+            <Button v-if="selectedSetName" variant="outline" class="h-11 rounded-lg px-5" as-child>
               <a :href="api.exportUrl(selectedSetName)" download>Exporter</a>
             </Button>
-            <Button variant="outline" class="h-11 rounded-full px-5" :disabled="importing" @click="triggerImport">
+            <Button variant="outline" class="h-11 rounded-lg px-5" :disabled="importing" @click="triggerImport">
               <Upload class="size-4" aria-hidden="true" /> Importer
             </Button>
             <input ref="importInput" type="file" accept=".sieve" class="hidden" @change="onImportFile">
-            <Button variant="outline" class="h-11 rounded-full px-5" :disabled="!selectedSet" :aria-expanded="scriptEditorOpen" @click="scriptEditorOpen = !scriptEditorOpen">
+            <Button variant="outline" class="h-11 rounded-lg px-5" :disabled="!selectedSet" :aria-expanded="scriptEditorOpen" @click="scriptEditorOpen = !scriptEditorOpen">
               Modifier le script
             </Button>
           </div>
@@ -286,7 +286,7 @@ async function saveScript(): Promise<void> {
           <div v-if="selectedSet && scriptEditorOpen" class="space-y-2">
             <Label for="filter-script">Script</Label>
             <Textarea id="filter-script" v-model="scriptDraft" class="min-h-56 font-mono text-sm" spellcheck="false" />
-            <Button class="h-11 rounded-full px-6" :disabled="savingScript" @click="saveScript">
+            <Button class="h-11 rounded-lg px-6" :disabled="savingScript" @click="saveScript">
               {{ savingScript ? 'Enregistrement…' : 'Enregistrer le script' }}
             </Button>
           </div>
@@ -318,8 +318,8 @@ async function saveScript(): Promise<void> {
             </div>
           </div>
           <DialogFooter class="sm:justify-end">
-            <Button variant="outline" class="h-11 rounded-full px-6" @click="newSetDialogOpen = false">Annuler</Button>
-            <Button class="h-11 rounded-full px-6" :disabled="!newSetName.trim() || creatingSet" @click="createSet">Créer</Button>
+            <Button variant="outline" class="h-11 rounded-lg px-6" @click="newSetDialogOpen = false">Annuler</Button>
+            <Button class="h-11 rounded-lg px-6" :disabled="!newSetName.trim() || creatingSet" @click="createSet">Créer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

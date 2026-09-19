@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-h-[100dvh] items-center justify-center bg-surface-app p-4">
+  <div class="min-h-[100dvh] bg-surface-app">
     <slot />
   </div>
 </template>

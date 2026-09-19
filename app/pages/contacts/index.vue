@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import { watchDebounced } from '@vueuse/core'
-import { FileDown, FolderOpen, Plus, Search, Users, UsersRound } from '@lucide/vue'
+import { FileDown, FolderOpen, Plus, Search, Users } from '@lucide/vue'
 import type { Contact, ContactDetail, ContactDetailInput, ContactGroup } from '#shared/types/mail'
 
 definePageMeta({ layout: 'mail' })
@@ -153,54 +153,54 @@ useHead({ title: 'Contacts' })
 <template>
   <div class="flex h-full min-h-0 flex-col lg:flex-row">
     <!-- Groupes (à gauche sur bureau, bandeau en haut sur mobile) -->
-    <nav aria-label="Groupes de contacts" class="flex shrink-0 gap-1 overflow-x-auto border-b border-border/60 p-2 [scrollbar-width:none] lg:w-56 lg:flex-col lg:overflow-visible lg:border-r lg:border-b-0 lg:p-3">
+    <nav aria-label="Groupes de contacts" class="flex shrink-0 gap-1 overflow-x-auto border-b border-border p-2 [scrollbar-width:none] lg:w-56 lg:flex-col lg:overflow-visible lg:border-r lg:border-b-0 lg:p-3">
       <button
         type="button"
-        class="flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap hover:bg-accent lg:h-9"
-        :class="view === 'all' ? 'bg-nav-active font-semibold text-nav-active-foreground hover:bg-nav-active' : ''"
+        class="flex h-11 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium whitespace-nowrap hover:bg-foreground/[0.05] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring lg:h-9"
+        :class="view === 'all' ? 'bg-accent font-semibold text-foreground' : ''"
         @click="view = 'all'"
       >
         <FolderOpen class="size-4 shrink-0" aria-hidden="true" /> <span>Tous les contacts</span>
       </button>
       <button
         type="button"
-        class="flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap hover:bg-accent lg:h-9"
-        :class="view === 'collected' ? 'bg-nav-active font-semibold text-nav-active-foreground hover:bg-nav-active' : ''"
+        class="flex h-11 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium whitespace-nowrap hover:bg-foreground/[0.05] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring lg:h-9"
+        :class="view === 'collected' ? 'bg-accent font-semibold text-foreground' : ''"
         @click="view = 'collected'"
       >
         <Users class="size-4 shrink-0" aria-hidden="true" /> <span>Adresses collectées</span>
       </button>
-      <div class="my-1 hidden border-t border-border/60 lg:block" />
+      <div class="my-1 hidden border-t border-border lg:block" />
       <button
         v-for="g in groups"
         :key="g.id"
         type="button"
-        class="flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap hover:bg-accent lg:h-9"
-        :class="view === g.id ? 'bg-nav-active font-semibold text-nav-active-foreground hover:bg-nav-active' : ''"
+        class="flex h-11 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium whitespace-nowrap hover:bg-foreground/[0.05] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring lg:h-9"
+        :class="view === g.id ? 'bg-accent font-semibold text-foreground' : ''"
         @click="view = g.id"
       >
         <span class="truncate">{{ g.name }}</span>
         <span class="shrink-0 text-xs text-muted-foreground">{{ g.memberCount }}</span>
       </button>
-      <button type="button" class="flex h-11 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap text-muted-foreground hover:bg-accent lg:h-9" @click="openCreateGroup">
+      <button type="button" class="flex h-11 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-medium whitespace-nowrap text-muted-foreground hover:bg-accent lg:h-9" @click="openCreateGroup">
         <Plus class="size-4 shrink-0" aria-hidden="true" /> Nouveau groupe
       </button>
     </nav>
 
     <!-- Liste -->
     <div class="min-w-0 flex-1 flex-col overflow-hidden" :class="selectedId !== null ? 'hidden lg:flex' : 'flex'">
-      <div class="flex shrink-0 flex-col gap-3 border-b border-border/60 p-3">
+      <div class="flex shrink-0 flex-col gap-3 border-b border-border p-3">
         <div class="flex items-center justify-between gap-2">
-          <h1 class="text-xl font-medium">Contacts</h1>
+          <h1 class="font-heading text-[26px] leading-tight font-medium tracking-[-0.015em]">Contacts</h1>
           <div class="flex flex-wrap gap-2">
-            <Button class="h-10 rounded-full px-4 text-sm" @click="openCreate">
+            <Button class="h-11 px-4 text-sm lg:h-10" @click="openCreate">
               <Plus class="size-4" aria-hidden="true" /> Nouveau contact
             </Button>
-            <Button variant="outline" class="h-10 rounded-full px-4 text-sm" @click="fileInput?.click()">
+            <Button variant="outline" class="h-11 px-4 text-sm lg:h-10" @click="fileInput?.click()">
               Importer
             </Button>
             <input ref="fileInput" type="file" accept=".vcf,.csv,text/vcard,text/csv" hidden @change="importFiles">
-            <Button as-child variant="outline" class="h-10 rounded-full px-4 text-sm">
+            <Button as-child variant="outline" class="h-11 px-4 text-sm lg:h-10">
               <a :href="api.exportVcfUrl()">
                 <FileDown class="size-4" aria-hidden="true" /> Exporter (.vcf)
               </a>
@@ -224,19 +224,20 @@ useHead({ title: 'Contacts' })
           <Skeleton v-for="n in 6" :key="n" class="h-14 w-full rounded-xl" />
         </div>
         <p v-else-if="failed" role="alert" class="p-6 text-sm text-destructive">Impossible de charger les contacts.</p>
-        <div v-else-if="!contacts.length" class="flex flex-col items-center gap-2 p-10 text-center text-muted-foreground">
-          <UsersRound class="size-10 opacity-60" aria-hidden="true" />
-          <p>{{ search ? 'Aucun contact trouvé.' : 'Aucun contact pour le moment.' }}</p>
+        <div v-else-if="!contacts.length" class="flex animate-settle flex-col items-center px-6 py-14 text-center">
+          <BrandDove class="mb-5 w-40" :trail="!search" />
+          <p class="font-heading text-[22px] leading-snug font-medium">{{ search ? 'Personne à ce nom' : 'Un carnet encore vierge' }}</p>
+          <p class="mt-1 max-w-xs text-base text-muted-foreground">{{ search ? 'Aucun contact trouvé.' : 'Aucun contact pour le moment.' }}</p>
         </div>
         <ul v-else aria-label="Contacts" class="flex flex-col">
           <li v-for="c in contacts" :key="c.id">
             <button
               type="button"
-              class="flex w-full items-center gap-3 border-b border-border/60 px-3 py-2.5 text-left hover:bg-accent"
+              class="flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left hover:bg-accent"
               :class="selectedId === c.id ? 'bg-row-selected' : ''"
               @click="selectContact(c.id)"
             >
-              <span class="grid size-10 shrink-0 place-items-center rounded-full text-sm font-semibold text-white" :class="getAvatarColorClass(c.email)" aria-hidden="true">
+              <span class="grid size-10 shrink-0 place-items-center rounded-full text-sm font-semibold text-white" :class="getAvatarTone(c.email)" aria-hidden="true">
                 {{ getInitials(c.name || c.email) }}
               </span>
               <span class="flex min-w-0 flex-col">
@@ -250,7 +251,7 @@ useHead({ title: 'Contacts' })
     </div>
 
     <!-- Fiche -->
-    <div v-if="selectedId !== null" class="min-w-0 flex-1 border-border/60 lg:border-l">
+    <div v-if="selectedId !== null" class="min-w-0 flex-1 border-border lg:border-l">
       <ContactsContactDetailPanel :id="selectedId" :groups="groups" @close="closeDetail" @deleted="onDeleted" @saved="onSaved" />
     </div>
 
@@ -276,8 +277,8 @@ useHead({ title: 'Contacts' })
           <Label for="group-name">Nom</Label>
           <Input id="group-name" v-model="newGroupName" maxlength="100" autocomplete="off" class="h-11 text-base" />
           <DialogFooter>
-            <Button type="button" variant="ghost" class="h-11 rounded-full px-5" @click="groupDialogOpen = false">Annuler</Button>
-            <Button type="submit" class="h-11 rounded-full px-5" :disabled="groupSaving || !newGroupName.trim()">Enregistrer</Button>
+            <Button type="button" variant="ghost" class="h-11 rounded-lg px-5" @click="groupDialogOpen = false">Annuler</Button>
+            <Button type="submit" class="h-11 rounded-lg px-5" :disabled="groupSaving || !newGroupName.trim()">Enregistrer</Button>
           </DialogFooter>
         </form>
       </DialogContent>

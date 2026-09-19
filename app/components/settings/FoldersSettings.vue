@@ -121,7 +121,7 @@ onMounted(load)
       </div>
 
       <div class="border-t border-border pt-8">
-        <h3 class="mb-4 text-lg font-semibold">Dossiers spéciaux</h3>
+        <h3 class="mb-4 font-heading text-xl font-medium">Dossiers spéciaux</h3>
         <div class="grid gap-4 sm:grid-cols-2">
           <div v-for="field in SPECIAL_FIELDS" :key="field.key" class="space-y-2">
             <Label :for="`special-folder-${field.key}`" class="text-sm font-medium">{{ field.label }}</Label>

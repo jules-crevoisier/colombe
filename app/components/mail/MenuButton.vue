@@ -16,7 +16,7 @@ defineProps<{ label: string; icon: Component }>()
 <template>
   <DropdownMenuTrigger
     :aria-label="label"
-    class="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[state=open]:bg-accent lg:size-10"
+    class="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[state=open]:bg-accent lg:size-10"
   >
     <Tooltip>
       <TooltipTrigger as-child>

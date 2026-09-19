@@ -13,6 +13,7 @@ import { reactiveOmit } from '@vueuse/core'
 import { Toaster as Sonner } from 'vue-sonner'
 import { cn } from '@/lib/utils'
 
+// Identité « Pli » : un bordereau imprimé à l'encre (encre sur papier ; papier sur nuit).
 const props = defineProps<ToasterProps>()
 const delegatedProps = reactiveOmit(props, 'class', 'toastOptions')
 </script>
@@ -21,19 +22,32 @@ const delegatedProps = reactiveOmit(props, 'class', 'toastOptions')
   <Sonner
     :class="cn('toaster group', props.class)"
     :style="{
-      '--normal-bg': 'var(--popover)',
-      '--normal-text': 'var(--popover-foreground)',
-      '--normal-border': 'var(--border)',
+      '--normal-bg': 'var(--foreground)',
+      '--normal-text': 'var(--background)',
+      '--normal-border': 'var(--foreground)',
+      '--success-bg': 'var(--foreground)',
+      '--success-text': 'var(--background)',
+      '--success-border': 'var(--foreground)',
+      '--info-bg': 'var(--foreground)',
+      '--info-text': 'var(--background)',
+      '--info-border': 'var(--foreground)',
+      '--warning-bg': 'var(--foreground)',
+      '--warning-text': 'var(--background)',
+      '--warning-border': 'var(--foreground)',
+      '--error-bg': 'var(--destructive)',
+      '--error-text': 'var(--destructive-foreground)',
+      '--error-border': 'var(--destructive)',
       '--border-radius': 'var(--radius)',
-      '--gray2': 'hsl(var(--popover) / 0.9)',
-      '--gray3': 'var(--border)',
-      '--gray4': 'var(--border)',
-      '--gray5': 'var(--border)',
-      '--gray12': 'var(--popover-foreground)',
+      '--gray2': 'var(--foreground)',
+      '--gray3': 'var(--foreground)',
+      '--gray4': 'var(--foreground)',
+      '--gray5': 'var(--foreground)',
+      '--gray12': 'var(--background)',
     }"
     :toast-options="props.toastOptions ?? {
       classes: {
-        toast: 'rounded-2xl',
+        toast: 'rounded-lg font-sans shadow-float',
+        actionButton: '!bg-beak !text-beak-foreground !font-semibold !rounded-md !h-10 !px-3.5',
       },
     }"
     v-bind="delegatedProps"

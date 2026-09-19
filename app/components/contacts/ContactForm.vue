@@ -83,7 +83,7 @@ function submit() {
         </div>
         <MailIconButton :icon="X" label="Retirer cet e-mail" class="mb-0.5" :disabled="model.emails.length <= 1" @click="removeEmail(i)" />
       </div>
-      <Button type="button" variant="outline" class="h-10 w-fit rounded-full px-4 text-sm" @click="addEmail">
+      <Button type="button" variant="outline" class="h-10 w-fit rounded-lg px-4 text-sm" @click="addEmail">
         <Plus class="size-4" aria-hidden="true" /> Ajouter un e-mail
       </Button>
     </fieldset>
@@ -108,7 +108,7 @@ function submit() {
         </div>
         <MailIconButton :icon="X" label="Retirer ce téléphone" class="mb-0.5" @click="removePhone(i)" />
       </div>
-      <Button type="button" variant="outline" class="h-10 w-fit rounded-full px-4 text-sm" @click="addPhone">
+      <Button type="button" variant="outline" class="h-10 w-fit rounded-lg px-4 text-sm" @click="addPhone">
         <Plus class="size-4" aria-hidden="true" /> Ajouter un téléphone
       </Button>
     </fieldset>
@@ -187,8 +187,8 @@ function submit() {
     </div>
 
     <div class="flex justify-end gap-2 pt-2">
-      <Button type="button" variant="ghost" class="h-11 rounded-full px-5" @click="emit('cancel')">Annuler</Button>
-      <Button type="submit" class="h-11 rounded-full px-5">{{ props.submitLabel ?? 'Enregistrer' }}</Button>
+      <Button type="button" variant="ghost" class="h-11 rounded-lg px-5" @click="emit('cancel')">Annuler</Button>
+      <Button type="submit" class="h-11 rounded-lg px-5">{{ props.submitLabel ?? 'Enregistrer' }}</Button>
     </div>
   </form>
 </template>

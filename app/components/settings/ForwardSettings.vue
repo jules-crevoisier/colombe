@@ -71,7 +71,7 @@ async function save(): Promise<void> {
       </label>
 
       <div class="flex justify-end">
-        <Button type="submit" class="h-11 rounded-full px-6" :disabled="saving">
+        <Button type="submit" class="h-11 rounded-lg px-6" :disabled="saving">
           {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
         </Button>
       </div>

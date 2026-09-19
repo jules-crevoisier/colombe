@@ -81,15 +81,32 @@ function backToPassword() {
 </script>
 
 <template>
-  <main class="w-full max-w-[448px] rounded-3xl bg-surface-panel px-6 py-10 sm:px-10">
-    <div class="mb-8 flex flex-col items-start gap-4">
+  <div class="grid min-h-[100dvh] lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+    <!-- Bureau : le panneau « nuit », la colombe en vol. -->
+    <div class="relative hidden flex-col justify-between overflow-hidden bg-[radial-gradient(120%_90%_at_20%_10%,#27479f_0%,#1f3a8a_35%,#0d1324_100%)] p-12 text-[#ece8de] lg:flex xl:p-16">
+      <div class="flex items-center gap-3">
+        <BrandLogo class="size-10 rounded-[10px] ring-1 ring-white/20" />
+        <span class="font-heading text-[26px] leading-none font-semibold tracking-[-0.01em]">Colombe</span>
+      </div>
+      <div class="flex flex-col gap-10">
+        <BrandDove class="w-full max-w-[520px] [--dove-trail:rgb(236_232_222/0.35)]" />
+        <p class="max-w-md font-heading text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-balance xl:text-[46px]">
+          Le courrier du département, <em class="text-[#f59e6b] italic">plié avec soin</em>.
+        </p>
+      </div>
+      <p class="text-sm text-[#ece8de]/75">IUT de Troyes · Département MMI · mmi-troyes.fr</p>
+    </div>
+
+  <main class="flex items-center justify-center px-5 py-10 sm:px-10">
+   <div class="w-full max-w-[400px] animate-settle">
+    <div class="mb-8 flex flex-col items-start gap-5">
       <span v-if="step === 'code'" class="grid size-12 place-items-center rounded-xl bg-primary text-xl font-bold text-primary-foreground" aria-hidden="true">
         <ShieldCheck class="size-6" />
       </span>
-      <BrandLogo v-else class="size-12" label="Colombe" />
+      <BrandLogo v-else class="size-12 lg:hidden" label="Colombe" />
       <div>
-        <h1 class="text-3xl font-normal tracking-tight">{{ step === 'code' ? 'Validation en deux étapes' : 'Connexion' }}</h1>
-        <p class="mt-2 text-base text-muted-foreground">
+        <h1 class="font-heading text-[34px] leading-[1.1] font-medium tracking-[-0.02em] sm:text-[40px]">{{ step === 'code' ? 'Validation en deux étapes' : 'Connexion' }}</h1>
+        <p class="mt-3 text-base text-muted-foreground">
           <template v-if="step === 'code'">
             {{ useRecovery ? 'Saisissez l’un de vos codes de secours.' : 'Saisissez le code à 6 chiffres affiché par votre application d’authentification.' }}
           </template>
@@ -108,7 +125,7 @@ function backToPassword() {
         <Label for="password">Mot de passe</Label>
         <div class="relative">
           <Input id="password" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required class="h-12 rounded-lg pr-12 text-base" :aria-invalid="!!error || undefined" aria-describedby="login-error" />
-          <button type="button" class="absolute top-0.5 right-0.5 grid size-11 place-items-center rounded-full text-muted-foreground hover:bg-accent" :aria-label="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'" :aria-pressed="showPassword" @click="showPassword = !showPassword">
+          <button type="button" class="absolute top-0.5 right-0.5 grid size-11 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring" :aria-label="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'" :aria-pressed="showPassword" @click="showPassword = !showPassword">
             <component :is="showPassword ? EyeOff : Eye" class="size-5" aria-hidden="true" />
           </button>
         </div>
@@ -116,7 +133,7 @@ function backToPassword() {
 
       <p id="login-error" class="min-h-5 text-sm text-destructive" role="alert" aria-live="assertive">{{ error }}</p>
 
-      <Button type="submit" class="h-12 w-full rounded-full text-base font-medium" :disabled="loading || !email || !password">
+      <Button type="submit" class="h-12 w-full rounded-lg text-base font-semibold" :disabled="loading || !email || !password">
         <LoaderCircle v-if="loading" class="size-5 animate-spin" aria-hidden="true" />
         {{ loading ? 'Connexion…' : 'Se connecter' }}
       </Button>
@@ -144,23 +161,28 @@ function backToPassword() {
 
       <p id="login-error" class="min-h-5 text-sm text-destructive" role="alert" aria-live="assertive">{{ error }}</p>
 
-      <Button type="submit" class="h-12 w-full rounded-full text-base font-medium" :disabled="loading || code.trim().length < 6">
+      <Button type="submit" class="h-12 w-full rounded-lg text-base font-semibold" :disabled="loading || code.trim().length < 6">
         <LoaderCircle v-if="loading" class="size-5 animate-spin" aria-hidden="true" />
         {{ loading ? 'Vérification…' : 'Valider' }}
       </Button>
 
       <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <button type="button" class="inline-flex h-11 items-center gap-1 rounded-full px-2 text-muted-foreground hover:text-foreground" @click="backToPassword">
+        <button type="button" class="inline-flex h-11 items-center gap-1 rounded-lg px-2 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" @click="backToPassword">
           <ArrowLeft class="size-4" aria-hidden="true" /> Retour
         </button>
-        <button type="button" class="h-11 rounded-full px-2 font-medium text-primary hover:underline" @click="useRecovery = !useRecovery; code = ''; error = ''">
+        <button type="button" class="h-11 rounded-lg px-2 font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring" @click="useRecovery = !useRecovery; code = ''; error = ''">
           {{ useRecovery ? 'Utiliser l’application' : 'Utiliser un code de secours' }}
         </button>
       </div>
     </form>
 
-    <p class="mt-8 text-xs leading-relaxed text-muted-foreground">
-      Ne saisissez jamais votre mot de passe sur une page reçue par e-mail. Le service informatique ne vous le demandera jamais.
-    </p>
+    <div class="mt-8 flex gap-3 rounded-lg border border-dashed border-line-strong px-4 py-3">
+      <ShieldCheck class="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <p class="text-xs leading-relaxed text-muted-foreground">
+        Ne saisissez jamais votre mot de passe sur une page reçue par e-mail. Le service informatique ne vous le demandera jamais.
+      </p>
+    </div>
+   </div>
   </main>
+  </div>
 </template>

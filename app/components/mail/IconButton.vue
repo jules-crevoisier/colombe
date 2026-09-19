@@ -18,7 +18,7 @@ const rest = computed(() => {
   const { class: _class, ...others } = attrs
   return others
 })
-const BASE = 'inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-40 lg:size-10'
+const BASE = 'inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-40 lg:size-10'
 // tailwind-merge : une classe passée par l'appelant (ex. « hidden lg:inline-flex ») l'emporte sur la base.
 const classes = computed(() => cn(BASE, attrs.class as string | undefined))
 </script>

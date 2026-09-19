@@ -131,7 +131,7 @@ async function save(): Promise<void> {
         <Label for="vacation-address">Mes autres adresses</Label>
         <div class="flex gap-2">
           <Input id="vacation-address" v-model="newAddress" type="email" class="h-11 flex-1 text-base" @keydown.enter.prevent="addAddress" />
-          <Button type="button" variant="outline" class="h-11 rounded-full px-4" @click="addAddress">
+          <Button type="button" variant="outline" class="h-11 rounded-lg px-4" @click="addAddress">
             <Plus class="size-4" aria-hidden="true" /> Ajouter
           </Button>
         </div>
@@ -160,7 +160,7 @@ async function save(): Promise<void> {
       </fieldset>
 
       <div class="flex justify-end">
-        <Button type="submit" class="h-11 rounded-full px-6" :disabled="saving">
+        <Button type="submit" class="h-11 rounded-lg px-6" :disabled="saving">
           {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
         </Button>
       </div>

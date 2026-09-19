@@ -2,7 +2,11 @@
 import { ChevronDown } from '@lucide/vue'
 import type { MessageDetail, MessageSummary } from '#shared/types/mail'
 
-/** Message d'une conversation, replié par défaut ; le corps n'est chargé qu'à l'ouverture. */
+/**
+ * Message d'une conversation, replié par défaut ; le corps n'est chargé qu'à l'ouverture.
+ * Présentation « lettres empilées » : chaque message est une carte reliée aux autres par
+ * un filet vertical, avec l'avatar de son expéditeur.
+ */
 const props = defineProps<{ item: MessageSummary; folderName: string | null }>()
 
 const api = useMailApi()
@@ -37,30 +41,35 @@ const html = computed(() => (prefsStore.prefs.preferHtml ? detail.value?.html ??
 </script>
 
 <template>
-  <li class="rounded-xl border border-border/60">
-    <button type="button" class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-accent/60" :aria-expanded="expanded" @click="toggle">
-      <span class="grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold text-white" :class="getAvatarColorClass(item.from?.address ?? '')" aria-hidden="true">
-        {{ getInitials(item.from?.name || item.from?.address.split('@')[0] || '?') }}
-      </span>
-      <span class="flex min-w-0 flex-1 flex-col">
-        <span class="flex items-baseline gap-2">
-          <span class="truncate text-sm font-medium">{{ sender }}</span>
-          <span v-if="folderName" class="shrink-0 rounded bg-muted px-1.5 text-[11px] text-muted-foreground">{{ folderName }}</span>
+  <li class="relative pb-2 before:absolute before:top-0 before:bottom-0 before:left-[27px] before:w-px before:bg-line-strong last:pb-3">
+    <div class="relative rounded-lg border border-border bg-surface-panel transition-colors" :class="expanded ? 'shadow-sheet' : 'hover:border-line-strong'">
+      <button type="button" class="flex min-h-14 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring" :aria-expanded="expanded" @click="toggle">
+        <span class="grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold text-white" :class="getAvatarTone(item.from?.address ?? '')" aria-hidden="true">
+          {{ getInitials(item.from?.name || item.from?.address.split('@')[0] || '?') }}
         </span>
-        <span v-if="!expanded" class="truncate text-xs text-muted-foreground">{{ item.preview }}</span>
-      </span>
-      <time class="shrink-0 text-xs text-muted-foreground" :datetime="item.date">{{ date }}</time>
-      <ChevronDown class="size-4 shrink-0 text-muted-foreground transition-transform" :class="{ 'rotate-180': expanded }" aria-hidden="true" />
-    </button>
-    <div v-if="expanded" class="px-3 pb-3">
-      <Skeleton v-if="loading" class="h-32 w-full rounded-lg" />
-      <p v-else-if="failed" class="text-sm text-destructive" role="alert">Impossible d’afficher ce message.</p>
-      <template v-else-if="detail">
-        <button v-if="detail.remoteImages > 0 && !showRemote" type="button" class="mb-2 text-xs font-medium text-primary hover:underline" @click="showRemote = true">
-          Afficher les images distantes
-        </button>
-        <MailFrame :html="html" :text="detail.text" :show-remote="showRemote" class="!min-h-48" />
-      </template>
+        <span class="flex min-w-0 flex-1 flex-col">
+          <span class="flex items-baseline gap-2">
+            <span class="truncate text-sm font-semibold">{{ sender }}</span>
+            <span v-if="folderName" class="stamp shrink-0 !leading-4">{{ folderName }}</span>
+          </span>
+          <span v-if="!expanded" class="truncate text-[13px] text-muted-foreground">{{ item.preview }}</span>
+        </span>
+        <time class="hidden shrink-0 text-xs text-muted-foreground sm:block" :datetime="item.date">{{ date }}</time>
+        <ChevronDown class="size-4 shrink-0 text-muted-foreground transition-transform duration-200" :class="{ 'rotate-180': expanded }" aria-hidden="true" />
+      </button>
+      <div v-if="expanded" class="px-3 pb-3">
+        <time class="mb-2 block text-xs text-muted-foreground sm:hidden" :datetime="item.date">{{ date }}</time>
+        <Skeleton v-if="loading" class="h-32 w-full rounded-lg" />
+        <p v-else-if="failed" class="text-sm text-destructive" role="alert">Impossible d’afficher ce message.</p>
+        <template v-else-if="detail">
+          <button v-if="detail.remoteImages > 0 && !showRemote" type="button" class="mb-2 inline-flex min-h-11 items-center rounded-md px-1 text-xs font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring lg:min-h-8" @click="showRemote = true">
+            Afficher les images distantes
+          </button>
+          <div class="overflow-hidden rounded-md border border-border bg-white">
+            <MailFrame :html="html" :text="detail.text" :show-remote="showRemote" class="!min-h-48" />
+          </div>
+        </template>
+      </div>
     </div>
   </li>
 </template>

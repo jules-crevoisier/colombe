@@ -1,5 +1,6 @@
-/* Aucune ressource externe (règle n°5) : la police est auto-hébergée via @fontsource. */
-@import "@fontsource-variable/inter";
+/* Aucune ressource externe (règle n°5) : polices auto-hébergées via @fontsource (licence SIL OFL 1.1). */
+@import "@fontsource-variable/instrument-sans";
+@import "@fontsource-variable/newsreader/opsz.css";
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -8,108 +9,159 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Palette inspirée de Material 3 / Gmail.
- * Tokens shadcn standards + tokens « mail » propres à l'appli :
- *   --surface-app      fond général (bleuté)
- *   --surface-panel    panneaux (liste, lecture)
- *   --compose          bouton « Nouveau message » (tonal)
- *   --nav-active       élément de navigation sélectionné
- *   --row-read         ligne de message déjà lu
- *   --row-selected     ligne cochée
+ * Identité « Pli » — Colombe, la messagerie du département MMI.
+ *
+ * Métaphore : le courrier papier. En clair, un bureau couleur papier (--surface-app)
+ * sur lequel est posée une feuille (--surface-panel) ; l'encre est le bleu nuit du
+ * logo (#1f3a8a). En sombre, la « nuit » : bleu nuit profond, texte couleur papier,
+ * facettes bleu pâle du logo pour l'encre. L'orange du bec (#f59e6b) est un accent
+ * RARE : un seul élément d'action important par écran (le pli du bouton « Nouveau
+ * message », le bouton « Envoyer »), plus l'état « suivi » (étoile).
+ *
+ * Contrastes vérifiés (WCAG AA), voir le rapport de refonte :
+ *   clair  : encre/papier 14,1 · encre/feuille 15,5 · atténué/feuille 6,1 · atténué/papier 5,6
+ *            blanc/bleu nuit 10,3 · encre/orange 7,6 · rouge/feuille 6,4 · bord de champ 3,5
+ *   sombre : papier/nuit 15,1 · papier/feuille 13,8 · atténué/feuille 7,3
+ *            nuit/bleu pâle 9,2 · nuit/orange 8,8 · rouge/feuille 7,7 · bord de champ 3,1
  */
 :root {
-  --radius: 0.75rem;
+  --radius: 0.625rem;
 
-  --background: #f6f8fc;
-  --foreground: #1f1f1f;
-  --card: #ffffff;
-  --card-foreground: #1f1f1f;
-  --popover: #ffffff;
-  --popover-foreground: #1f1f1f;
-  --primary: #0b57d0;
+  --background: #f4f1ea;
+  --foreground: #1a2233;
+  --card: #fdfcf8;
+  --card-foreground: #1a2233;
+  --popover: #fdfcf8;
+  --popover-foreground: #1a2233;
+  --primary: #1f3a8a;
   --primary-foreground: #ffffff;
-  --secondary: #e9eef6;
-  --secondary-foreground: #1f1f1f;
-  --muted: #f1f3f4;
-  --muted-foreground: #5e5e5e;
-  --accent: #e8ebf0;
-  --accent-foreground: #1f1f1f;
-  --destructive: #b3261e;
+  --secondary: #ece7dc;
+  --secondary-foreground: #1a2233;
+  --muted: #efebe2;
+  --muted-foreground: #5a6070;
+  --accent: #ece7dc;
+  --accent-foreground: #1a2233;
+  --destructive: #b42318;
   --destructive-foreground: #ffffff;
-  --border: #e1e3e1;
-  --input: #c4c7c5;
-  --ring: #0b57d0;
+  --border: #e2dccf;
+  --input: #8d8677;
+  --ring: #1f3a8a;
 
-  --sidebar: #f6f8fc;
-  --sidebar-foreground: #1f1f1f;
-  --sidebar-primary: #0b57d0;
+  --sidebar: #f4f1ea;
+  --sidebar-foreground: #1a2233;
+  --sidebar-primary: #1f3a8a;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #d3e3fd;
-  --sidebar-accent-foreground: #041e49;
-  --sidebar-border: #e1e3e1;
-  --sidebar-ring: #0b57d0;
+  --sidebar-accent: #ece7dc;
+  --sidebar-accent-foreground: #1a2233;
+  --sidebar-border: #e2dccf;
+  --sidebar-ring: #1f3a8a;
 
-  --chart-1: #0b57d0;
-  --chart-2: #146c2e;
-  --chart-3: #b3261e;
-  --chart-4: #e37400;
-  --chart-5: #7c4dff;
+  --chart-1: #1f3a8a;
+  --chart-2: #0f5f5c;
+  --chart-3: #b42318;
+  --chart-4: #b4541a;
+  --chart-5: #6b2e5f;
 
-  --surface-app: #f6f8fc;
-  --surface-panel: #ffffff;
-  --compose: #c2e7ff;
-  --compose-foreground: #001d35;
-  --nav-active: #d3e3fd;
-  --nav-active-foreground: #041e49;
-  --row-read: #f2f6fc;
-  --row-selected: #c2dbff;
-  --search: #e9eef6;
+  /* Tokens propres à Colombe */
+  --surface-app: #f4f1ea;          /* le bureau (papier kraft clair) */
+  --surface-panel: #fdfcf8;        /* la feuille posée dessus */
+  --compose: #1f3a8a;              /* bouton « Nouveau message » : encre */
+  --compose-foreground: #ffffff;
+  --beak: #f59e6b;                 /* bec de la colombe : accent rare */
+  --beak-foreground: #1a2233;
+  --beak-strong: #b4541a;          /* contour de l'étoile, texte orange lisible */
+  --nav-active: #fdfcf8;           /* dossier courant : la feuille, plus un signet */
+  --nav-active-foreground: #1a2233;
+  --nav-marker: #1f3a8a;
+  --row-read: #fdfcf8;
+  --row-hover: #f5f2ea;
+  --row-selected: #e6e9f2;
+  --search: #fdfcf8;
+  --line-strong: #cfc8b8;
+  --unread-dot: #1f3a8a;
+
+  /* Facettes de la colombe (illustrations) */
+  --dove-1: #ffffff;
+  --dove-2: #eef3fd;
+  --dove-3: #dbe5fb;
+  --dove-4: #c9d7f7;
+  --dove-5: #9fb6f0;
+  --dove-trail: #cfc8b8;
+
+  /* Avatars : encres sourdes, texte blanc ≥ 7:1 */
+  --avatar-1: #1f3a8a;
+  --avatar-2: #0f5f5c;
+  --avatar-3: #6b2e5f;
+  --avatar-4: #9a3412;
+  --avatar-5: #4a5a14;
+  --avatar-6: #475173;
+
+  --shadow-sheet: 0 1px 0 rgb(26 34 51 / 0.04), 0 12px 32px -18px rgb(26 34 51 / 0.22);
+  --shadow-float: 0 1px 2px rgb(26 34 51 / 0.06), 0 18px 48px -12px rgb(26 34 51 / 0.28);
 }
 
 .dark {
-  --background: #1b1b1b;
-  --foreground: #e3e3e3;
-  --card: #262626;
-  --card-foreground: #e3e3e3;
-  --popover: #2d2f31;
-  --popover-foreground: #e3e3e3;
-  --primary: #a8c7fa;
-  --primary-foreground: #062e6f;
-  --secondary: #333537;
-  --secondary-foreground: #e3e3e3;
-  --muted: #2d2f31;
-  --muted-foreground: #c4c7c5;
-  --accent: #37393b;
-  --accent-foreground: #e3e3e3;
-  --destructive: #f2b8b5;
-  --destructive-foreground: #601410;
-  --border: #444746;
-  --input: #8e918f;
-  --ring: #a8c7fa;
+  --background: #0d1324;
+  --foreground: #ece8de;
+  --card: #141c32;
+  --card-foreground: #ece8de;
+  --popover: #172038;
+  --popover-foreground: #ece8de;
+  --primary: #9fb6f0;
+  --primary-foreground: #0d1324;
+  --secondary: #1d2744;
+  --secondary-foreground: #ece8de;
+  --muted: #182139;
+  --muted-foreground: #a2aabe;
+  --accent: #1d2744;
+  --accent-foreground: #ece8de;
+  --destructive: #ff8f84;
+  --destructive-foreground: #0d1324;
+  --border: #242d47;
+  --input: #5f6985;
+  --ring: #9fb6f0;
 
-  --sidebar: #1b1b1b;
-  --sidebar-foreground: #e3e3e3;
-  --sidebar-primary: #a8c7fa;
-  --sidebar-primary-foreground: #062e6f;
-  --sidebar-accent: #004a77;
-  --sidebar-accent-foreground: #c2e7ff;
-  --sidebar-border: #444746;
-  --sidebar-ring: #a8c7fa;
+  --sidebar: #0d1324;
+  --sidebar-foreground: #ece8de;
+  --sidebar-primary: #9fb6f0;
+  --sidebar-primary-foreground: #0d1324;
+  --sidebar-accent: #1d2744;
+  --sidebar-accent-foreground: #ece8de;
+  --sidebar-border: #242d47;
+  --sidebar-ring: #9fb6f0;
 
-  --surface-app: #1b1b1b;
-  --surface-panel: #262626;
-  --compose: #004a77;
-  --compose-foreground: #c2e7ff;
-  --nav-active: #004a77;
-  --nav-active-foreground: #c2e7ff;
-  --row-read: #262626;
-  --row-selected: #1e3a5f;
-  --search: #333537;
+  --surface-app: #0d1324;
+  --surface-panel: #141c32;
+  --compose: #9fb6f0;
+  --compose-foreground: #0d1324;
+  --beak: #f59e6b;
+  --beak-foreground: #0d1324;
+  --beak-strong: #f59e6b;
+  --nav-active: #141c32;
+  --nav-active-foreground: #ece8de;
+  --nav-marker: #9fb6f0;
+  --row-read: #141c32;
+  --row-hover: #182139;
+  --row-selected: #1e2b4f;
+  --search: #141c32;
+  --line-strong: #34405f;
+  --unread-dot: #9fb6f0;
+
+  --dove-1: #ece8de;
+  --dove-2: #c9d7f7;
+  --dove-3: #9fb6f0;
+  --dove-4: #7d97d8;
+  --dove-5: #4f68b0;
+  --dove-trail: #34405f;
+
+  --shadow-sheet: 0 1px 0 rgb(0 0 0 / 0.2), 0 12px 32px -18px rgb(0 0 0 / 0.6);
+  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.3), 0 18px 48px -12px rgb(0 0 0 / 0.7);
 }
 
 @theme inline {
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-sans);
+  --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: 'Newsreader Variable', ui-serif, Georgia, 'Times New Roman', serif;
+  --font-serif: var(--font-heading);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -148,11 +200,21 @@
   --color-surface-panel: var(--surface-panel);
   --color-compose: var(--compose);
   --color-compose-foreground: var(--compose-foreground);
+  --color-beak: var(--beak);
+  --color-beak-foreground: var(--beak-foreground);
+  --color-beak-strong: var(--beak-strong);
   --color-nav-active: var(--nav-active);
   --color-nav-active-foreground: var(--nav-active-foreground);
+  --color-nav-marker: var(--nav-marker);
   --color-row-read: var(--row-read);
+  --color-row-hover: var(--row-hover);
   --color-row-selected: var(--row-selected);
   --color-search: var(--search);
+  --color-line-strong: var(--line-strong);
+  --color-unread-dot: var(--unread-dot);
+
+  --shadow-sheet: var(--shadow-sheet);
+  --shadow-float: var(--shadow-float);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -161,6 +223,24 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  --ease-fold: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-sheet-right: sheet-right 260ms var(--ease-fold) both;
+  --animate-sheet-up: sheet-up 280ms var(--ease-fold) both;
+  --animate-settle: settle 320ms var(--ease-fold) both;
+
+  @keyframes sheet-right {
+    from { transform: translateX(32px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+  @keyframes sheet-up {
+    from { transform: translateY(24px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+  @keyframes settle {
+    from { transform: translateY(6px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
 }
 
 @layer base {
@@ -169,14 +249,103 @@
   }
   html {
     -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: 'kern' 1;
+    text-rendering: optimizeLegibility;
   }
   /* 16px minimum sur les champs : pas de zoom forcé sur iOS */
   input,
   textarea,
   select {
     font-size: max(16px, 1em);
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--beak) 38%, transparent);
+    color: inherit;
+  }
+  /* Focus clavier : un trait d'encre net, jamais supprimé. */
+  :focus-visible {
+    outline-color: var(--ring);
+  }
+  /* Barres de défilement fines, couleur du papier. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    accent-color: var(--primary);
+  }
+}
+
+@layer components {
+  /* Avatars : six encres sourdes (voir getAvatarTone) */
+  .avatar-tone-1 { background-color: var(--avatar-1); }
+  .avatar-tone-2 { background-color: var(--avatar-2); }
+  .avatar-tone-3 { background-color: var(--avatar-3); }
+  .avatar-tone-4 { background-color: var(--avatar-4); }
+  .avatar-tone-5 { background-color: var(--avatar-5); }
+  .avatar-tone-6 { background-color: var(--avatar-6); }
+
+  /*
+   * Le « pli » : coin supérieur droit replié, rabat orange (le bec). Le coin est
+   * découpé (clip-path) et laisse voir ce qu'il y a derrière ; le focus clavier est
+   * donc dessiné à l'intérieur (outline-offset négatif), jamais rogné.
+   */
+  .fold-corner {
+    --fold: 14px;
+    position: relative;
+    clip-path: polygon(0 0, calc(100% - var(--fold)) 0, 100% var(--fold), 100% 100%, 0 100%);
+  }
+  .fold-corner::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: var(--fold);
+    height: var(--fold);
+    border-bottom-left-radius: 3px;
+    background: linear-gradient(to bottom left, transparent 50%, var(--beak) 50%);
+    pointer-events: none;
+    transition: transform 200ms var(--ease-fold, ease);
+    transform-origin: 100% 0;
+  }
+  .fold-corner:focus-visible {
+    outline: 2px solid var(--compose-foreground);
+    outline-offset: -5px;
+  }
+
+  /* « Tampon » : étiquette sobre (dossier d'un message, libellés) */
+  .stamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    padding: 0 0.375rem;
+    font-size: 0.6875rem;
+    line-height: 1.25rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+}
+
+/* Mouvement réduit : pas d'animation décorative. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
