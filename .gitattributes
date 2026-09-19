@@ -1,8 +1,10 @@
 # Fichiers destinés à un serveur Linux : fins de ligne LF forcées, quel que
-# soit le paramétrage Git de la machine de développement (Windows).
+# soit le paramétrage Git de la machine de développement (Windows). Un CRLF dans
+# le shebang d'un .sh casse son exécution (« bad interpreter »).
 * text=auto eol=lf
 
 *.sh text eol=lf
+scripts/**/*.mjs text eol=lf
 deploy/** text eol=lf
 Dockerfile text eol=lf
 
