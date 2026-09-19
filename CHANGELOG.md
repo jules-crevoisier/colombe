@@ -3,12 +3,37 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Colombe suit un schéma de version proche de [SemVer](https://semver.org/lang/fr/).
 
+## [1.0.0-rc.2] — 2026-09-19
+
+### Ajouté
+
+- **Licence libre AGPL-3.0** (ou toute version ultérieure).
+- **Mode démo public** (`COLOMBE_DEMO=true`) : bouton « Essayer la démo », un compte
+  jetable et isolé par visiteur avec des messages d'exemple, effacé après
+  `COLOMBE_DEMO_TTL_HOURS` (4 h par défaut) ; connexion par mot de passe désactivée,
+  données en mémoire, aucun e-mail ne quitte le serveur.
+- **Site du projet et documentation complète** (VitePress, `pnpm docs:build`) : page de
+  présentation, guide utilisateur (7 pages), guide d'administration (11 pages),
+  contribution. Aucune ressource externe.
+- **Déploiement Dokploy** de la démo et du site (`deploy/dokploy/`).
+- Intégration continue : construction et test de l'image Docker (santé, utilisateur non
+  root, arrêt propre, analyse Trivy) ; SBOM et provenance sur les images publiées.
+- Script de déploiement SSH générique (`scripts/deploy-ssh.sh`).
+
+### Modifié
+
+- **Image Docker** sur base distroless Node 24 : 54 Mo compressée (77 Mo auparavant),
+  sans shell, utilisateur non root (uid 65532).
+- Données de démonstration neutres (`universite.example`), sans référence à un
+  établissement réel.
+- Documentation réorganisée en pages courtes (`docs/admin/`, `docs/guide/`).
+
 ## [1.0.0-rc.1] — 2026-09-19
 
 Première version candidate à la distribution : un webmail pour remplacer Roundcube dans
 un établissement (université, entreprise) qui exploite son propre serveur
 Dovecot/Postfix, installable en Docker ou en archive, configuré par variables
-d'environnement. En production à l'IUT de Troyes (département MMI) depuis le
+d'environnement. En production dans un institut universitaire depuis le
 19 septembre 2026.
 
 ### Ajouté
@@ -82,4 +107,5 @@ d'environnement. En production à l'IUT de Troyes (département MMI) depuis le
 - Intégration continue (tests et vérification des types à chaque changement,
   publication de la release en brouillon sur les tags de version)
 
+[1.0.0-rc.2]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.1

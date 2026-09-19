@@ -5,7 +5,7 @@ Webmail moderne pour les établissements qui exploitent leur propre serveur de m
 remplacer Roundcube (et RainLoop) sans toucher au serveur de messagerie.
 
 Interface inspirée de Gmail, pensée d'abord pour le mobile, sécurisée par défaut. En
-production à l'IUT de Troyes depuis septembre 2026.
+production dans un institut universitaire depuis septembre 2026.
 
 *English summary: Colombe is a self-hosted webmail (Nuxt + Node 24) for organisations
 running their own IMAP/SMTP server, designed as a Roundcube replacement. Configured
@@ -66,8 +66,8 @@ cp .env.example .env              # MAIL_BACKEND=mock : aucun serveur nécessair
 pnpm dev:mock
 ```
 
-Comptes de démonstration (backend mémoire) : `dev@mmi-troyes.fr` / `dev-password`,
-`alice@mmi-troyes.fr` / `alice-password`.
+Comptes de démonstration (backend mémoire) : `dev@universite.example` / `dev-password`,
+`alice@universite.example` / `alice-password`.
 
 | Commande | Contenu |
 |---|---|
