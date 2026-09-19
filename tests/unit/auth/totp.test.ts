@@ -39,6 +39,6 @@ describe('totp', () => {
 
   it('should build an otpauth URI with issuer and account', () => {
     const uri = otpauthUri('JBSWY3DPEHPK3PXP', 'dev@mmi-troyes.fr')
-    expect(uri).toBe('otpauth://totp/Webmail%20MMI:dev%40mmi-troyes.fr?secret=JBSWY3DPEHPK3PXP&issuer=Webmail%20MMI&algorithm=SHA1&digits=6&period=30')
+    expect(uri).toBe('otpauth://totp/Colombe:dev%40mmi-troyes.fr?secret=JBSWY3DPEHPK3PXP&issuer=Colombe&algorithm=SHA1&digits=6&period=30')
   })
 })
