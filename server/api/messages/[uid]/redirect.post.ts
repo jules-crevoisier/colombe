@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import { sendLimiter } from '../../../lib/session/rate-limit'
 import { mailError, requireMail } from '../../../utils/mail-session'
+import { serverT } from '../../../lib/i18n'
 
 const paramsSchema = z.object({ uid: z.coerce.number().int().positive() })
 const bodySchema = z.object({
@@ -17,7 +18,7 @@ export default defineEventHandler(async (event) => {
 
     const key = `email:${email}`
     if (sendLimiter.isLimited(key)) {
-      throw createError({ statusCode: 429, statusMessage: 'Limite d\'envoi atteinte', message: 'Limite d\'envoi atteinte. Réessayez plus tard.' })
+      throw createError({ statusCode: 429, statusMessage: 'Limite d\'envoi atteinte', message: serverT(event, 'send.limit') })
     }
 
     const raw = await backend.getRawMessage(body.folder, uid)
@@ -25,7 +26,7 @@ export default defineEventHandler(async (event) => {
     const lines = raw.toString('utf-8', 0, raw.length).split('\r\n')
     const headerEndIdx = lines.findIndex(l => !l)
     if (headerEndIdx === -1) {
-      throw createError({ statusCode: 400, statusMessage: 'Format invalide', message: 'Message mal formé' })
+      throw createError({ statusCode: 400, statusMessage: 'Format invalide', message: serverT(event, 'messages.malformed') })
     }
 
     const now = new Date()
@@ -48,6 +49,6 @@ export default defineEventHandler(async (event) => {
     setResponseStatus(event, 204)
     return null
   } catch (err: unknown) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

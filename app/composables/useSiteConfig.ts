@@ -1,4 +1,5 @@
 import type { PublicConfig } from '#shared/types/config'
+import { i18n } from '~/lib/i18n'
 
 const FALLBACK: PublicConfig = {
   productName: 'Colombe',
@@ -13,6 +14,7 @@ const FALLBACK: PublicConfig = {
   demo: null,
   features: { directory: false },
   portalUrl: null,
+  defaultLanguage: 'fr',
 }
 
 /**
@@ -36,10 +38,10 @@ export function useSiteConfig() {
     return config.value
   }
 
-  /** Exemple d'adresse pour les champs de saisie, ex. « prenom.nom@univ-exemple.fr ». */
+  /** Exemple d'adresse pour les champs de saisie, ex. « prenom.nom@univ-exemple.fr » (dans la langue active). */
   const addressExample = computed(() => {
     const domain = config.value.login.defaultDomain ?? config.value.login.domains[0]
-    return domain ? `prenom.nom@${domain}` : 'prenom.nom@exemple.fr'
+    return i18n.global.t('login.addressExample', { domain: domain ?? i18n.global.t('login.addressExampleDomain') })
   })
 
   return { config: readonly(config), loaded: readonly(loaded), load, addressExample }

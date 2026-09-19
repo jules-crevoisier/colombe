@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { GuideStep } from '~/utils/devices'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   steps: GuideStep[]
@@ -24,7 +27,7 @@ const items = computed(() => props.steps.map(step => ({ ...step, parts: splitQuo
             <dt class="text-xs text-muted-foreground sm:w-36 sm:shrink-0 sm:text-sm">{{ v.label }}</dt>
             <dd class="min-w-0 font-mono text-[15px] break-all">
               {{ v.value }}
-              <SettingsDevicesCopyButton :value="v.value" :label="`« ${v.label} » (${v.value})`" class="absolute top-1/2 right-0.5 -translate-y-1/2" />
+              <SettingsDevicesCopyButton :value="v.value" :label="t('devices.steps.copyLabel', { label: v.label, value: v.value })" class="absolute top-1/2 right-0.5 -translate-y-1/2" />
             </dd>
           </div>
         </dl>

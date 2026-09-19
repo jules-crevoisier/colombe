@@ -3,6 +3,7 @@ import { verifySecondFactor } from '../../../lib/auth/second-factor'
 import { useDb } from '../../../lib/store/db'
 import { enableTwoFactor, isTwoFactorEnabled } from '../../../lib/store/twofactor'
 import { mailError, requireMail } from '../../../utils/mail-session'
+import { serverT } from '../../../lib/i18n'
 
 const bodySchema = z.object({ code: z.string().trim().regex(/^\d{3}\s?\d{3}$/, 'Code à 6 chiffres attendu') })
 
@@ -13,14 +14,14 @@ export default defineEventHandler(async (event): Promise<{ recoveryCodes: string
     const { email } = await requireMail(event)
     const db = useDb()
     if (isTwoFactorEnabled(db, email)) {
-      throw createError({ statusCode: 409, statusMessage: 'Déjà active', message: 'La double authentification est déjà active.' })
+      throw createError({ statusCode: 409, statusMessage: 'Déjà active', message: serverT(event, 'twoFactor.alreadyActive') })
     }
     if (!verifySecondFactor(db, email, code, { requireEnabled: false, allowRecovery: false })) {
-      throw createError({ statusCode: 400, statusMessage: 'Code refusé', message: 'Code incorrect. Vérifiez l’heure de votre téléphone et réessayez.' })
+      throw createError({ statusCode: 400, statusMessage: 'Code refusé', message: serverT(event, 'twoFactor.badCodeCheckClock') })
     }
     return { recoveryCodes: enableTwoFactor(db, email) }
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

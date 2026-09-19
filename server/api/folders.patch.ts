@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { MailError } from '../lib/mail/backend'
 import { folderNameSchema, rootPrefix } from '../lib/mail/folder-names'
 import { mailError, requireMail } from '../utils/mail-session'
+import { serverT } from '../lib/i18n'
 
 const bodySchema = z.object({
   path: z.string().min(1).max(512),
@@ -45,13 +46,13 @@ export default defineEventHandler(async (event): Promise<{ path: string }> => {
     const newPath = `${newParentPrefix}${newName}`
     if (newPath === path) return { path }
     if (folders.some(f => f.path.toLowerCase() === newPath.toLowerCase())) {
-      throw createError({ statusCode: 409, statusMessage: 'Dossier existant', message: 'Un dossier porte déjà ce nom à cet emplacement.' })
+      throw createError({ statusCode: 409, statusMessage: 'Dossier existant', message: serverT(event, 'folders.existsHere') })
     }
 
     await backend.renameFolder(path, newPath)
     return { path: newPath }
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

@@ -10,6 +10,7 @@ import { isTwoFactorEnabled } from '../../lib/store/twofactor'
 import { recordLoginEvent } from '../../lib/store/activity'
 import { ipLoginLimiter, loginLimiter } from '../../lib/session/rate-limit'
 import { clientIp, logSafe, mailConfig } from '../../utils/mail-session'
+import { serverT } from '../../lib/i18n'
 
 const loginSchema = z.object({
   email: z.string().trim().min(1).max(320),
@@ -27,7 +28,7 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
   // Démo publique : les comptes dev/alice partagés ne doivent jamais être joignables
   // depuis Internet. Seul POST /api/auth/demo peut ouvrir une session en démo.
   if (config.demo.enabled) {
-    throw createError({ statusCode: 403, statusMessage: 'Connexion désactivée', message: 'La connexion par mot de passe est désactivée dans la démo.' })
+    throw createError({ statusCode: 403, statusMessage: 'Connexion désactivée', message: serverT(event, 'auth.passwordDisabledDemo') })
   }
   const body = await readValidatedBody(event, b => loginSchema.parse(b))
   const { kind, server } = mailConfig(event)
@@ -35,16 +36,16 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
   const email = normalizeLoginEmail(body.email, config)
   if (!email) {
     if (!body.email.includes('@') && !config.login.defaultDomain) {
-      throw createError({ statusCode: 400, statusMessage: 'Adresse incomplète', message: 'Saisissez votre adresse e-mail complète.' })
+      throw createError({ statusCode: 400, statusMessage: 'Adresse incomplète', message: serverT(event, 'auth.fullAddress') })
     }
     const domains = config.login.domains.map(d => `@${d}`).join(', ')
-    throw createError({ statusCode: 403, statusMessage: 'Domaine refusé', message: `Seules les adresses ${domains} sont acceptées.` })
+    throw createError({ statusCode: 403, statusMessage: 'Domaine refusé', message: serverT(event, 'auth.domainRefused', { domains }) })
   }
 
   const ipKey = `ip:${clientIp(event)}`
   const emailKey = `email:${email}`
   if (ipLoginLimiter.isLimited(ipKey) || loginLimiter.isLimited(emailKey)) {
-    throw createError({ statusCode: 429, statusMessage: 'Trop de tentatives', message: 'Trop de tentatives. Réessayez dans quelques minutes.' })
+    throw createError({ statusCode: 429, statusMessage: 'Trop de tentatives', message: serverT(event, 'auth.tooManyAttempts') })
   }
 
   let valid: boolean
@@ -57,7 +58,7 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
     throw createError({
       statusCode: unavailable ? 503 : 500,
       statusMessage: 'Serveur de messagerie indisponible',
-      message: 'Serveur de messagerie indisponible. Réessayez plus tard.',
+      message: serverT(event, 'auth.mailUnavailable'),
     })
   }
 
@@ -70,7 +71,7 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
     recordLoginEvent(useDb(), email, ip, userAgent, false)
     // Une ligne par échec, pour fail2ban (voir docs/admin/configuration.md).
     console.warn(`[colombe] auth-failure ip=${logSafe(ip)} user=${logSafe(email)}`)
-    throw createError({ statusCode: 401, statusMessage: 'Identifiants incorrects', message: 'Adresse ou mot de passe incorrect.' })
+    throw createError({ statusCode: 401, statusMessage: 'Identifiants incorrects', message: serverT(event, 'auth.badCredentials') })
   }
 
   // Second facteur activé : pas encore « authentifié » tant que le code n'est pas

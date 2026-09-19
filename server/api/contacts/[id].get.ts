@@ -15,6 +15,6 @@ export default defineEventHandler(async (event): Promise<ContactDetail> => {
     return getContactDetail(db, email, id)
   }
   catch (err) {
-    throw contactHttpError(err)
+    throw contactHttpError(err, event)
   }
 })

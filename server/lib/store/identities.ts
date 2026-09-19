@@ -3,6 +3,7 @@ import type { DatabaseSync } from 'node:sqlite'
 import type { Identity, IdentityInput } from '#shared/types/mail'
 import { MAX_SIGNATURE_IMAGES, sanitizeOutgoingHtml } from '../mail/sanitize-outgoing'
 import { getPrefs } from './prefs'
+import type { LocalizedMessage } from '../i18n'
 
 /** 20 identités max par utilisateur (ROADMAP R2.1). */
 export const MAX_IDENTITIES = 20
@@ -12,6 +13,7 @@ const MAX_SIGNATURE_BYTES = 1_000_000
 /** Identité absente ou appartenant à un autre utilisateur (→ 404). */
 export class IdentityNotFoundError extends Error {
   readonly statusCode = 404
+  readonly i18n: LocalizedMessage = { key: 'identities.notFound' }
   constructor() {
     super('Identité introuvable.')
     this.name = 'IdentityNotFoundError'
@@ -20,6 +22,7 @@ export class IdentityNotFoundError extends Error {
 
 export class IdentityLimitError extends Error {
   readonly statusCode = 400
+  readonly i18n: LocalizedMessage = { key: 'identities.limit', params: { max: MAX_IDENTITIES } }
   constructor() {
     super(`Nombre maximal d'identités atteint (${MAX_IDENTITIES}).`)
     this.name = 'IdentityLimitError'
@@ -29,6 +32,7 @@ export class IdentityLimitError extends Error {
 /** On ne peut jamais supprimer la dernière identité restante. */
 export class LastIdentityError extends Error {
   readonly statusCode = 400
+  readonly i18n: LocalizedMessage = { key: 'identities.last' }
   constructor() {
     super('Impossible de supprimer la dernière identité.')
     this.name = 'LastIdentityError'

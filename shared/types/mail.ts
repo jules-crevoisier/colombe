@@ -3,6 +3,8 @@
  * Aucun champ ici ne doit jamais contenir d'identifiant ou de mot de passe.
  */
 
+import type { LanguagePref } from './i18n'
+
 export type SpecialUse = 'inbox' | 'sent' | 'drafts' | 'trash' | 'junk' | 'archive'
 
 export interface Folder {
@@ -171,7 +173,15 @@ export interface Prefs {
   threadList: boolean
   /** La boîte « Bienvenue » (nom affiché) a été vue. */
   welcomed: boolean
+  /** Langue de l'interface : « auto » = langue du navigateur, puis celle de l'établissement. */
+  language: LanguagePref
 }
+
+/**
+ * Objet renvoyé par l'API pour un message sans objet (valeur sentinelle, historique) :
+ * l'interface l'affiche traduit (mail.noSubject) et ne le recopie jamais dans une réponse.
+ */
+export const NO_SUBJECT = '(sans objet)'
 
 export const DEFAULT_PREFS: Prefs = {
   signatureHtml: '',
@@ -197,6 +207,7 @@ export const DEFAULT_PREFS: Prefs = {
   idleMinutes: 60,
   threadList: false,
   welcomed: false,
+  language: 'auto',
 }
 
 export interface Contact {

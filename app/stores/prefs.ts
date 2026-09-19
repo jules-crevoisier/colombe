@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { toast } from 'vue-sonner'
 import type { Prefs } from '#shared/types/mail'
 import { DEFAULT_PREFS } from '#shared/types/mail'
+import { i18n } from '~/lib/i18n'
 
 export const usePrefsStore = defineStore('prefs', {
   state: () => ({
@@ -63,7 +64,7 @@ export const usePrefsStore = defineStore('prefs', {
           body: patch,
         })
         this.prefs = result
-        toast.success('Préférences enregistrées')
+        toast.success(i18n.global.t('common.prefsSaved'))
       }
       catch (err) {
         // Revert on error
@@ -74,9 +75,7 @@ export const usePrefsStore = defineStore('prefs', {
           await navigateTo('/login')
         }
         else {
-          const message =
-            errorText(err, 'Impossible d\'enregistrer les préférences.')
-          toast.error(message)
+          toast.error(errorText(err, i18n.global.t('common.prefsSaveFailed')))
         }
       }
     },

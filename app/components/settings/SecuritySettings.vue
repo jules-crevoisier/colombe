@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import { LogOut } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
+import { intlLocale } from '~/lib/i18n'
 import type { AccountActivity, ActiveSession, TwoFactorStatus, TwoFactorSetup } from '#shared/types/mail'
 
+const { t } = useI18n()
 const session = useUserSession()
 const settingsApi = useSettingsApi()
 
@@ -14,7 +17,7 @@ const revokeOthersDialog = ref(false)
 const revoking = ref(false)
 
 function formatEventDate(iso: string): string {
-  return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })
+  return new Date(iso).toLocaleString(intlLocale(), { dateStyle: 'long', timeStyle: 'short' })
 }
 
 async function loadActivity() {
@@ -54,11 +57,11 @@ async function revokeOtherSessions() {
   try {
     await settingsApi.revokeOtherSessions()
     revokeOthersDialog.value = false
-    toast.success('Les autres sessions ont été déconnectées.')
+    toast.success(t('security.sessions.success'))
     await loadSessions()
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de déconnecter les autres sessions.'))
+    toast.error(errorText(err, t('security.sessions.failed')))
   }
   finally {
     revoking.value = false
@@ -80,6 +83,7 @@ const regenerateDialog = ref(false)
 const disableCode = ref('')
 const disableError = ref('')
 const disableDialog = ref(false)
+const recoveryCodesSuffix = computed(() => (status.value?.recoveryCodesLeft !== 1 ? 's' : ''))
 
 async function loadStatus() {
   loading.value = true
@@ -111,7 +115,7 @@ async function initSetup() {
     }
     else {
       setupError.value =
-        errorText(err, 'Erreur lors de l\'initialisation.')
+        errorText(err, t('security.twoFactor.initError'))
     }
   }
 }
@@ -119,7 +123,7 @@ async function initSetup() {
 async function confirmSetup() {
   confirmError.value = ''
   if (!confirmCode.value) {
-    confirmError.value = 'Entrez le code à 6 chiffres.'
+    confirmError.value = t('security.twoFactor.setup.enterCode')
     return
   }
 
@@ -144,7 +148,7 @@ async function confirmSetup() {
     }
     else {
       confirmError.value =
-        errorText(err, 'Code incorrect.')
+        errorText(err, t('security.twoFactor.codeIncorrect'))
     }
   }
   finally {
@@ -158,20 +162,20 @@ async function finishRecoveryCodes() {
   await loadStatus()
 }
 
-async function copyToClipboard(text: string, message = 'Copié.') {
+async function copyToClipboard(text: string, message = t('security.twoFactor.recoveryCodes.copyGeneric')) {
   try {
     await window.navigator.clipboard.writeText(text)
     toast.success(message)
   }
   catch {
-    toast.error('Impossible de copier.')
+    toast.error(t('security.twoFactor.recoveryCodes.copyFailed'))
   }
 }
 
 async function copyRecoveryCodes() {
   if (!recoveryCodesShown.value) return
   const text = recoveryCodesShown.value.join('\n')
-  await copyToClipboard(text, 'Codes copiés.')
+  await copyToClipboard(text, t('security.twoFactor.recoveryCodes.copySuccess'))
 }
 
 async function downloadRecoveryCodes() {
@@ -181,7 +185,7 @@ async function downloadRecoveryCodes() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = 'codes-secours-webmail.txt'
+  a.download = t('security.twoFactor.recoveryCodes.filename')
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
@@ -191,7 +195,7 @@ async function downloadRecoveryCodes() {
 async function regenerateRecoveryCodes() {
   regenerateError.value = ''
   if (!regenerateCode.value) {
-    regenerateError.value = 'Entrez votre code TOTP ou un code de secours.'
+    regenerateError.value = t('security.twoFactor.regenerateDialog.enterCode')
     return
   }
 
@@ -215,7 +219,7 @@ async function regenerateRecoveryCodes() {
     }
     else {
       regenerateError.value =
-        errorText(err, 'Code incorrect.')
+        errorText(err, t('security.twoFactor.codeIncorrect'))
     }
   }
   finally {
@@ -226,7 +230,7 @@ async function regenerateRecoveryCodes() {
 async function disableTwoFactor() {
   disableError.value = ''
   if (!disableCode.value) {
-    disableError.value = 'Entrez votre code TOTP ou un code de secours.'
+    disableError.value = t('security.twoFactor.disableDialog.enterCode')
     return
   }
 
@@ -250,7 +254,7 @@ async function disableTwoFactor() {
     }
     else {
       disableError.value =
-        errorText(err, 'Code incorrect.')
+        errorText(err, t('security.twoFactor.codeIncorrect'))
     }
   }
 }
@@ -267,25 +271,25 @@ onMounted(() => {
     <!-- Dernière connexion et activité récente (R2.6) -->
     <div class="space-y-4">
       <div>
-        <h3 class="font-heading text-xl font-medium">Dernière connexion</h3>
+        <h3 class="font-heading text-xl font-medium">{{ t('security.lastLogin.title') }}</h3>
         <div v-if="activityLoading" class="mt-2"><Skeleton class="h-10 w-full" /></div>
         <p v-else-if="activity?.lastLogin" class="mt-2 text-sm text-muted-foreground">
-          {{ formatEventDate(activity.lastLogin.at) }} depuis {{ activity.lastLogin.ip }} — {{ activity.lastLogin.userAgent }}
+          {{ t('security.lastLogin.info', { date: formatEventDate(activity.lastLogin.at), ip: activity.lastLogin.ip, userAgent: activity.lastLogin.userAgent }) }}
         </p>
-        <p v-else class="mt-2 text-sm text-muted-foreground">Aucune information disponible.</p>
+        <p v-else class="mt-2 text-sm text-muted-foreground">{{ t('security.lastLogin.empty') }}</p>
       </div>
 
       <div>
-        <h3 class="font-heading text-xl font-medium">Activité récente</h3>
+        <h3 class="font-heading text-xl font-medium">{{ t('security.recentActivity.title') }}</h3>
         <div v-if="activityLoading" class="mt-2 space-y-2">
           <Skeleton class="h-10 w-full" />
           <Skeleton class="h-10 w-full" />
         </div>
-        <p v-else-if="!activity?.recent.length" class="mt-2 text-sm text-muted-foreground">Aucune activité récente.</p>
+        <p v-else-if="!activity?.recent.length" class="mt-2 text-sm text-muted-foreground">{{ t('security.recentActivity.empty') }}</p>
         <ul v-else class="mt-2 flex flex-col gap-2">
           <li v-for="(event, i) in activity.recent" :key="i" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-4 py-2 text-sm">
-            <span>{{ formatEventDate(event.at) }} — {{ event.ip }} — {{ event.userAgent }}</span>
-            <Badge :variant="event.success ? 'secondary' : 'destructive'">{{ event.success ? 'Réussie' : 'Échouée' }}</Badge>
+            <span>{{ t('security.recentActivity.entry', { date: formatEventDate(event.at), ip: event.ip, userAgent: event.userAgent }) }}</span>
+            <Badge :variant="event.success ? 'secondary' : 'destructive'">{{ event.success ? t('security.recentActivity.success') : t('security.recentActivity.failed') }}</Badge>
           </li>
         </ul>
       </div>
@@ -294,10 +298,10 @@ onMounted(() => {
     <!-- Sessions actives (R2.6) -->
     <div class="space-y-4 border-t border-border pt-8">
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <h3 class="font-heading text-xl font-medium">Sessions actives</h3>
+        <h3 class="font-heading text-xl font-medium">{{ t('security.sessions.title') }}</h3>
         <Button variant="outline" class="h-11 rounded-lg px-5" :disabled="sessionsLoading || sessions.length <= 1" @click="revokeOthersDialog = true">
           <LogOut class="size-4" aria-hidden="true" />
-          Déconnecter les autres sessions
+          {{ t('security.sessions.revokeOthers') }}
         </Button>
       </div>
       <div v-if="sessionsLoading" class="space-y-2">
@@ -307,23 +311,23 @@ onMounted(() => {
       <ul v-else class="flex flex-col gap-2">
         <li v-for="s in sessions" :key="s.id" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-4 py-2 text-sm">
           <span>
-            {{ s.userAgent }} — {{ s.ip }}
-            <span class="text-muted-foreground">— vue {{ formatEventDate(s.lastSeenAt) }}</span>
+            {{ t('security.sessions.entry', { userAgent: s.userAgent, ip: s.ip }) }}
+            <span class="text-muted-foreground">{{ t('security.sessions.lastSeen', { date: formatEventDate(s.lastSeenAt) }) }}</span>
           </span>
-          <Badge v-if="s.current" variant="secondary">Session actuelle</Badge>
+          <Badge v-if="s.current" variant="secondary">{{ t('security.sessions.current') }}</Badge>
         </li>
       </ul>
 
       <AlertDialog v-model:open="revokeOthersDialog">
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Déconnecter les autres sessions ?</AlertDialogTitle>
-            <AlertDialogDescription>Tous les autres appareils connectés à ce compte seront déconnectés.</AlertDialogDescription>
+            <AlertDialogTitle>{{ t('security.sessions.confirmTitle') }}</AlertDialogTitle>
+            <AlertDialogDescription>{{ t('security.sessions.confirmDescription') }}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{{ t('common.cancel') }}</AlertDialogCancel>
             <AlertDialogAction :disabled="revoking" @click="revokeOtherSessions">
-              {{ revoking ? 'Déconnexion…' : 'Déconnecter les autres sessions' }}
+              {{ revoking ? t('security.sessions.revoking') : t('security.sessions.revokeOthers') }}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -333,7 +337,7 @@ onMounted(() => {
     <!-- Double authentification -->
     <div class="space-y-6 border-t border-border pt-8">
     <p class="text-sm text-muted-foreground">
-      La double authentification protège le webmail. Les logiciels de messagerie (Thunderbird, téléphone) utilisent toujours le mot de passe seul.
+      {{ t('security.twoFactor.intro') }}
     </p>
 
     <!-- Loading -->
@@ -346,10 +350,10 @@ onMounted(() => {
     <div v-else-if="!status?.enabled && !setup && !recoveryCodesShown">
       <div class="space-y-4">
         <p class="text-sm text-foreground">
-          La double authentification ajoute une couche de sécurité à votre compte. Vos identifiants volés ne suffisent plus pour accéder à votre messagerie.
+          {{ t('security.twoFactor.disabledDescription') }}
         </p>
         <Button @click="initSetup">
-          Activer la double authentification
+          {{ t('security.twoFactor.enable') }}
         </Button>
       </div>
     </div>
@@ -357,21 +361,21 @@ onMounted(() => {
     <!-- Setup step 1: QR code -->
     <div v-else-if="setup && !recoveryCodesShown" class="space-y-6">
       <div class="space-y-2">
-        <h3 class="font-heading text-xl font-medium">Étape 1 : Scanner le QR code</h3>
+        <h3 class="font-heading text-xl font-medium">{{ t('security.twoFactor.setup.step1Title') }}</h3>
         <p class="text-sm text-muted-foreground">
-          Scannez ce QR code avec une application d'authentification (Aegis, FreeOTP, Google Authenticator…)
+          {{ t('security.twoFactor.setup.scanHint') }}
         </p>
       </div>
 
       <!-- QR code rendu en <img> (data:) : un SVG chargé comme image ne peut exécuter aucun script. -->
       <div class="flex justify-center rounded-lg bg-white p-4">
-        <img :src="`data:image/svg+xml;charset=utf-8,${encodeURIComponent(setup.qrSvg)}`" alt="QR code de configuration de la double authentification" class="size-56">
+        <img :src="`data:image/svg+xml;charset=utf-8,${encodeURIComponent(setup.qrSvg)}`" :alt="t('security.twoFactor.setup.qrAlt')" class="size-56">
       </div>
 
       <!-- Secret for manual entry -->
       <div class="space-y-3">
         <p class="text-sm text-muted-foreground">
-          Ou entrez cette clé manuellement :
+          {{ t('security.twoFactor.setup.manualEntry') }}
         </p>
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
           <code class="flex-1 break-all rounded-lg border border-border bg-surface-panel px-3 py-2 text-sm font-mono">
@@ -380,16 +384,16 @@ onMounted(() => {
           <Button
             variant="outline"
             size="sm"
-            @click="async () => setup && await copyToClipboard(setup.secret, 'Clé copiée.')"
+            @click="async () => setup && await copyToClipboard(setup.secret, t('security.twoFactor.setup.copyKeySuccess'))"
           >
-            Copier
+            {{ t('security.twoFactor.setup.copyKey') }}
           </Button>
         </div>
       </div>
 
       <!-- Confirmation code input -->
       <div class="space-y-3">
-        <Label for="confirm-code" class="text-base font-medium">Entrez le code de confirmation</Label>
+        <Label for="confirm-code" class="text-base font-medium">{{ t('security.twoFactor.setup.confirmLabel') }}</Label>
         <Input
           id="confirm-code"
           v-model="confirmCode"
@@ -397,7 +401,7 @@ onMounted(() => {
           inputmode="numeric"
           autocomplete="one-time-code"
           maxlength="7"
-          placeholder="000000"
+          :placeholder="t('security.twoFactor.codePlaceholder')"
           class="text-base"
         />
         <p v-if="confirmError" role="alert" class="text-sm font-medium text-destructive">
@@ -410,13 +414,13 @@ onMounted(() => {
           variant="outline"
           @click="setup = null; confirmCode = ''"
         >
-          Annuler
+          {{ t('security.twoFactor.setup.cancel') }}
         </Button>
         <Button
           :disabled="!confirmCode || isConfirming"
           @click="confirmSetup"
         >
-          {{ isConfirming ? 'Vérification...' : 'Confirmer' }}
+          {{ isConfirming ? t('security.twoFactor.setup.confirming') : t('security.twoFactor.setup.confirm') }}
         </Button>
       </div>
     </div>
@@ -424,9 +428,9 @@ onMounted(() => {
     <!-- Recovery codes display -->
     <div v-else-if="recoveryCodesShown" class="space-y-6">
       <div class="space-y-2">
-        <h3 class="font-heading text-xl font-medium">Codes de secours</h3>
+        <h3 class="font-heading text-xl font-medium">{{ t('security.twoFactor.recoveryCodes.title') }}</h3>
         <div class="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
-          <strong>Important :</strong> Ces codes ne s'afficheront qu'une seule fois. Enregistrez-les dans un endroit sûr.
+          <strong>{{ t('security.twoFactor.recoveryCodes.important') }}</strong> {{ t('security.twoFactor.recoveryCodes.onceOnly') }}
         </div>
       </div>
 
@@ -441,16 +445,16 @@ onMounted(() => {
           variant="outline"
           @click="copyRecoveryCodes"
         >
-          Copier les codes
+          {{ t('security.twoFactor.recoveryCodes.copy') }}
         </Button>
         <Button
           variant="outline"
           @click="downloadRecoveryCodes"
         >
-          Télécharger (.txt)
+          {{ t('security.twoFactor.recoveryCodes.download') }}
         </Button>
         <Button @click="finishRecoveryCodes">
-          J'ai enregistré mes codes
+          {{ t('security.twoFactor.recoveryCodes.saved') }}
         </Button>
       </div>
     </div>
@@ -458,12 +462,12 @@ onMounted(() => {
     <!-- Enabled state -->
     <div v-else-if="status?.enabled" class="space-y-6">
       <div class="rounded-lg border border-border bg-surface-panel p-4">
-        <p class="text-sm font-medium">Double authentification : <span class="text-primary">Activée</span></p>
+        <p class="text-sm font-medium">{{ t('security.twoFactor.enabled.label') }}<span class="text-primary">{{ t('security.twoFactor.enabled.active') }}</span></p>
         <p class="mt-2 text-sm text-muted-foreground">
-          {{ status.recoveryCodesLeft }} code{{ status.recoveryCodesLeft !== 1 ? 's' : '' }} de secours restant{{ status.recoveryCodesLeft !== 1 ? 's' : '' }}
+          {{ t('security.twoFactor.enabled.codesLeft', { n: status.recoveryCodesLeft, suffix: recoveryCodesSuffix }) }}
         </p>
         <div v-if="status.recoveryCodesLeft <= 3" class="mt-3 rounded-lg border border-destructive/50 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-          Vous devriez régénérer vos codes de secours.
+          {{ t('security.twoFactor.enabled.lowWarning') }}
         </div>
       </div>
 
@@ -471,14 +475,14 @@ onMounted(() => {
       <Dialog v-model:open="regenerateDialog">
         <DialogContent class="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Régénérer les codes de secours</DialogTitle>
+            <DialogTitle>{{ t('security.twoFactor.regenerateDialog.title') }}</DialogTitle>
             <DialogDescription>
-              Entrez votre code TOTP ou un code de secours actuel.
+              {{ t('security.twoFactor.regenerateDialog.description') }}
             </DialogDescription>
           </DialogHeader>
           <div class="space-y-3">
             <div class="space-y-2">
-              <Label for="regenerate-code" class="text-sm font-medium">Code TOTP ou code de secours</Label>
+              <Label for="regenerate-code" class="text-sm font-medium">{{ t('security.twoFactor.regenerateDialog.label') }}</Label>
               <Input
                 id="regenerate-code"
                 v-model="regenerateCode"
@@ -486,7 +490,7 @@ onMounted(() => {
                 inputmode="numeric"
                 autocomplete="one-time-code"
                 maxlength="7"
-                placeholder="000000"
+                :placeholder="t('security.twoFactor.codePlaceholder')"
               />
               <p v-if="regenerateError" role="alert" class="text-sm font-medium text-destructive">
                 {{ regenerateError }}
@@ -498,13 +502,13 @@ onMounted(() => {
               variant="outline"
               @click="regenerateDialog = false; regenerateCode = ''"
             >
-              Annuler
+              {{ t('security.twoFactor.regenerateDialog.cancel') }}
             </Button>
             <Button
               :disabled="!regenerateCode || isRegenerating"
               @click="regenerateRecoveryCodes"
             >
-              {{ isRegenerating ? 'Génération...' : 'Régénérer' }}
+              {{ isRegenerating ? t('security.twoFactor.regenerateDialog.generating') : t('security.twoFactor.regenerateDialog.confirm') }}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -514,14 +518,14 @@ onMounted(() => {
       <AlertDialog v-model:open="disableDialog">
         <AlertDialogContent class="sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Désactiver la double authentification ?</AlertDialogTitle>
+            <AlertDialogTitle>{{ t('security.twoFactor.disableDialog.title') }}</AlertDialogTitle>
             <AlertDialogDescription>
-              Votre compte sera moins sécurisé. Vous pourrez la réactiver à tout moment.
+              {{ t('security.twoFactor.disableDialog.description') }}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div class="space-y-3">
             <div class="space-y-2">
-              <Label for="disable-code" class="text-sm font-medium">Code TOTP ou code de secours</Label>
+              <Label for="disable-code" class="text-sm font-medium">{{ t('security.twoFactor.disableDialog.label') }}</Label>
               <Input
                 id="disable-code"
                 v-model="disableCode"
@@ -529,7 +533,7 @@ onMounted(() => {
                 inputmode="numeric"
                 autocomplete="one-time-code"
                 maxlength="7"
-                placeholder="000000"
+                :placeholder="t('security.twoFactor.codePlaceholder')"
               />
               <p v-if="disableError" role="alert" class="text-sm font-medium text-destructive">
                 {{ disableError }}
@@ -538,14 +542,14 @@ onMounted(() => {
           </div>
           <AlertDialogFooter class="sm:justify-end">
             <AlertDialogCancel @click="disableCode = ''">
-              Annuler
+              {{ t('security.twoFactor.disableDialog.cancel') }}
             </AlertDialogCancel>
             <Button
               variant="destructive"
               :disabled="!disableCode"
               @click="disableTwoFactor"
             >
-              Désactiver
+              {{ t('security.twoFactor.disableDialog.confirm') }}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -556,13 +560,13 @@ onMounted(() => {
           variant="outline"
           @click="regenerateDialog = true"
         >
-          Régénérer les codes de secours
+          {{ t('security.twoFactor.enabled.regenerate') }}
         </Button>
         <Button
           variant="destructive"
           @click="disableDialog = true"
         >
-          Désactiver
+          {{ t('security.twoFactor.enabled.disable') }}
         </Button>
       </div>
     </div>

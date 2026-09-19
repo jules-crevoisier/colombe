@@ -4,6 +4,7 @@ import { OutgoingImageError } from '../lib/mail/sanitize-outgoing'
 import { requireMail } from '../utils/mail-session'
 import { useDb } from '../lib/store/db'
 import type { Prefs } from '#shared/types/mail'
+import { localizedErrorMessage } from '../lib/i18n'
 
 const specialFoldersSchema = z.object({
   sent: z.string().max(512),
@@ -38,6 +39,7 @@ const updateSchema = z.object({
   idleMinutes: z.union([z.literal(15), z.literal(30), z.literal(60), z.literal(120)]).optional(),
   threadList: z.boolean().optional(),
   welcomed: z.boolean().optional(),
+  language: z.enum(['auto', 'fr', 'en']).optional(),
 }).strict()
 
 export default defineEventHandler(async (event): Promise<Prefs> => {
@@ -48,7 +50,7 @@ export default defineEventHandler(async (event): Promise<Prefs> => {
     return savePrefs(db, email, body as Partial<Prefs>)
   }
   catch (err) {
-    if (err instanceof OutgoingImageError) throw createError({ statusCode: 400, statusMessage: 'Image invalide', message: err.message })
+    if (err instanceof OutgoingImageError) throw createError({ statusCode: 400, statusMessage: 'Image invalide', message: localizedErrorMessage(event, err) })
     throw err
   }
 })

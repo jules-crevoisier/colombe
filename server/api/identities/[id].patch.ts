@@ -4,6 +4,7 @@ import { IdentityNotFoundError, updateIdentity } from '../../lib/store/identitie
 import { OutgoingImageError } from '../../lib/mail/sanitize-outgoing'
 import { requireMail } from '../../utils/mail-session'
 import { useDb } from '../../lib/store/db'
+import { localizedErrorMessage } from '../../lib/i18n'
 
 const paramsSchema = z.object({
   id: z.coerce.number().int().positive(),
@@ -27,8 +28,8 @@ export default defineEventHandler(async (event): Promise<Identity> => {
     return updateIdentity(db, email, id, body as Partial<IdentityInput>)
   }
   catch (err) {
-    if (err instanceof IdentityNotFoundError) throw createError({ statusCode: 404, statusMessage: 'Identité introuvable', message: err.message })
-    if (err instanceof OutgoingImageError) throw createError({ statusCode: 400, statusMessage: 'Image invalide', message: err.message })
+    if (err instanceof IdentityNotFoundError) throw createError({ statusCode: 404, statusMessage: 'Identité introuvable', message: localizedErrorMessage(event, err) })
+    if (err instanceof OutgoingImageError) throw createError({ statusCode: 400, statusMessage: 'Image invalide', message: localizedErrorMessage(event, err) })
     throw err
   }
 })

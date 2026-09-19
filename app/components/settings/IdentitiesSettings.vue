@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import { Plus, Star } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import type { Identity, IdentityInput } from '#shared/types/mail'
 
 const MAX_IDENTITIES = 20
 const MAX_SIGNATURE_IMAGES = 3
 
 const api = useSettingsApi()
+const { t } = useI18n()
 
 const identities = ref<Identity[]>([])
 const loading = ref(true)
@@ -33,7 +35,7 @@ async function load() {
     if (def) select(def.id)
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de charger les identités.'))
+    toast.error(errorText(err, t('settings.identities.loadError')))
   }
   finally {
     loading.value = false
@@ -63,7 +65,7 @@ function startCreate() {
 
 async function save() {
   if (!form.name.trim()) {
-    toast.error('Entrez un nom affiché.')
+    toast.error(t('settings.identities.form.nameRequired'))
     return
   }
   saving.value = true
@@ -73,7 +75,7 @@ async function save() {
       identities.value.push(created)
       creating.value = false
       selectedId.value = created.id
-      toast.success('Identité créée.')
+      toast.success(t('settings.identities.created'))
     }
     else if (selectedId.value != null) {
       const updated = await api.updateIdentity(selectedId.value, { ...form })
@@ -85,11 +87,11 @@ async function save() {
           if (i.id !== updated.id) i.isDefault = false
         }
       }
-      toast.success('Identité enregistrée.')
+      toast.success(t('settings.identities.saved'))
     }
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible d\'enregistrer l\'identité.'))
+    toast.error(errorText(err, t('settings.identities.saveError')))
   }
   finally {
     saving.value = false
@@ -104,11 +106,11 @@ async function confirmDelete() {
     deleteDialogOpen.value = false
     const next = identities.value.find(i => i.isDefault) ?? identities.value[0] ?? null
     if (next) select(next.id)
-    toast.success('Identité supprimée.')
+    toast.success(t('settings.identities.deleted'))
   }
   catch (err) {
     deleteDialogOpen.value = false
-    toast.error(errorText(err, 'Impossible de supprimer cette identité.'))
+    toast.error(errorText(err, t('settings.identities.deleteError')))
   }
 }
 
@@ -124,7 +126,7 @@ onMounted(load)
 
     <template v-else>
       <div class="flex flex-col gap-2">
-        <ul aria-label="Identités" class="flex flex-col gap-2">
+        <ul :aria-label="t('settings.identities.listLabel')" class="flex flex-col gap-2">
           <li v-for="identity in identities" :key="identity.id">
             <button
               type="button"
@@ -137,56 +139,56 @@ onMounted(load)
                 <span class="block truncate text-sm font-medium">{{ identity.name || identity.email }}</span>
                 <span class="block truncate text-xs text-muted-foreground">{{ identity.email }}</span>
               </span>
-              <Star v-if="identity.isDefault" class="size-4 shrink-0 fill-current text-primary" role="img" aria-label="Identité par défaut" />
+              <Star v-if="identity.isDefault" class="size-4 shrink-0 fill-current text-primary" role="img" :aria-label="t('settings.identities.default')" />
             </button>
           </li>
         </ul>
 
         <Button variant="outline" class="h-11 justify-start rounded-lg" :disabled="!canAdd" @click="startCreate">
           <Plus class="size-4" aria-hidden="true" />
-          Ajouter une identité
+          {{ t('settings.identities.add') }}
         </Button>
-        <p v-if="!canAdd" class="text-xs text-muted-foreground">Limite de {{ MAX_IDENTITIES }} identités atteinte.</p>
+        <p v-if="!canAdd" class="text-xs text-muted-foreground">{{ t('settings.identities.limitReached', { n: MAX_IDENTITIES }) }}</p>
       </div>
 
       <form v-if="creating || selected" class="flex flex-col gap-6 rounded-xl border border-border p-4" @submit.prevent="save">
         <div class="grid gap-4 sm:grid-cols-2">
           <div class="space-y-2">
-            <Label for="identity-name">Nom affiché</Label>
+            <Label for="identity-name">{{ t('settings.identities.form.displayName') }}</Label>
             <Input id="identity-name" v-model="form.name" class="h-11 text-base" required />
           </div>
           <div class="space-y-2">
-            <Label for="identity-reply-to">Répondre à</Label>
+            <Label for="identity-reply-to">{{ t('settings.identities.form.replyTo') }}</Label>
             <Input id="identity-reply-to" v-model="form.replyTo" type="email" class="h-11 text-base" />
           </div>
           <div class="space-y-2">
-            <Label for="identity-bcc">Copie cachée automatique</Label>
+            <Label for="identity-bcc">{{ t('settings.identities.form.bcc') }}</Label>
             <Input id="identity-bcc" v-model="form.bcc" type="email" class="h-11 text-base" />
           </div>
           <div class="space-y-2">
-            <Label for="identity-organization">Organisation</Label>
+            <Label for="identity-organization">{{ t('settings.identities.form.organization') }}</Label>
             <Input id="identity-organization" v-model="form.organization" class="h-11 text-base" />
           </div>
         </div>
 
         <div class="space-y-2">
-          <Label for="identity-signature">Signature</Label>
+          <Label for="identity-signature">{{ t('settings.identities.form.signature') }}</Label>
           <div class="flex min-h-56 flex-col overflow-hidden rounded-xl border border-border bg-surface-panel focus-within:ring-2 focus-within:ring-ring">
-            <MailRichEditor id="identity-signature" v-model:html="form.signatureHtml" label="Signature" :max-images="MAX_SIGNATURE_IMAGES" placeholder="Prénom Nom — fonction, service, téléphone…" />
+            <MailRichEditor id="identity-signature" v-model:html="form.signatureHtml" :label="t('settings.identities.form.signature')" :max-images="MAX_SIGNATURE_IMAGES" :placeholder="t('settings.identities.form.signaturePlaceholder')" />
           </div>
         </div>
 
         <label class="flex min-h-11 cursor-pointer items-center gap-3">
           <Checkbox :model-value="form.isDefault" @update:model-value="(v) => form.isDefault = v === true" />
-          Identité par défaut
+          {{ t('settings.identities.default') }}
         </label>
 
         <div class="flex flex-wrap items-center justify-end gap-3">
           <Button v-if="canDelete" type="button" variant="destructive" class="h-11 rounded-lg px-6" @click="deleteDialogOpen = true">
-            Supprimer l'identité
+            {{ t('settings.identities.delete') }}
           </Button>
           <Button type="submit" class="h-11 rounded-lg px-6" :disabled="saving">
-            {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
+            {{ saving ? t('common.saving') : t('common.save') }}
           </Button>
         </div>
       </form>
@@ -194,12 +196,12 @@ onMounted(load)
       <AlertDialog v-model:open="deleteDialogOpen">
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer cette identité ?</AlertDialogTitle>
-            <AlertDialogDescription>Cette action est définitive.</AlertDialogDescription>
+            <AlertDialogTitle>{{ t('settings.identities.deleteConfirmTitle') }}</AlertDialogTitle>
+            <AlertDialogDescription>{{ t('settings.identities.deleteConfirmDescription') }}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction @click="confirmDelete">Supprimer l'identité</AlertDialogAction>
+            <AlertDialogCancel>{{ t('common.cancel') }}</AlertDialogCancel>
+            <AlertDialogAction @click="confirmDelete">{{ t('settings.identities.delete') }}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

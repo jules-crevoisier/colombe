@@ -4,6 +4,7 @@ import nodemailer from 'nodemailer'
 import type { Transporter } from 'nodemailer'
 import type { SMTPTransportOptions } from 'nodemailer/lib/smtp-transport'
 import type { Address, Folder, FolderSize, MessageSummary, QuotaInfo, SearchField, SortKey, SpecialUse } from '#shared/types/mail'
+import { NO_SUBJECT } from '#shared/types/mail'
 import { MailError } from './backend'
 import { imapAuth, smtpAuth } from './sasl'
 import type {
@@ -182,7 +183,7 @@ function toSummary(uid: number, folder: string, m: FetchMessageObject, preview: 
   return {
     uid,
     folder,
-    subject: env?.subject?.trim() || '(sans objet)',
+    subject: env?.subject?.trim() || NO_SUBJECT,
     from: toAddresses(env?.from)[0] ?? null,
     to: toAddresses(env?.to),
     date: toIso(env?.date ?? m.internalDate),

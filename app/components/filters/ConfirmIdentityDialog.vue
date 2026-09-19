@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { SecurityConfirmation, TwoFactorStatus } from '#shared/types/mail'
+
+const { t } = useI18n()
 
 /**
  * « Confirmez votre identité » (docs/dev/PLAN-v4.md section F) : demandée avant toute
@@ -36,7 +39,7 @@ let resolveRequest: ((value: SecurityConfirmation) => void) | null = null
 let rejectRequest: ((reason: unknown) => void) | null = null
 
 class ConfirmCancelled extends Error {
-  constructor() { super('Confirmation annulée') ; this.name = 'ConfirmCancelled' }
+  constructor() { super(t('filters.confirmIdentity.cancelledError')) ; this.name = 'ConfirmCancelled' }
 }
 
 async function loadTwoFactorStatus(): Promise<void> {
@@ -108,7 +111,7 @@ async function withConfirmation<T>(action: (confirm?: SecurityConfirmation) => P
       }
       catch (err2) {
         if (statusOf(err2) !== 403) throw err2
-        message = ssoSession.value && !twoFactorEnabled.value ? 'Confirmation expirée : confirmez à nouveau.' : 'Mot de passe ou code incorrect.'
+        message = ssoSession.value && !twoFactorEnabled.value ? t('filters.confirmIdentity.errors.ssoExpired') : t('filters.confirmIdentity.errors.badCode')
       }
     }
   }
@@ -121,26 +124,26 @@ defineExpose({ request, withConfirmation })
   <Dialog v-model:open="open" @update:open="(v: boolean) => { if (!v) cancel() }">
     <DialogContent class="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-sm">
       <DialogHeader>
-        <DialogTitle>Confirmez votre identité</DialogTitle>
+        <DialogTitle>{{ t('filters.confirmIdentity.title') }}</DialogTitle>
         <DialogDescription>
-          Cette action modifie une redirection ou un transfert : confirmez pour continuer.
+          {{ t('filters.confirmIdentity.description') }}
         </DialogDescription>
       </DialogHeader>
       <div v-if="ssoSession && !twoFactorEnabled" class="space-y-4">
         <p class="text-sm text-muted-foreground">
-          Vous allez vous identifier à nouveau auprès de votre établissement, puis revenir ici. Enregistrez ensuite votre modification une nouvelle fois.
+          {{ t('filters.confirmIdentity.ssoInfo') }}
         </p>
         <p v-if="error" role="alert" class="text-sm font-medium text-destructive">{{ error }}</p>
         <DialogFooter class="gap-2 sm:justify-end">
-          <Button type="button" variant="outline" class="h-11 rounded-lg px-6" @click="cancel">Annuler</Button>
+          <Button type="button" variant="outline" class="h-11 rounded-lg px-6" @click="cancel">{{ t('common.cancel') }}</Button>
           <Button type="button" class="h-auto min-h-11 rounded-lg px-6 py-2 whitespace-normal" :disabled="redirecting || checkingStatus" @click="reauthenticate">
-            Confirmer avec mon compte de l’établissement
+            {{ t('filters.confirmIdentity.reauthenticate') }}
           </Button>
         </DialogFooter>
       </div>
       <form v-else class="space-y-4" @submit.prevent="submit">
         <div v-if="!twoFactorEnabled" class="space-y-2">
-          <Label for="confirm-identity-password">Mot de passe</Label>
+          <Label for="confirm-identity-password">{{ t('filters.confirmIdentity.passwordLabel') }}</Label>
           <Input
             id="confirm-identity-password"
             v-model="password"
@@ -151,7 +154,7 @@ defineExpose({ request, withConfirmation })
           />
         </div>
         <div v-else class="space-y-2">
-          <Label for="confirm-identity-totp">Code de vérification</Label>
+          <Label for="confirm-identity-totp">{{ t('login.totpCodeLabel') }}</Label>
           <Input
             id="confirm-identity-totp"
             v-model="totpCode"
@@ -159,14 +162,14 @@ defineExpose({ request, withConfirmation })
             inputmode="numeric"
             autocomplete="one-time-code"
             maxlength="7"
-            placeholder="000000"
+            :placeholder="t('filters.confirmIdentity.codePlaceholder')"
             class="h-11 text-base"
           />
         </div>
         <p v-if="error" role="alert" class="text-sm font-medium text-destructive">{{ error }}</p>
         <DialogFooter class="gap-2 sm:justify-end">
-          <Button type="button" variant="outline" class="h-11 rounded-lg px-6" @click="cancel">Annuler</Button>
-          <Button type="submit" class="h-11 rounded-lg px-6">Confirmer</Button>
+          <Button type="button" variant="outline" class="h-11 rounded-lg px-6" @click="cancel">{{ t('common.cancel') }}</Button>
+          <Button type="submit" class="h-11 rounded-lg px-6">{{ t('common.confirm') }}</Button>
         </DialogFooter>
       </form>
     </DialogContent>

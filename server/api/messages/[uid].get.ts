@@ -27,6 +27,6 @@ export default defineEventHandler(async (event): Promise<MessageDetail> => {
     return { ...detail, senderInContacts }
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

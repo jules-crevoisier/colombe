@@ -27,6 +27,6 @@ export default defineEventHandler(async (event) => {
     return null
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

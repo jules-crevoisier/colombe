@@ -6,6 +6,7 @@ import type { BackendKind } from '../lib/mail/index'
 import { getConfig } from '../lib/config'
 import { freshCredentials } from '../lib/auth/oidc/session'
 import { backendPool } from '../lib/session/pool'
+import { serverT, translate } from '../lib/i18n'
 
 export interface MailSession {
   email: string
@@ -72,7 +73,7 @@ export async function requireMail(event: H3Event): Promise<MailSession> {
 
   if (!user?.email || !secure?.sid || !creds || creds.email !== user.email) {
     await clearUserSession(event)
-    throw createError({ statusCode: 401, statusMessage: 'Session expirée', message: 'Session expirée' })
+    throw createError({ statusCode: 401, statusMessage: 'Session expirée', message: serverT(event, 'auth.sessionExpired') })
   }
 
   const { kind, server } = mailConfig(event)
@@ -83,19 +84,20 @@ export async function requireMail(event: H3Event): Promise<MailSession> {
 /**
  * Convertit une erreur en réponse HTTP sans fuite d'informations internes.
  * Les erreurs HTTP déjà formées (401, 400 de validation, 429…) sont conservées.
+ * Message dans la langue de la requête (Accept-Language), statusMessage en français.
  */
-export function mailError(err: unknown): H3Error {
+export function mailError(err: unknown, event?: H3Event): H3Error {
   if (isError(err)) return err
   if (err instanceof MailError) {
     const map = {
-      NOT_FOUND: [404, 'Élément introuvable'],
-      INVALID: [400, 'Requête invalide'],
-      AUTH_FAILED: [401, 'Authentification refusée par le serveur de messagerie'],
-      UNAVAILABLE: [503, 'Serveur de messagerie indisponible'],
+      NOT_FOUND: [404, 'mail.notFound'],
+      INVALID: [400, 'mail.invalid'],
+      AUTH_FAILED: [401, 'mail.authFailed'],
+      UNAVAILABLE: [503, 'mail.unavailable'],
     } as const
-    const [statusCode, message] = map[err.code]
-    return createError({ statusCode, statusMessage: message, message })
+    const [statusCode, key] = map[err.code]
+    return createError({ statusCode, statusMessage: translate('fr', key), message: serverT(event, key) })
   }
   console.error('[webmail] erreur inattendue', err instanceof Error ? err.name : typeof err)
-  return createError({ statusCode: 500, statusMessage: 'Erreur serveur', message: 'Erreur serveur' })
+  return createError({ statusCode: 500, statusMessage: 'Erreur serveur', message: serverT(event, 'server.error') })
 }

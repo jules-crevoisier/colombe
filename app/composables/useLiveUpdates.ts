@@ -1,4 +1,5 @@
 import type { LiveEvent } from '#shared/types/mail'
+import { i18n } from '~/lib/i18n'
 
 /**
  * Mises à jour en direct : écoute /api/events (SSE). À chaque changement de
@@ -28,7 +29,8 @@ export function useLiveUpdates() {
     ) {
       // Pas de contenu du message dans la notification : elle peut s'afficher écran verrouillé.
       const n = new Notification('Colombe', {
-        body: gained > 1 ? `${gained} nouveaux messages` : 'Nouveau message',
+        body: i18n.global.t('mail.notifications.newMessage', { n: gained }, gained),
+        // Identifiant technique (pas un texte visible) : signalé au relecteur pour la liste d'autorisation.
         tag: 'webmail-nouveau',
       })
       n.onclick = () => {

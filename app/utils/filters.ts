@@ -1,30 +1,31 @@
 import type { FilterAction, FilterCondition, FilterField, FilterOp, FilterRule } from '#shared/types/mail'
+import { i18n } from '~/lib/i18n'
 
-/** Libellés contractuels (docs/dev/PLAN-v4.md section F « Interface »). */
+/** Clés de traduction des champs (docs/dev/PLAN-v4.md section F « Interface »). */
 export const FIELD_LABELS: Record<FilterField, string> = {
-  'from': 'De',
-  'to-cc': 'À ou Cc',
-  'subject': 'Objet',
-  'size': 'Taille',
-  'header': 'En-tête…',
-  'body': 'Corps du message',
-  'date': 'Date de réception',
-  'spam': 'Niveau de spam',
+  'from': 'filters.fields.from',
+  'to-cc': 'filters.fields.toCc',
+  'subject': 'filters.fields.subject',
+  'size': 'filters.fields.size',
+  'header': 'filters.fields.header',
+  'body': 'filters.fields.body',
+  'date': 'filters.fields.date',
+  'spam': 'filters.fields.spam',
 }
 
 export const OP_LABELS: Record<FilterOp, string> = {
-  'contains': 'contient',
-  'not-contains': 'ne contient pas',
-  'is': 'est',
-  'is-not': "n'est pas",
-  'starts-with': 'commence par',
-  'matches': 'correspond à',
-  'over': 'plus grand que',
-  'under': 'plus petit que',
-  'count-over': 'plus de',
-  'value-over': 'valeur supérieure à',
-  'before': 'avant le',
-  'after': 'après le',
+  'contains': 'filters.ops.contains',
+  'not-contains': 'filters.ops.notContains',
+  'is': 'filters.ops.is',
+  'is-not': 'filters.ops.isNot',
+  'starts-with': 'filters.ops.startsWith',
+  'matches': 'filters.ops.matches',
+  'over': 'filters.ops.over',
+  'under': 'filters.ops.under',
+  'count-over': 'filters.ops.countOver',
+  'value-over': 'filters.ops.valueOver',
+  'before': 'filters.ops.before',
+  'after': 'filters.ops.after',
 }
 
 /** Opérateurs proposés selon le champ (docs/dev/PLAN-v4.md section F « Interface »). */
@@ -40,35 +41,38 @@ export const OPS_BY_FIELD: Record<FilterField, FilterOp[]> = {
 }
 
 function describeCondition(c: FilterCondition): string {
-  const label = c.field === 'header' ? (c.header?.trim() || 'En-tête') : FIELD_LABELS[c.field]
+  const { t } = i18n.global
+  const label = c.field === 'header' ? (c.header?.trim() || t('filters.fields.headerFallback')) : t(FIELD_LABELS[c.field])
   if (c.op === 'contains' && (c.field === 'from' || c.field === 'to-cc' || c.field === 'subject')) {
-    return `${label} : ${c.value}`
+    return t('filters.describe.conditionShort', { label, value: c.value })
   }
-  return `${label} ${OP_LABELS[c.op]} ${c.value}`
+  return t('filters.describe.conditionFull', { label, op: t(OP_LABELS[c.op]), value: c.value })
 }
 
 function describeAction(a: FilterAction, folderName: (path: string) => string): string {
+  const { t } = i18n.global
   switch (a.type) {
-    case 'move': return `Classer dans ${folderName(a.folder)}`
-    case 'copy': return `Copier vers ${folderName(a.folder)}`
-    case 'mark-read': return 'Marquer comme lu'
-    case 'flag': return 'Suivre'
-    case 'add-flag': return `Ajouter le mot-clé « ${a.flag} »`
-    case 'delete': return 'Supprimer'
-    case 'stop': return 'Arrêter les filtres suivants'
-    case 'redirect': return `Rediriger vers ${a.address}`
-    case 'reject': return 'Rejeter avec un message'
-    case 'add-header': return `Ajouter l'en-tête ${a.name}`
-    case 'notify': return `M'avertir à ${a.address}`
+    case 'move': return t('filters.describe.action.move', { folder: folderName(a.folder) })
+    case 'copy': return t('filters.describe.action.copy', { folder: folderName(a.folder) })
+    case 'mark-read': return t('filters.describe.action.markRead')
+    case 'flag': return t('filters.describe.action.flag')
+    case 'add-flag': return t('filters.describe.action.addFlag', { flag: a.flag })
+    case 'delete': return t('filters.describe.action.delete')
+    case 'stop': return t('filters.describe.action.stop')
+    case 'redirect': return t('filters.describe.action.redirect', { address: a.address })
+    case 'reject': return t('filters.describe.action.reject')
+    case 'add-header': return t('filters.describe.action.addHeader', { name: a.name })
+    case 'notify': return t('filters.describe.action.notify', { address: a.address })
     default: return ''
   }
 }
 
 /** Ligne lisible d'un filtre, ex. « De : scolarite@universite.example → Classer dans Projets, Marquer comme lu ». */
 export function describeRule(rule: FilterRule, folderName: (path: string) => string): string {
+  const { t } = i18n.global
   const conditions = rule.conditions.length
-    ? rule.conditions.map(describeCondition).join(rule.match === 'any' ? ' ou ' : ', ')
-    : 'Tous les messages'
+    ? rule.conditions.map(describeCondition).join(rule.match === 'any' ? t('filters.describe.anySeparator') : ', ')
+    : t('filters.common.allMessages')
   const actions = rule.actions.map(a => describeAction(a, folderName)).join(', ')
   return `${conditions} → ${actions}`
 }

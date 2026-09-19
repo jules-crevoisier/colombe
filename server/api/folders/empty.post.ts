@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { mailError, requireMail } from '../../utils/mail-session'
+import { serverT } from '../../lib/i18n'
 
 const bodySchema = z.object({
   folder: z.string().min(1).max(512),
@@ -14,7 +15,7 @@ export default defineEventHandler(async (event) => {
     const folders = await backend.listFolders()
     const folder = folders.find(f => f.path === body.folder)
     if (!folder || (folder.specialUse !== 'trash' && folder.specialUse !== 'junk')) {
-      throw createError({ statusCode: 400, statusMessage: 'Opération non autorisée', message: 'Seules les dossiers Corbeille et Spam peuvent être vidés' })
+      throw createError({ statusCode: 400, statusMessage: 'Opération non autorisée', message: serverT(event, 'folders.emptyOnlyTrashSpam') })
     }
 
     const uids = await backend.allUids(body.folder)
@@ -29,6 +30,6 @@ export default defineEventHandler(async (event) => {
     setResponseStatus(event, 204)
     return null
   } catch (err: unknown) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

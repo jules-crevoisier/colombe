@@ -2,10 +2,12 @@
 import { toast } from 'vue-sonner'
 import { ArrowLeft, Mail, Pencil, Trash2, UsersRound } from '@lucide/vue'
 import type { ContactDetail, ContactDetailInput, ContactGroup } from '#shared/types/mail'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ id: number, groups: ContactGroup[] }>()
 const emit = defineEmits<{ close: [], deleted: [], saved: [ContactDetail] }>()
 
+const { t } = useI18n()
 const api = useContactsApi()
 const compose = useComposeStore()
 
@@ -82,11 +84,11 @@ async function submitEdit(input: ContactDetailInput) {
     contact.value = await api.update(props.id, input)
     editing.value = false
     form.value = null
-    toast.success('Contact enregistré')
+    toast.success(t('contacts.detail.saved'))
     emit('saved', contact.value)
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible d\'enregistrer le contact.'))
+    toast.error(errorText(err, t('contacts.detail.saveFailed')))
   }
   finally {
     saving.value = false
@@ -97,11 +99,11 @@ async function confirmDelete() {
   deleteConfirm.value = false
   try {
     await api.remove(props.id)
-    toast('Contact supprimé')
+    toast(t('contacts.detail.deleted'))
     emit('deleted')
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de supprimer le contact.'))
+    toast.error(errorText(err, t('contacts.detail.deleteFailed')))
   }
 }
 
@@ -114,22 +116,19 @@ async function addToGroup(groupId: number) {
   try {
     await api.addToGroup(groupId, [props.id])
     if (contact.value) contact.value.groupIds = [...contact.value.groupIds, groupId]
-    toast.success('Contact ajouté au groupe')
+    toast.success(t('contacts.detail.addedToGroup'))
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible d\'ajouter au groupe.'))
+    toast.error(errorText(err, t('contacts.detail.addToGroupFailed')))
   }
 }
-
-const emailLabelText: Record<string, string> = { home: 'Domicile', work: 'Travail', other: 'Autre' }
-const phoneLabelText: Record<string, string> = { home: 'Domicile', work: 'Travail', mobile: 'Mobile', other: 'Autre' }
 </script>
 
 <template>
   <div class="flex h-full min-h-0 flex-col">
     <div class="flex h-14 shrink-0 items-center gap-1 border-b border-border px-2">
-      <MailIconButton :icon="ArrowLeft" label="Retour à la liste" class="lg:hidden" @click="emit('close')" />
-      <h2 class="min-w-0 flex-1 truncate px-2 font-heading text-xl font-medium">{{ contact?.name || 'Contact' }}</h2>
+      <MailIconButton :icon="ArrowLeft" :label="t('contacts.detail.back')" class="lg:hidden" @click="emit('close')" />
+      <h2 class="min-w-0 flex-1 truncate px-2 font-heading text-xl font-medium">{{ contact?.name || t('contacts.detail.fallbackName') }}</h2>
     </div>
 
     <div class="min-h-0 flex-1 overflow-y-auto p-4">
@@ -137,9 +136,9 @@ const phoneLabelText: Record<string, string> = { home: 'Domicile', work: 'Travai
         <Skeleton class="h-10 w-2/3" />
         <Skeleton class="h-24 w-full" />
       </div>
-      <p v-else-if="failed" role="alert" class="text-sm text-destructive">Impossible de charger ce contact.</p>
+      <p v-else-if="failed" role="alert" class="text-sm text-destructive">{{ t('contacts.detail.loadFailed') }}</p>
 
-      <ContactsContactForm v-else-if="editing && form" v-model="form" submit-label="Enregistrer" @submit="submitEdit" @cancel="cancelEdit" />
+      <ContactsContactForm v-else-if="editing && form" v-model="form" :submit-label="t('common.save')" @submit="submitEdit" @cancel="cancelEdit" />
 
       <template v-else-if="contact">
         <div class="flex items-start gap-3">
@@ -156,48 +155,48 @@ const phoneLabelText: Record<string, string> = { home: 'Domicile', work: 'Travai
 
         <div class="mt-4 flex flex-wrap gap-2">
           <Button variant="outline" class="h-11 rounded-lg px-4" @click="startEdit">
-            <Pencil class="size-4" aria-hidden="true" /> Modifier
+            <Pencil class="size-4" aria-hidden="true" /> {{ t('common.edit') }}
           </Button>
           <Button variant="outline" class="h-11 rounded-lg px-4" @click="writeMessage">
-            <Mail class="size-4" aria-hidden="true" /> Écrire un message
+            <Mail class="size-4" aria-hidden="true" /> {{ t('contacts.detail.writeMessage') }}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
               <Button variant="outline" class="h-11 rounded-lg px-4">
-                <UsersRound class="size-4" aria-hidden="true" /> Ajouter au groupe
+                <UsersRound class="size-4" aria-hidden="true" /> {{ t('contacts.detail.addToGroup') }}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuItem v-if="!availableGroups.length" disabled>Aucun groupe disponible</DropdownMenuItem>
+              <DropdownMenuItem v-if="!availableGroups.length" disabled>{{ t('contacts.detail.noGroupsAvailable') }}</DropdownMenuItem>
               <DropdownMenuItem v-for="g in availableGroups" :key="g.id" @select="addToGroup(g.id)">
                 {{ g.name }}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button variant="outline" class="h-11 rounded-lg px-4 text-destructive hover:text-destructive" @click="deleteConfirm = true">
-            <Trash2 class="size-4" aria-hidden="true" /> Supprimer
+            <Trash2 class="size-4" aria-hidden="true" /> {{ t('common.delete') }}
           </Button>
         </div>
 
         <dl class="mt-6 flex flex-col gap-3 text-sm">
           <div v-for="(email, i) in contact.emails" :key="`e${i}`" class="flex items-baseline gap-2">
-            <dt class="w-24 shrink-0 text-muted-foreground">{{ emailLabelText[email.label] }}</dt>
+            <dt class="w-24 shrink-0 text-muted-foreground">{{ t(`contacts.labels.${email.label}`) }}</dt>
             <dd class="break-all">{{ email.address }}</dd>
           </div>
           <div v-for="(phone, i) in contact.phones" :key="`p${i}`" class="flex items-baseline gap-2">
-            <dt class="w-24 shrink-0 text-muted-foreground">{{ phoneLabelText[phone.label] }}</dt>
+            <dt class="w-24 shrink-0 text-muted-foreground">{{ t(`contacts.labels.${phone.label}`) }}</dt>
             <dd>{{ phone.number }}</dd>
           </div>
           <div v-if="contact.address" class="flex items-baseline gap-2">
-            <dt class="w-24 shrink-0 text-muted-foreground">Adresse</dt>
+            <dt class="w-24 shrink-0 text-muted-foreground">{{ t('contacts.address') }}</dt>
             <dd>{{ [contact.address.street, contact.address.postalCode, contact.address.city, contact.address.country].filter(Boolean).join(', ') }}</dd>
           </div>
           <div v-if="contact.birthday" class="flex items-baseline gap-2">
-            <dt class="w-24 shrink-0 text-muted-foreground">Naissance</dt>
+            <dt class="w-24 shrink-0 text-muted-foreground">{{ t('contacts.detail.birthday') }}</dt>
             <dd>{{ contact.birthday }}</dd>
           </div>
           <div v-if="contact.notes" class="flex items-baseline gap-2">
-            <dt class="w-24 shrink-0 text-muted-foreground">Notes</dt>
+            <dt class="w-24 shrink-0 text-muted-foreground">{{ t('contacts.notes') }}</dt>
             <dd class="whitespace-pre-wrap">{{ contact.notes }}</dd>
           </div>
         </dl>
@@ -207,12 +206,12 @@ const phoneLabelText: Record<string, string> = { home: 'Domicile', work: 'Travai
     <AlertDialog :open="deleteConfirm" @update:open="(v: boolean) => { if (!v) deleteConfirm = false }">
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Supprimer ce contact ?</AlertDialogTitle>
-          <AlertDialogDescription>Cette action ne peut pas être annulée.</AlertDialogDescription>
+          <AlertDialogTitle>{{ t('contacts.detail.deleteConfirmTitle') }}</AlertDialogTitle>
+          <AlertDialogDescription>{{ t('contacts.detail.deleteConfirmDescription') }}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel class="h-11 rounded-lg">Annuler</AlertDialogCancel>
-          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmDelete">Supprimer</AlertDialogAction>
+          <AlertDialogCancel class="h-11 rounded-lg">{{ t('common.cancel') }}</AlertDialogCancel>
+          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmDelete">{{ t('common.delete') }}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

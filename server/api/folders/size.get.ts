@@ -12,6 +12,6 @@ export default defineEventHandler(async (event): Promise<FolderSize> => {
     return await backend.folderSize(path)
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

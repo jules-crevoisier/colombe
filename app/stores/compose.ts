@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import { toast } from 'vue-sonner'
 import type { ComposeAttachment, ComposePayload, Identity, MessageDetail, Priority, MessageRef } from '#shared/types/mail'
+import { NO_SUBJECT } from '#shared/types/mail'
+import { displaySubject } from '~/utils/subject'
+import { i18n, intlLocale } from '~/lib/i18n'
 
 /** Défaut si la configuration du serveur n'est pas encore chargée (COLOMBE_MAX_ATTACHMENTS_MB). */
 export const MAX_ATTACHMENTS_BYTES = 10 * 1024 * 1024
@@ -57,9 +60,10 @@ function emlFilename(subject: string): string {
 }
 
 function quoteHeader(msg: MessageDetail): string {
-  const date = new Date(msg.date).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })
-  const who = msg.from ? (msg.from.name ? `${msg.from.name} <${msg.from.address}>` : msg.from.address) : 'l’expéditeur'
-  return `Le ${date}, ${who} a écrit :`
+  const { t } = i18n.global
+  const date = new Date(msg.date).toLocaleString(intlLocale(), { dateStyle: 'full', timeStyle: 'short' })
+  const who = msg.from ? (msg.from.name ? `${msg.from.name} <${msg.from.address}>` : msg.from.address) : t('compose.quote.unknownSender')
+  return t('compose.quote.replyHeader', { date, who })
 }
 
 /** Corps cité : on repart du texte (jamais du HTML distant) pour ne rien réinjecter de l'e-mail d'origine. */
@@ -99,7 +103,7 @@ export const useComposeStore = defineStore('compose', {
   getters: {
     attachmentsBytes: state => state.attachments.reduce((sum, a) => sum + a.size, 0),
     isEmpty: state => !state.to.length && !state.cc.length && !state.bcc.length && !state.subject.trim() && !state.text.trim() && !state.attachments.length && !state.forwardAsAttachment.length,
-    title: state => state.subject.trim() || 'Nouveau message',
+    title: state => state.subject.trim() || i18n.global.t('compose.window.newMessage'),
     showIdentityPicker: state => state.identities.length > 1,
   },
 
@@ -232,7 +236,7 @@ export const useComposeStore = defineStore('compose', {
       return this.openWith({
         to,
         cc,
-        subject: buildReplySubject(msg.subject),
+        subject: buildReplySubject(displaySubject(msg.subject)),
         html: buildReplyHtml(msg, sig, replyPosition),
         inReplyTo: msg.messageId,
         references: [...msg.references, ...(msg.messageId ? [msg.messageId] : [])],
@@ -246,15 +250,16 @@ export const useComposeStore = defineStore('compose', {
       await this.ensureIdentities()
       const identityId = this.defaultIdentity()?.id ?? null
       const sig = this.signature(identityId)
+      const { t } = i18n.global
       const lines = [
-        '---------- Message transféré ----------',
-        `De : ${msg.from ? `${msg.from.name} <${msg.from.address}>`.trim() : ''}`,
-        `Date : ${new Date(msg.date).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })}`,
-        `Objet : ${msg.subject}`,
-        `À : ${msg.to.map(a => a.address).join(', ')}`,
+        t('compose.quote.forwardMarker'),
+        t('compose.quote.forwardFrom', { sender: msg.from ? `${msg.from.name} <${msg.from.address}>`.trim() : '' }),
+        t('compose.quote.forwardDate', { date: new Date(msg.date).toLocaleString(intlLocale(), { dateStyle: 'full', timeStyle: 'short' }) }),
+        t('compose.quote.forwardSubject', { subject: displaySubject(msg.subject) }),
+        t('compose.quote.forwardTo', { to: msg.to.map(a => a.address).join(', ') }),
       ]
       return this.openWith({
-        subject: buildForwardSubject(msg.subject),
+        subject: buildForwardSubject(displaySubject(msg.subject)),
         html: `<p></p>${sig}<p>${lines.map(escapeHtml).join('<br>')}</p>${quotedBody(msg)}`,
         origin: { folder: msg.folder, uid: msg.uid, kind: 'forward' },
         identityId,
@@ -268,7 +273,7 @@ export const useComposeStore = defineStore('compose', {
       const identityId = this.defaultIdentity()?.id ?? null
       const sig = this.signature(identityId)
       return this.openWith({
-        subject: buildForwardSubject(msg.subject),
+        subject: buildForwardSubject(displaySubject(msg.subject)),
         html: sig ? `<p></p>${sig}` : '',
         forwardAsAttachment: [{ folder: msg.folder, uid: msg.uid }],
         forwardAsAttachmentNames: [emlFilename(msg.subject)],
@@ -311,7 +316,7 @@ export const useComposeStore = defineStore('compose', {
         to: msg.to.map(a => a.address),
         cc: msg.cc.map(a => a.address),
         bcc: msg.bcc.map(a => a.address),
-        subject: msg.subject === '(sans objet)' ? '' : msg.subject,
+        subject: msg.subject === NO_SUBJECT ? '' : msg.subject,
         // Le HTML d'un brouillon a été produit par notre éditeur et assaini à la lecture.
         html: msg.html ?? textToHtml(msg.text ?? ''),
         text: msg.text ?? '',
@@ -356,7 +361,7 @@ export const useComposeStore = defineStore('compose', {
       cancelAutosave()
       if (this.dirty && !this.isEmpty) {
         const saved = await this.saveDraft()
-        if (saved) toast('Brouillon enregistré')
+        if (saved) toast(i18n.global.t('compose.toasts.draftSaved'))
       }
       this.reset()
       await useMailStore().loadFolders()
@@ -370,7 +375,7 @@ export const useComposeStore = defineStore('compose', {
         useMailCacheStore().removeMessages(drafts.path, [this.draftUid])
       }
       this.reset()
-      toast('Brouillon supprimé')
+      toast(i18n.global.t('compose.toasts.draftDiscarded'))
       await useMailStore().loadFolders()
     },
 
@@ -395,12 +400,12 @@ export const useComposeStore = defineStore('compose', {
             const drafts = mail.special('drafts')
             if (drafts) cache.removeMessages(drafts.path, [this.draftUid])
           }
-          toast.success('Message envoyé')
+          toast.success(i18n.global.t('compose.toasts.messageSent'))
           await mail.loadFolders()
           return true
         }
         catch (err) {
-          toast.error(errorText(err, 'L’envoi a échoué. Le message a été rouvert.'))
+          toast.error(errorText(err, i18n.global.t('compose.toasts.sendFailed')))
           await this.openWith(form)
           return false
         }
@@ -422,16 +427,16 @@ export const useComposeStore = defineStore('compose', {
         const timer = setTimeout(() => {
           void doSend().then(resolve)
         }, delay * 1000)
-        toast('Envoi en cours…', {
+        toast(i18n.global.t('compose.toasts.sendingInProgress'), {
           duration: delay * 1000,
           action: {
-            label: 'Annuler',
+            label: i18n.global.t('common.cancel'),
             onClick: () => {
               clearTimeout(timer)
               this.pendingSend = false
               void this.openWith(form).then(() => {
                 this.dirty = true
-                toast('Envoi annulé')
+                toast(i18n.global.t('compose.toasts.sendCancelled'))
               })
               resolve(false)
             },
@@ -444,7 +449,7 @@ export const useComposeStore = defineStore('compose', {
       const limit = useSiteConfig().config.value.limits.attachmentsBytes ?? MAX_ATTACHMENTS_BYTES
       for (const file of Array.from(files)) {
         if (this.attachmentsBytes + file.size > limit) {
-          toast.error(`« ${file.name} » dépasse la limite de ${Math.round(limit / 1024 / 1024)} Mo de pièces jointes.`)
+          toast.error(i18n.global.t('compose.toasts.attachmentLimitExceeded', { name: file.name, mb: Math.round(limit / 1024 / 1024) }))
           continue
         }
         this.attachments.push({

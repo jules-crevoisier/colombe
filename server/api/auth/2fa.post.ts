@@ -7,6 +7,7 @@ import { loginLimiter } from '../../lib/session/rate-limit'
 import { useDb } from '../../lib/store/db'
 import { recordLoginEvent } from '../../lib/store/activity'
 import { clientIp, logSafe } from '../../utils/mail-session'
+import { serverT } from '../../lib/i18n'
 
 const bodySchema = z.object({ code: z.string().trim().min(6).max(32) })
 
@@ -18,12 +19,12 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
   const pending = pendingId ? peekPending(pendingId) : null
   if (!pendingId || !pending) {
     await clearUserSession(event)
-    throw createError({ statusCode: 401, statusMessage: 'Connexion expirée', message: 'La connexion a expiré. Saisissez à nouveau votre mot de passe.' })
+    throw createError({ statusCode: 401, statusMessage: 'Connexion expirée', message: serverT(event, 'auth.loginExpired') })
   }
 
   const emailKey = `email:${pending.email}`
   if (loginLimiter.isLimited(emailKey)) {
-    throw createError({ statusCode: 429, statusMessage: 'Trop de tentatives', message: 'Trop de tentatives. Réessayez dans quelques minutes.' })
+    throw createError({ statusCode: 429, statusMessage: 'Trop de tentatives', message: serverT(event, 'auth.tooManyAttempts') })
   }
 
   const ip = clientIp(event)
@@ -38,15 +39,15 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
     console.warn(`[colombe] auth-failure ip=${logSafe(ip)} user=${logSafe(pending.email)}`)
     if (failPending(pendingId)) {
       await clearUserSession(event)
-      throw createError({ statusCode: 401, statusMessage: 'Code refusé', message: 'Trop de codes incorrects. Reconnectez-vous.' })
+      throw createError({ statusCode: 401, statusMessage: 'Code refusé', message: serverT(event, 'auth.tooManyCodes') })
     }
-    throw createError({ statusCode: 401, statusMessage: 'Code refusé', message: 'Code incorrect.' })
+    throw createError({ statusCode: 401, statusMessage: 'Code refusé', message: serverT(event, 'auth.badCode') })
   }
 
   const creds = consumePending(pendingId)
   if (!creds) {
     await clearUserSession(event)
-    throw createError({ statusCode: 401, statusMessage: 'Connexion expirée', message: 'La connexion a expiré. Saisissez à nouveau votre mot de passe.' })
+    throw createError({ statusCode: 401, statusMessage: 'Connexion expirée', message: serverT(event, 'auth.loginExpired') })
   }
   loginLimiter.reset(emailKey)
   recordLoginEvent(useDb(), creds.email, ip, userAgent, true)

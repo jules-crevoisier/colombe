@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { listUserFolders } from '../../lib/mail/user-folders'
 import { mailError, requireMail } from '../../utils/mail-session'
+import { serverT } from '../../lib/i18n'
 
 const bodySchema = z.object({
   folder: z.string().min(1).max(512),
@@ -19,13 +20,13 @@ export default defineEventHandler(async (event) => {
       : folders.find(f => f.specialUse === 'inbox')?.path
 
     if (!destination) {
-      throw createError({ statusCode: 404, statusMessage: 'Dossier introuvable', message: 'Le dossier cible est introuvable' })
+      throw createError({ statusCode: 404, statusMessage: 'Dossier introuvable', message: serverT(event, 'messages.targetFolderMissing') })
     }
 
     await backend.move(body.folder, body.uids, destination)
     setResponseStatus(event, 204)
     return null
   } catch (err: unknown) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

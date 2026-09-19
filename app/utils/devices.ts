@@ -1,17 +1,21 @@
 /**
  * Onglet « Autres applications » : textes des guides pas à pas, remplis avec les
  * vrais paramètres de l'utilisateur. Fonctions pures (testées dans tests/unit/ui).
+ *
+ * Les textes sont produits à l'appel (i18n.global.t), jamais mis en cache dans des
+ * constantes de module : ils doivent suivre un changement de langue.
  */
 import type { ClientSecurity, DeviceSettings } from '#shared/types/config'
+import { i18n } from '~/lib/i18n'
 
 export type DeviceApp = 'gmail' | 'apple' | 'outlook' | 'thunderbird' | 'other'
 
-export const DEVICE_APPS: ReadonlyArray<{ value: DeviceApp; label: string }> = [
-  { value: 'gmail', label: 'Gmail' },
-  { value: 'apple', label: 'iPhone / iPad' },
-  { value: 'outlook', label: 'Outlook' },
-  { value: 'thunderbird', label: 'Thunderbird' },
-  { value: 'other', label: 'Autre application' },
+export const DEVICE_APPS: ReadonlyArray<{ value: DeviceApp; labelKey: string }> = [
+  { value: 'gmail', labelKey: 'devices.apps.gmail' },
+  { value: 'apple', labelKey: 'devices.apps.apple' },
+  { value: 'outlook', labelKey: 'devices.apps.outlook' },
+  { value: 'thunderbird', labelKey: 'devices.apps.thunderbird' },
+  { value: 'other', labelKey: 'devices.apps.other' },
 ]
 
 /** Valeur à recopier dans l'application, affichée avec un bouton « Copier ». */
@@ -21,7 +25,7 @@ export interface GuideValue {
 }
 
 export interface GuideStep {
-  /** Texte de l'étape ; les libellés d'interface sont entre « guillemets ». */
+  /** Texte de l'étape ; les libellés d'interface sont entre « guillemets » (fr) ou "guillemets" (en). */
   text: string
   values?: GuideValue[]
 }
@@ -43,108 +47,117 @@ export function clientSecurityLabel(security: ClientSecurity): string {
 }
 
 /**
- * Découpe un texte d'étape pour mettre en valeur les libellés « entre guillemets ».
- * Les espaces intérieures des guillemets deviennent insécables : « Suivant » ne se coupe jamais avant ».
+ * Découpe un texte d'étape pour mettre en valeur les libellés entre « guillemets »
+ * (français) ou "guillemets droits" (anglais). Les espaces intérieures des
+ * guillemets français deviennent insécables : « Suivant » ne se coupe jamais avant ».
  */
 export function splitQuoted(text: string): Array<{ text: string; quoted: boolean }> {
-  return text.split(/(«[^»]*»)/).filter(Boolean).map((part) => {
-    const quoted = part.startsWith('«')
-    return { text: quoted ? part.replace(/^« /, '« ').replace(/ »$/, ' »') : part, quoted }
+  return text.split(/(«[^»]*»|"[^"]*")/).filter(Boolean).map((part) => {
+    // Espace insécable à l'intérieur des guillemets français : « Suivant » ne se coupe jamais avant ».
+    const withNbsp = part.replace(/^(«) /, '$1 ').replace(/ (»)$/, ' $1')
+    return { text: withNbsp, quoted: /^[«"]/.test(part) }
   })
 }
 
-function serverValues(s: Server, username: string, securityName = 'Sécurité'): GuideValue[] {
+function serverValues(s: Server, username: string, securityName = i18n.global.t('devices.guides.common.securityLabel')): GuideValue[] {
   return [
-    { label: 'Serveur', value: s.host },
-    { label: 'Port', value: String(s.port) },
+    { label: i18n.global.t('devices.guides.common.serverLabel'), value: s.host },
+    { label: i18n.global.t('devices.guides.common.portLabel'), value: String(s.port) },
     { label: securityName, value: clientSecurityLabel(s.security) },
-    { label: 'Identifiant', value: username },
+    { label: i18n.global.t('devices.guides.common.usernameLabel'), value: username },
   ]
 }
 
 /** Application Gmail (Android ou iPhone), compte « Personnel (IMAP) ». */
 export function gmailAppSteps(s: ReadyDeviceSettings): GuideStep[] {
+  const { t } = i18n.global
   return [
-    { text: 'Ouvrez l\'application Gmail, puis le menu → « Paramètres » → « Ajouter un compte ».' },
-    { text: 'Choisissez « Autre ».' },
-    { text: 'Saisissez votre adresse, puis touchez « Suivant ».', values: [{ label: 'Adresse', value: s.email }] },
-    { text: 'Choisissez « Personnel (IMAP) ».' },
-    { text: 'Saisissez le mot de passe de votre messagerie, puis touchez « Suivant ».' },
-    { text: 'Paramètres du serveur entrant :', values: serverValues(s.imap, s.username, 'Type de sécurité') },
-    { text: 'Paramètres du serveur sortant (laissez « Exiger une connexion » activé) :', values: serverValues(s.smtp, s.username, 'Type de sécurité') },
-    { text: 'Choisissez la fréquence de synchronisation, puis touchez « Suivant ». Votre messagerie apparaît dans Gmail.' },
+    { text: t('devices.guides.gmailApp.step1') },
+    { text: t('devices.guides.gmailApp.step2') },
+    { text: t('devices.guides.gmailApp.step3'), values: [{ label: t('devices.guides.common.addressLabel'), value: s.email }] },
+    { text: t('devices.guides.gmailApp.step4') },
+    { text: t('devices.guides.gmailApp.step5') },
+    { text: t('devices.guides.gmailApp.step6'), values: serverValues(s.imap, s.username, t('devices.guides.gmailApp.securityTypeLabel')) },
+    { text: t('devices.guides.gmailApp.step7'), values: serverValues(s.smtp, s.username, t('devices.guides.gmailApp.securityTypeLabel')) },
+    { text: t('devices.guides.gmailApp.step8') },
   ]
 }
 
 /** Gmail sur ordinateur : « Envoyer des e-mails en tant que » avec le serveur d'envoi de l'établissement. */
 export function gmailSendAsSteps(s: ReadyDeviceSettings): GuideStep[] {
-  const tls = s.smtp.security === 'ssl' ? '« Connexion sécurisée via SSL »' : '« Connexion sécurisée via TLS »'
+  const { t } = i18n.global
+  const tls = s.smtp.security === 'ssl' ? t('devices.guides.gmailSendAs.tlsSsl') : t('devices.guides.gmailSendAs.tlsStarttls')
   return [
-    { text: 'Dans Gmail sur ordinateur : « Paramètres » (roue dentée) → « Voir tous les paramètres » → onglet « Comptes et importation ».' },
-    { text: 'À la ligne « Envoyer des e-mails en tant que », choisissez « Ajouter une autre adresse e-mail », puis saisissez votre adresse.', values: [{ label: 'Adresse', value: s.email }] },
+    { text: t('devices.guides.gmailSendAs.step1') },
+    { text: t('devices.guides.gmailSendAs.step2'), values: [{ label: t('devices.guides.common.addressLabel'), value: s.email }] },
     {
-      text: `Serveur SMTP : saisissez ces valeurs, le mot de passe de votre messagerie, et choisissez ${tls}.`,
+      text: t('devices.guides.gmailSendAs.step3', { tls }),
       values: [
-        { label: 'Serveur SMTP', value: s.smtp.host },
-        { label: 'Port', value: String(s.smtp.port) },
-        { label: 'Nom d\'utilisateur', value: s.username },
+        { label: t('devices.guides.gmailSendAs.smtpServerLabel'), value: s.smtp.host },
+        { label: t('devices.guides.common.portLabel'), value: String(s.smtp.port) },
+        { label: t('devices.guides.gmailSendAs.usernameFullLabel'), value: s.username },
       ],
     },
-    { text: `Gmail envoie un code de confirmation à votre adresse : ouvrez-le dans ${s.productName} et saisissez le code dans Gmail.` },
+    { text: t('devices.guides.gmailSendAs.step4', { product: s.productName }) },
   ]
 }
 
 /** iPhone / iPad : installation du profil de configuration téléchargé. */
 export function appleProfileSteps(s: ReadyDeviceSettings): GuideStep[] {
+  const { t } = i18n.global
   return [
-    { text: 'Sur l\'iPhone ou l\'iPad, ouvrez cette page dans Safari et touchez « Télécharger le profil de configuration ». Si Safari le demande, touchez « Autoriser ».' },
-    { text: 'Ouvrez l\'app Réglages et touchez « Profil téléchargé » en haut de la liste, puis « Installer ».' },
-    { text: `iOS indique « Non signé » : c'est normal. Le profil est créé par ${s.productName} pour votre compte et ne contient pas votre mot de passe.` },
-    { text: 'Saisissez le mot de passe de votre messagerie quand il est demandé, puis touchez « Suivant » et « OK ».' },
-    { text: 'Votre messagerie apparaît dans l\'app Mail.' },
+    { text: t('devices.guides.appleProfile.step1') },
+    { text: t('devices.guides.appleProfile.step2') },
+    { text: t('devices.guides.appleProfile.step3', { product: s.productName }) },
+    { text: t('devices.guides.appleProfile.step4') },
+    { text: t('devices.guides.appleProfile.step5') },
   ]
 }
 
 /** iPhone / iPad : ajout manuel du compte. */
 export function appleManualSteps(s: ReadyDeviceSettings): GuideStep[] {
+  const { t } = i18n.global
   return [
-    { text: 'Ouvrez Réglages → « Apps » → « Mail » → « Comptes mail » → « Ajouter un compte » (sur les versions plus anciennes : Réglages → « Mail » → « Comptes »).' },
-    { text: 'Choisissez « Autre », puis « Ajouter un compte Mail ».' },
-    { text: 'Saisissez votre nom, votre adresse et le mot de passe de votre messagerie, puis touchez « Suivant ».', values: [{ label: 'Adresse', value: s.email }] },
-    { text: 'Choisissez « IMAP ». Serveur de réception :', values: [{ label: 'Nom d\'hôte', value: s.imap.host }, { label: 'Nom d\'utilisateur', value: s.username }] },
-    { text: 'Serveur d\'envoi (même mot de passe), puis « Suivant » et « Enregistrer » :', values: [{ label: 'Nom d\'hôte', value: s.smtp.host }, { label: 'Nom d\'utilisateur', value: s.username }] },
+    { text: t('devices.guides.appleManual.step1') },
+    { text: t('devices.guides.appleManual.step2') },
+    { text: t('devices.guides.appleManual.step3'), values: [{ label: t('devices.guides.common.addressLabel'), value: s.email }] },
+    { text: t('devices.guides.appleManual.step4'), values: [{ label: t('devices.guides.appleManual.hostnameLabel'), value: s.imap.host }, { label: t('devices.guides.common.usernameLabel'), value: s.username }] },
+    { text: t('devices.guides.appleManual.step5'), values: [{ label: t('devices.guides.appleManual.hostnameLabel'), value: s.smtp.host }, { label: t('devices.guides.common.usernameLabel'), value: s.username }] },
     {
-      text: 'Si la connexion échoue, vérifiez les ports dans les réglages avancés du compte (« Utiliser SSL » activé) :',
-      values: [{ label: 'Port de réception', value: String(s.imap.port) }, { label: 'Port d\'envoi', value: String(s.smtp.port) }],
+      text: t('devices.guides.appleManual.step6'),
+      values: [{ label: t('devices.guides.appleManual.incomingPortLabel'), value: String(s.imap.port) }, { label: t('devices.guides.appleManual.outgoingPortLabel'), value: String(s.smtp.port) }],
     },
   ]
 }
 
 export function outlookSteps(s: ReadyDeviceSettings): GuideStep[] {
+  const { t } = i18n.global
   return [
-    { text: 'Dans Outlook, ouvrez « Ajouter un compte » (menu « Fichier », ou « Paramètres » → « Comptes »).' },
-    { text: 'Saisissez votre adresse, puis « Continuer ».', values: [{ label: 'Adresse', value: s.email }] },
-    { text: 'Si Outlook ne trouve pas les paramètres tout seul ou propose un autre type de compte, choisissez « IMAP ».' },
-    { text: 'Courrier entrant :', values: serverValues(s.imap, s.username, 'Méthode de chiffrement') },
-    { text: 'Courrier sortant :', values: serverValues(s.smtp, s.username, 'Méthode de chiffrement') },
-    { text: 'Saisissez le mot de passe de votre messagerie, puis « Continuer ».' },
+    { text: t('devices.guides.outlook.step1') },
+    { text: t('devices.guides.outlook.step2'), values: [{ label: t('devices.guides.common.addressLabel'), value: s.email }] },
+    { text: t('devices.guides.outlook.step3') },
+    { text: t('devices.guides.outlook.step4'), values: serverValues(s.imap, s.username, t('devices.guides.outlook.encryptionMethodLabel')) },
+    { text: t('devices.guides.outlook.step5'), values: serverValues(s.smtp, s.username, t('devices.guides.outlook.encryptionMethodLabel')) },
+    { text: t('devices.guides.outlook.step6') },
   ]
 }
 
 export function thunderbirdSteps(s: ReadyDeviceSettings): GuideStep[] {
+  const { t } = i18n.global
   return [
-    { text: 'Dans Thunderbird : menu → « Nouveau » → « Compte courrier existant ».' },
-    { text: 'Saisissez votre nom, votre adresse et le mot de passe de votre messagerie, puis « Continuer ».', values: [{ label: 'Adresse', value: s.email }] },
-    { text: 'Thunderbird trouve en général les paramètres tout seul. Vérifiez que « IMAP » est choisi, puis cliquez sur « Terminé ».' },
-    { text: 'Sinon, cliquez sur « Configurer manuellement ». Serveur entrant (IMAP) :', values: serverValues(s.imap, s.username, 'SSL') },
-    { text: 'Serveur sortant (SMTP), avec l\'authentification « Mot de passe normal » :', values: serverValues(s.smtp, s.username, 'SSL') },
+    { text: t('devices.guides.thunderbird.step1') },
+    { text: t('devices.guides.thunderbird.step2'), values: [{ label: t('devices.guides.common.addressLabel'), value: s.email }] },
+    { text: t('devices.guides.thunderbird.step3') },
+    { text: t('devices.guides.thunderbird.step4'), values: serverValues(s.imap, s.username, t('devices.guides.thunderbird.sslLabel')) },
+    { text: t('devices.guides.thunderbird.step5'), values: serverValues(s.smtp, s.username, t('devices.guides.thunderbird.sslLabel')) },
   ]
 }
 
 export function otherAppSteps(): GuideStep[] {
+  const { t } = i18n.global
   return [
-    { text: 'Ajoutez un compte de type « IMAP » (pas « POP », ni « Exchange »).' },
-    { text: 'Recopiez les paramètres ci-dessous. Authentification : « Mot de passe normal », avec le mot de passe de votre messagerie.' },
+    { text: t('devices.guides.other.step1') },
+    { text: t('devices.guides.other.step2') },
   ]
 }
 
@@ -160,7 +173,9 @@ export function formatDomains(domains: readonly string[]): string[] {
 
 /** Exemple d'adresse de transfert construit à partir du premier domaine autorisé. */
 export function forwardPlaceholder(forwardDomains: readonly string[]): string {
-  return `destinataire@${forwardDomains[0] ?? 'exemple.fr'}`
+  const { t } = i18n.global
+  const domain = forwardDomains[0] ?? t('devices.guides.forwardPlaceholderDomain')
+  return `${t('devices.guides.forwardPlaceholderName')}@${domain}`
 }
 
 /** Application proposée d'abord selon l'appareil utilisé. */

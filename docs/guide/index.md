@@ -73,6 +73,26 @@ message avec mise en forme si vous le souhaitez, pièces jointes par glisser-dé
 L'envoi part après un court délai annulable (réglable dans **Paramètres → Général**), et
 un brouillon est conservé automatiquement pendant que vous rédigez.
 
+## Langue de l'interface
+
+Colombe est disponible en **français** et en **anglais** (*English*). Par défaut, il suit
+la langue de votre navigateur ; si celle-ci n'est ni le français ni l'anglais, il prend la
+langue choisie par votre établissement.
+
+- **Sur la page de connexion**, le sélecteur **FR | EN** en haut change la langue tout
+  de suite ; ce choix est retenu par ce navigateur.
+- **Une fois connecté**, choisissez **Paramètres → Général → Langue / Language** :
+  *Automatique (langue du navigateur)*, *Français* ou *English*. Le changement
+  s'applique immédiatement, sans recharger la page, et suit votre compte sur tous vos
+  appareils.
+
+La langue choisie s'applique aussi aux messages d'erreur, aux dates, aux tailles de
+fichiers, à la citation insérée quand vous répondez (« Le …, … a écrit : » / « On …, …
+wrote: ») et à l'alerte envoyée par Colombe quand un transfert est modifié sur votre
+compte. Les dossiers spéciaux changent de nom à l'affichage (Boîte de réception → Inbox,
+Envoyés → Sent…) ; leur nom sur le serveur de messagerie ne change pas, vos autres
+logiciels ne voient aucune différence.
+
 ## Sur mobile
 
 L'interface s'adapte à partir de 320 px de large : une colonne à la fois (dossiers, puis

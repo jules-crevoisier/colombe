@@ -7,11 +7,16 @@
  * - CSP propre au document : images distantes interdites tant que
  *   l'utilisateur ne les a pas autorisées.
  */
+import { useI18n } from 'vue-i18n'
+import { currentLocale } from '~/lib/i18n'
+
 const props = defineProps<{
   html: string | null
   text: string | null
   showRemote: boolean
 }>()
+
+const { t } = useI18n()
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
@@ -32,7 +37,7 @@ function wrapBlockquotes(html: string): string {
     for (const bq of blockquotes) {
       const details = doc.createElement('details')
       const summary = doc.createElement('summary')
-      summary.textContent = 'Afficher le texte cité'
+      summary.textContent = t('mail.frame.showQuotedText')
       summary.style.cursor = 'pointer'
       summary.style.fontWeight = 'bold'
       summary.style.fontSize = '0.9em'
@@ -61,7 +66,7 @@ const srcdoc = computed(() => {
     body = wrapBlockquotes(body)
   }
 
-  return `<!doctype html><html lang="fr"><head><meta charset="utf-8">`
+  return `<!doctype html><html lang="${currentLocale()}"><head><meta charset="utf-8">`
     + `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${imgSrc}; style-src 'unsafe-inline'; font-src data:">`
     + `<meta name="referrer" content="no-referrer">`
     + `<base target="_blank">`
@@ -76,7 +81,7 @@ const srcdoc = computed(() => {
 
 <template>
   <iframe
-    title="Contenu du message"
+    :title="t('mail.frame.title')"
     sandbox="allow-popups allow-popups-to-escape-sandbox"
     referrerpolicy="no-referrer"
     :srcdoc="srcdoc"

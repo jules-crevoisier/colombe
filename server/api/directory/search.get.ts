@@ -4,6 +4,7 @@ import { DirectoryError, searchDirectory } from '../../lib/ldap/directory'
 import { directorySearchLimiter } from '../../lib/session/rate-limit'
 import { requireMail } from '../../utils/mail-session'
 import type { DirectoryEntry } from '#shared/types/mail'
+import { serverT } from '../../lib/i18n'
 
 const querySchema = z.object({ q: z.string() })
 
@@ -22,7 +23,7 @@ export default defineEventHandler(async (event): Promise<DirectoryEntry[]> => {
 
   const sessionKey = `session:${sid}`
   if (directorySearchLimiter.isLimited(sessionKey)) {
-    throw createError({ statusCode: 429, statusMessage: 'Trop de requêtes', message: 'Trop de recherches dans l\'annuaire. Réessayez dans une minute.' })
+    throw createError({ statusCode: 429, statusMessage: 'Trop de requêtes', message: serverT(event, 'directory.tooMany') })
   }
   directorySearchLimiter.hit(sessionKey)
 
@@ -32,7 +33,7 @@ export default defineEventHandler(async (event): Promise<DirectoryEntry[]> => {
     throw createError({
       statusCode: 400,
       statusMessage: 'Requête trop courte',
-      message: `Saisissez au moins ${config.ldap.minQuery} caractères.`,
+      message: serverT(event, 'directory.queryTooShort', { min: config.ldap.minQuery }),
     })
   }
 
@@ -41,7 +42,7 @@ export default defineEventHandler(async (event): Promise<DirectoryEntry[]> => {
   }
   catch (err) {
     if (err instanceof DirectoryError) {
-      throw createError({ statusCode: 503, statusMessage: 'Service indisponible', message: 'Annuaire momentanément indisponible. Réessayez plus tard.' })
+      throw createError({ statusCode: 503, statusMessage: 'Service indisponible', message: serverT(event, 'directory.unavailable') })
     }
     throw err
   }

@@ -4,7 +4,9 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import { toast } from 'vue-sonner'
 import { Bold, Image as ImageIcon, Italic, Link as LinkIcon, List, ListOrdered, Quote, RemoveFormatting, Strikethrough, Underline } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import type { Component } from 'vue'
+import { currentLocale } from '~/lib/i18n'
 
 /**
  * Éditeur riche (TipTap). Ne produit que ce que le serveur accepte ensuite
@@ -18,11 +20,10 @@ import type { Component } from 'vue'
  */
 const html = defineModel<string>('html', { required: true })
 const emit = defineEmits<{ change: [text: string] }>()
-const props = withDefaults(defineProps<{ id: string; label?: string; placeholder?: string; maxImages?: number }>(), {
-  label: 'Message',
-  placeholder: 'Rédigez votre message…',
-  maxImages: undefined,
-})
+const props = defineProps<{ id: string; label?: string; placeholder?: string; maxImages?: number }>()
+const { t } = useI18n()
+const editorLabel = props.label ?? t('compose.editor.label')
+const editorPlaceholder = props.placeholder ?? t('compose.editor.placeholder')
 
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif']
 const MAX_IMAGE_BYTES = 200 * 1024
@@ -34,11 +35,11 @@ const WIDTHS: Record<ImageWidth, string | null> = {
   medium: '320',
   original: null,
 }
-const WIDTH_OPTIONS: { value: ImageWidth; label: string }[] = [
-  { value: 'small', label: 'Petite' },
-  { value: 'medium', label: 'Moyenne' },
-  { value: 'original', label: 'Originale' },
-]
+const WIDTH_OPTIONS = computed<{ value: ImageWidth; label: string }[]>(() => [
+  { value: 'small', label: t('compose.editor.imageWidthSmall') },
+  { value: 'medium', label: t('compose.editor.imageWidthMedium') },
+  { value: 'original', label: t('compose.editor.imageWidthOriginal') },
+])
 
 const SAFE_IMAGE_SRC = /^data:image\/(png|jpeg|gif);base64,[A-Za-z0-9+/=\s]+$/
 
@@ -88,8 +89,8 @@ const imageAlt = ref('')
 const imageWidth = ref<ImageWidth>('original')
 
 function validateImageFile(file: File): string | null {
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) return 'Formats acceptés pour une image : PNG, JPEG ou GIF.'
-  if (file.size > MAX_IMAGE_BYTES) return 'Image trop lourde : 200 Ko maximum.'
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) return t('compose.editor.imageFormatError')
+  if (file.size > MAX_IMAGE_BYTES) return t('compose.editor.imageTooLarge')
   return null
 }
 
@@ -110,7 +111,7 @@ function beginInsertImage(file: File) {
     return
   }
   if (props.maxImages != null && countImages() >= props.maxImages) {
-    toast.error(`${props.maxImages} image${props.maxImages > 1 ? 's' : ''} maximum.`)
+    toast.error(t('compose.editor.imageMaxCount', props.maxImages))
     return
   }
   const reader = new FileReader()
@@ -120,7 +121,7 @@ function beginInsertImage(file: File) {
     imageWidth.value = 'original'
     imageDialogOpen.value = true
   }
-  reader.onerror = () => toast.error('Impossible de lire cette image.')
+  reader.onerror = () => toast.error(t('compose.editor.imageReadError'))
   reader.readAsDataURL(file)
 }
 
@@ -154,17 +155,17 @@ const editor = useEditor({
       link: { openOnClick: false, autolink: true, protocols: ['mailto'], HTMLAttributes: { rel: 'noopener noreferrer', target: null } },
       codeBlock: false,
     }),
-    Placeholder.configure({ placeholder: props.placeholder }),
+    Placeholder.configure({ placeholder: editorPlaceholder }),
     SafeImage,
   ],
   editorProps: {
     attributes: {
       'class': 'prose-mail min-h-40 px-5 py-4 text-base leading-relaxed outline-none',
-      'aria-label': props.label,
+      'aria-label': editorLabel,
       'aria-multiline': 'true',
       'role': 'textbox',
       'spellcheck': 'true',
-      'lang': 'fr',
+      'lang': currentLocale(),
     },
     handlePaste(_view, event) {
       const files = Array.from(event.clipboardData?.files ?? []).filter(f => f.type.startsWith('image/'))
@@ -197,14 +198,14 @@ function setLink() {
   const e = editor.value
   if (!e) return
   const previous = e.getAttributes('link').href as string | undefined
-  const url = window.prompt('Adresse du lien (commençant par https ou mailto)', previous ?? 'https://')
+  const url = window.prompt(t('compose.editor.linkPrompt'), previous ?? 'https://')
   if (url === null) return
   if (!url.trim() || url.trim() === 'https://') {
     e.chain().focus().extendMarkRange('link').unsetLink().run()
     return
   }
   if (!/^(https?:\/\/|mailto:)/i.test(url.trim())) {
-    window.alert('Seuls les liens http(s) et mailto sont autorisés.')
+    window.alert(t('compose.editor.linkInvalid'))
     return
   }
   e.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run()
@@ -221,16 +222,16 @@ const tools = computed<Tool[]>(() => {
   const e = editor.value
   if (!e) return []
   return [
-    { label: 'Gras (Ctrl+B)', icon: Bold, active: () => e.isActive('bold'), run: () => e.chain().focus().toggleBold().run() },
-    { label: 'Italique (Ctrl+I)', icon: Italic, active: () => e.isActive('italic'), run: () => e.chain().focus().toggleItalic().run() },
-    { label: 'Souligné (Ctrl+U)', icon: Underline, active: () => e.isActive('underline'), run: () => e.chain().focus().toggleUnderline().run() },
-    { label: 'Barré', icon: Strikethrough, active: () => e.isActive('strike'), run: () => e.chain().focus().toggleStrike().run() },
-    { label: 'Liste à puces', icon: List, active: () => e.isActive('bulletList'), run: () => e.chain().focus().toggleBulletList().run() },
-    { label: 'Liste numérotée', icon: ListOrdered, active: () => e.isActive('orderedList'), run: () => e.chain().focus().toggleOrderedList().run() },
-    { label: 'Citation', icon: Quote, active: () => e.isActive('blockquote'), run: () => e.chain().focus().toggleBlockquote().run() },
-    { label: 'Lien', icon: LinkIcon, active: () => e.isActive('link'), run: setLink },
-    { label: 'Insérer une image', icon: ImageIcon, active: () => false, run: () => imageFileInput.value?.click() },
-    { label: 'Effacer la mise en forme', icon: RemoveFormatting, active: () => false, run: () => e.chain().focus().unsetAllMarks().clearNodes().run() },
+    { label: t('compose.editor.bold'), icon: Bold, active: () => e.isActive('bold'), run: () => e.chain().focus().toggleBold().run() },
+    { label: t('compose.editor.italic'), icon: Italic, active: () => e.isActive('italic'), run: () => e.chain().focus().toggleItalic().run() },
+    { label: t('compose.editor.underline'), icon: Underline, active: () => e.isActive('underline'), run: () => e.chain().focus().toggleUnderline().run() },
+    { label: t('compose.editor.strikethrough'), icon: Strikethrough, active: () => e.isActive('strike'), run: () => e.chain().focus().toggleStrike().run() },
+    { label: t('compose.editor.bulletList'), icon: List, active: () => e.isActive('bulletList'), run: () => e.chain().focus().toggleBulletList().run() },
+    { label: t('compose.editor.orderedList'), icon: ListOrdered, active: () => e.isActive('orderedList'), run: () => e.chain().focus().toggleOrderedList().run() },
+    { label: t('compose.editor.quote'), icon: Quote, active: () => e.isActive('blockquote'), run: () => e.chain().focus().toggleBlockquote().run() },
+    { label: t('compose.editor.link'), icon: LinkIcon, active: () => e.isActive('link'), run: setLink },
+    { label: t('compose.editor.insertImage'), icon: ImageIcon, active: () => false, run: () => imageFileInput.value?.click() },
+    { label: t('compose.editor.clearFormatting'), icon: RemoveFormatting, active: () => false, run: () => e.chain().focus().unsetAllMarks().clearNodes().run() },
   ]
 })
 
@@ -249,7 +250,7 @@ onBeforeUnmount(() => editor.value?.destroy())
     <div class="min-h-0 flex-1 overflow-y-auto" @click="editor?.commands.focus()">
       <EditorContent :id="id" :editor="editor" />
     </div>
-    <div role="toolbar" aria-label="Mise en forme" :aria-controls="id" class="flex shrink-0 gap-0.5 overflow-x-auto border-t border-border px-3 py-1 [scrollbar-width:none]">
+    <div role="toolbar" :aria-label="t('compose.editor.toolbar')" :aria-controls="id" class="flex shrink-0 gap-0.5 overflow-x-auto border-t border-border px-3 py-1 [scrollbar-width:none]">
       <Tooltip v-for="tool in tools" :key="tool.label">
         <TooltipTrigger as-child>
           <button
@@ -281,17 +282,17 @@ onBeforeUnmount(() => editor.value?.destroy())
     <Dialog :open="imageDialogOpen" @update:open="(v: boolean) => { if (!v) closeImageDialog() }">
       <DialogContent class="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Insérer une image</DialogTitle>
-          <DialogDescription>Formats PNG, JPEG ou GIF, 200 Ko maximum.</DialogDescription>
+          <DialogTitle>{{ t('compose.editor.imageDialogTitle') }}</DialogTitle>
+          <DialogDescription>{{ t('compose.editor.imageDialogDescription') }}</DialogDescription>
         </DialogHeader>
         <div v-if="pendingImage" class="flex flex-col gap-4">
           <img :src="pendingImage.dataUrl" alt="" class="max-h-40 w-full rounded-lg border border-border object-contain">
           <div class="flex flex-col gap-2">
-            <Label for="image-alt-text">Texte alternatif</Label>
-            <Input id="image-alt-text" v-model="imageAlt" class="h-11 text-base" placeholder="Décrivez l'image" />
+            <Label for="image-alt-text">{{ t('compose.editor.imageAltLabel') }}</Label>
+            <Input id="image-alt-text" v-model="imageAlt" class="h-11 text-base" :placeholder="t('compose.editor.imageAltPlaceholder')" />
           </div>
           <fieldset class="flex flex-col gap-1">
-            <legend class="mb-1 text-sm font-medium">Largeur</legend>
+            <legend class="mb-1 text-sm font-medium">{{ t('compose.editor.imageWidthLegend') }}</legend>
             <label v-for="opt in WIDTH_OPTIONS" :key="opt.value" class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm hover:bg-accent">
               <input v-model="imageWidth" type="radio" name="image-width" :value="opt.value" class="size-5 shrink-0 accent-[var(--primary)]">
               {{ opt.label }}
@@ -299,8 +300,8 @@ onBeforeUnmount(() => editor.value?.destroy())
           </fieldset>
         </div>
         <DialogFooter class="sm:justify-end">
-          <Button variant="outline" @click="closeImageDialog">Annuler</Button>
-          <Button @click="confirmInsertImage">Insérer</Button>
+          <Button variant="outline" @click="closeImageDialog">{{ t('common.cancel') }}</Button>
+          <Button @click="confirmInsertImage">{{ t('compose.editor.insert') }}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -37,6 +37,9 @@ import { generateScript, isAllowedForwardTarget, SieveGenerateError } from './ge
 import { MockSieveSession, resetSieveMock } from './mock'
 import { readManagedData } from './parse-json'
 import { findForbiddenDirectives } from './scan'
+import type { LocalizedMessage, ServerMessageKey } from '../i18n'
+import { localizedErrorMessage, serverT, translate } from '../i18n'
+import { accountLocale } from '../i18n/account'
 
 export { resetSieveMock }
 
@@ -103,7 +106,7 @@ export async function openSieveSession(
   }
   const creds = await freshCredentials(sid)
   if (!creds) {
-    throw createError({ statusCode: 401, statusMessage: 'Session expirée', message: 'Session expirée' })
+    throw createError({ statusCode: 401, statusMessage: 'Session expirée', message: serverT(event, 'auth.sessionExpired') })
   }
   try {
     const client = await SieveClient.connect(
@@ -234,19 +237,23 @@ function constantTimeEqual(a: string, b: string): boolean {
   return timingSafeEqual(ah, bh)
 }
 
-const CONFIRMATION_REQUIRED = createError({
-  statusCode: 403,
-  statusMessage: 'Confirmation requise',
-  message: 'Confirmez votre mot de passe.',
-})
+function confirmationRequired(event: H3Event): H3Error {
+  return createError({
+    statusCode: 403,
+    statusMessage: 'Confirmation requise',
+    message: serverT(event, 'sieve.confirmPassword'),
+  })
+}
 
 // ─── SSO (OIDC) : début ───
 /** Session sans mot de passe (connexion unique) : la confirmation passe par le fournisseur. */
-const SSO_CONFIRMATION_REQUIRED = createError({
-  statusCode: 403,
-  statusMessage: 'Confirmation requise',
-  message: 'Confirmez votre identité auprès de votre établissement.',
-})
+function ssoConfirmationRequired(event: H3Event): H3Error {
+  return createError({
+    statusCode: 403,
+    statusMessage: 'Confirmation requise',
+    message: serverT(event, 'sieve.confirmSso'),
+  })
+}
 // ─── SSO (OIDC) : fin ───
 
 /**
@@ -258,7 +265,7 @@ const SSO_CONFIRMATION_REQUIRED = createError({
 async function assertConfirmed(ctx: FiltersContext, confirm: SecurityConfirmation): Promise<void> {
   const key = `confirm:${ctx.email.toLowerCase()}`
   if (loginLimiter.isLimited(key)) {
-    throw createError({ statusCode: 429, statusMessage: 'Trop de tentatives', message: 'Trop de tentatives. Réessayez plus tard.' })
+    throw createError({ statusCode: 429, statusMessage: 'Trop de tentatives', message: serverT(ctx.event, 'sieve.tooManyAttempts') })
   }
   const creds = credentialsStore.get(ctx.sid)
   const passwordSession = creds?.auth.kind === 'password'
@@ -281,17 +288,19 @@ async function assertConfirmed(ctx: FiltersContext, confirm: SecurityConfirmatio
     return
   }
   if (confirm.totpCode || confirm.confirmPassword) loginLimiter.hit(key)
-  throw creds && !passwordSession ? SSO_CONFIRMATION_REQUIRED : CONFIRMATION_REQUIRED
+  throw creds && !passwordSession ? ssoConfirmationRequired(ctx.event) : confirmationRequired(ctx.event)
 }
 
-const UNMANAGED_SET = createError({
-  statusCode: 409,
-  statusMessage: 'Ensemble modifié à la main',
-  message: 'Ce jeu de filtres a été modifié à la main.',
-})
+function unmanagedSet(event: H3Event): H3Error {
+  return createError({
+    statusCode: 409,
+    statusMessage: 'Ensemble modifié à la main',
+    message: serverT(event, 'sieve.unmanaged'),
+  })
+}
 
-function notFound(message = 'Jeu de filtres introuvable.'): H3Error {
-  return createError({ statusCode: 404, statusMessage: 'Introuvable', message })
+function notFound(event: H3Event, key: ServerMessageKey = 'sieve.setNotFound'): H3Error {
+  return createError({ statusCode: 404, statusMessage: 'Introuvable', message: serverT(event, key) })
 }
 
 // ─── Statut ───
@@ -319,13 +328,13 @@ export async function createFilterSet(ctx: FiltersContext, name: string, copyFro
     const cfg = sieveRuntimeConfig(ctx.event)
     const scripts = await session.listScripts()
     if (scripts.some((s) => s.name === name)) {
-      throw createError({ statusCode: 409, statusMessage: 'Nom déjà utilisé', message: 'Un jeu de filtres porte déjà ce nom.' })
+      throw createError({ statusCode: 409, statusMessage: 'Nom déjà utilisé', message: serverT(ctx.event, 'sieve.nameTaken') })
     }
 
     let script: string
     let rules: FilterRule[] = []
     if (copyFrom) {
-      if (!scripts.some((s) => s.name === copyFrom)) throw notFound('Jeu de filtres source introuvable.')
+      if (!scripts.some((s) => s.name === copyFrom)) throw notFound(ctx.event, 'sieve.sourceSetNotFound')
       const sourceContent = await readScript(ctx, session, copyFrom)
       const data = readManagedData(sourceContent)
       if (data) {
@@ -348,7 +357,7 @@ export async function getFilterSet(ctx: FiltersContext, name: string): Promise<F
   return withAvailableSession(ctx, async (session) => {
     const scripts = await session.listScripts()
     const entry = scripts.find((s) => s.name === name)
-    if (!entry) throw notFound()
+    if (!entry) throw notFound(ctx.event)
     const content = await readScript(ctx, session, name)
     const data = readManagedData(content)
     return { name, active: entry.active, managed: data !== null, rules: data?.rules ?? [], script: content }
@@ -365,10 +374,10 @@ export async function updateFilterSetRules(
     const cfg = sieveRuntimeConfig(ctx.event)
     const scripts = await session.listScripts()
     const entry = scripts.find((s) => s.name === name)
-    if (!entry) throw notFound()
+    if (!entry) throw notFound(ctx.event)
     const content = await readScript(ctx, session, name)
     const data = readManagedData(content)
-    if (!data) throw UNMANAGED_SET
+    if (!data) throw unmanagedSet(ctx.event)
 
     const sensitive = containsSensitiveAction(rules)
     if (sensitive) await assertConfirmed(ctx, confirm)
@@ -377,7 +386,7 @@ export async function updateFilterSetRules(
     await checkThenPut(ctx, session, name, script)
 
     if (sensitive) {
-      await onForwardingChanged(ctx, ctx.email, `Règles de filtrage modifiées dans « ${name} » (redirection ou notification).`)
+      await onForwardingChanged(ctx, ctx.email, { key: 'alert.rulesChanged', params: { name } })
     }
     return { name, active: entry.active, managed: true, rules, script }
   })
@@ -393,17 +402,17 @@ export async function updateFilterSetScript(
     const cfg = sieveRuntimeConfig(ctx.event)
     const scripts = await session.listScripts()
     const entry = scripts.find((s) => s.name === name)
-    if (!entry) throw notFound()
+    if (!entry) throw notFound(ctx.event)
 
-    const problems = findForbiddenDirectives(script, { forwardDomains: cfg.forwardDomains, loginEmail: ctx.email })
-    if (problems.length > 0) {
-      throw createError({ statusCode: 400, statusMessage: 'Script refusé', message: problems[0] })
+    const [problem] = findForbiddenDirectives(script, { forwardDomains: cfg.forwardDomains, loginEmail: ctx.email })
+    if (problem) {
+      throw createError({ statusCode: 400, statusMessage: 'Script refusé', message: serverT(ctx.event, problem) })
     }
 
     // Un script à la main exige toujours la confirmation, quel que soit son contenu.
     await assertConfirmed(ctx, confirm)
     await checkThenPut(ctx, session, name, script)
-    await onForwardingChanged(ctx, ctx.email, `Script de filtres modifié à la main (« ${name} »).`)
+    await onForwardingChanged(ctx, ctx.email, { key: 'alert.scriptEdited', params: { name } })
 
     const data = readManagedData(script)
     return { name, active: entry.active, managed: data !== null, rules: data?.rules ?? [], script }
@@ -413,7 +422,7 @@ export async function updateFilterSetScript(
 export async function activateFilterSet(ctx: FiltersContext, name: string): Promise<void> {
   await withAvailableSession(ctx, async (session) => {
     const scripts = await session.listScripts()
-    if (!scripts.some((s) => s.name === name)) throw notFound()
+    if (!scripts.some((s) => s.name === name)) throw notFound(ctx.event)
     await session.setActive(name)
     sievePool.invalidateAllScripts(ctx.sid)
   })
@@ -430,9 +439,9 @@ export async function deleteFilterSet(ctx: FiltersContext, name: string): Promis
   await withAvailableSession(ctx, async (session) => {
     const scripts = await session.listScripts()
     const entry = scripts.find((s) => s.name === name)
-    if (!entry) throw notFound()
+    if (!entry) throw notFound(ctx.event)
     if (entry.active) {
-      throw createError({ statusCode: 409, statusMessage: 'Ensemble actif', message: 'Impossible de supprimer le jeu de filtres actif.' })
+      throw createError({ statusCode: 409, statusMessage: 'Ensemble actif', message: serverT(ctx.event, 'sieve.cannotDeleteActive') })
     }
     await session.deleteScript(name)
     sievePool.invalidateScript(ctx.sid, name)
@@ -462,9 +471,9 @@ export async function importFilterSet(
     const cfg = sieveRuntimeConfig(ctx.event)
     const name = sanitizeImportName(filename)
 
-    const problems = findForbiddenDirectives(content, { forwardDomains: cfg.forwardDomains, loginEmail: ctx.email })
-    if (problems.length > 0) {
-      throw createError({ statusCode: 400, statusMessage: 'Script refusé', message: problems[0] })
+    const [problem] = findForbiddenDirectives(content, { forwardDomains: cfg.forwardDomains, loginEmail: ctx.email })
+    if (problem) {
+      throw createError({ statusCode: 400, statusMessage: 'Script refusé', message: serverT(ctx.event, problem) })
     }
 
     // Un script importé est écrit à la main : confirmation toujours exigée (PLAN-v4 F),
@@ -472,7 +481,7 @@ export async function importFilterSet(
     await assertConfirmed(ctx, confirm)
 
     await checkThenPut(ctx, session, name, content)
-    await onForwardingChanged(ctx, ctx.email, `Jeu de filtres importé depuis un script (« ${name} »).`)
+    await onForwardingChanged(ctx, ctx.email, { key: 'alert.setImported', params: { name } })
 
     const data = readManagedData(content)
     return { name, active: false, managed: data !== null, rules: data?.rules ?? [], script: content }
@@ -497,11 +506,11 @@ export async function putVacation(
     const cfg = sieveRuntimeConfig(ctx.event)
     if ((settings.incoming === 'redirect' || settings.incoming === 'copy')
       && (!settings.incomingAddress || !isAllowedForwardTarget(settings.incomingAddress, cfg.forwardDomains))) {
-      throw createError({ statusCode: 400, statusMessage: 'Domaine interdit', message: 'Transfert interdit vers ce domaine.' })
+      throw createError({ statusCode: 400, statusMessage: 'Domaine interdit', message: serverT(ctx.event, 'sieve.forwardDomainRefused') })
     }
 
     const active = await loadActiveSet(ctx, session)
-    if (active && !active.managed) throw UNMANAGED_SET
+    if (active && !active.managed) throw unmanagedSet(ctx.event)
     const name = active?.name ?? 'colombe'
 
     const requiresConfirmation = needsVacationConfirmation(active?.vacation ?? null, settings)
@@ -518,8 +527,7 @@ export async function putVacation(
     sievePool.invalidateAllScripts(ctx.sid)
 
     if (requiresConfirmation) {
-      const dest = toSave.incoming === 'copy' ? `copié vers ${toSave.incomingAddress}` : `redirigé vers ${toSave.incomingAddress}`
-      await onForwardingChanged(ctx, ctx.email, `Réponse automatique modifiée : courrier entrant ${dest}.`)
+      await onForwardingChanged(ctx, ctx.email, { key: toSave.incoming === 'copy' ? 'alert.vacationCopy' : 'alert.vacationRedirect', params: { address: toSave.incomingAddress ?? '' } })
     }
     return toSave
   })
@@ -540,11 +548,11 @@ export async function putForward(
   return withAvailableSession(ctx, async (session, capabilities) => {
     const cfg = sieveRuntimeConfig(ctx.event)
     if (settings.enabled && !isAllowedForwardTarget(settings.address, cfg.forwardDomains)) {
-      throw createError({ statusCode: 400, statusMessage: 'Domaine interdit', message: 'Transfert interdit vers ce domaine.' })
+      throw createError({ statusCode: 400, statusMessage: 'Domaine interdit', message: serverT(ctx.event, 'sieve.forwardDomainRefused') })
     }
 
     const active = await loadActiveSet(ctx, session)
-    if (active && !active.managed) throw UNMANAGED_SET
+    if (active && !active.managed) throw unmanagedSet(ctx.event)
     const name = active?.name ?? 'colombe'
 
     if (settings.enabled) await assertConfirmed(ctx, confirm)
@@ -558,8 +566,7 @@ export async function putForward(
     sievePool.invalidateAllScripts(ctx.sid)
 
     if (settings.enabled) {
-      const copyNote = settings.keepCopy ? ' (copie conservée)' : ''
-      await onForwardingChanged(ctx, ctx.email, `Transfert activé vers ${settings.address}${copyNote}.`)
+      await onForwardingChanged(ctx, ctx.email, { key: settings.keepCopy ? 'alert.forwardEnabledKeepCopy' : 'alert.forwardEnabled', params: { address: settings.address } })
     }
     return settings
   })
@@ -573,19 +580,21 @@ export async function putForward(
  * courrier entrant. Envoie l'alerte e-mail ; l'inscription dans « Activité
  * récente » (R2.6) sera câblée séparément par l'orchestrateur.
  */
-export async function onForwardingChanged(ctx: FiltersContext, owner: string, summary: string): Promise<void> {
+export async function onForwardingChanged(ctx: FiltersContext, owner: string, summary: LocalizedMessage): Promise<void> {
   try {
     const creds = await freshCredentials(ctx.sid)
     if (!creds) return
     const { kind, server } = mailConfig(ctx.event)
+    // Langue de l'alerte : préférence du compte, sinon langue active du navigateur ou de l'établissement.
+    const locale = accountLocale(ctx.event, owner)
     const backend = createBackend(kind, creds, server)
     try {
       const raw = await buildRawMessage(owner, {
         to: [owner],
         cc: [],
         bcc: [],
-        subject: 'Colombe : transfert modifié sur votre compte',
-        text: summary,
+        subject: translate(locale, 'alert.forwardSubject'),
+        text: translate(locale, summary.key, summary.params),
         html: null,
         inReplyTo: null,
         references: [],
@@ -603,22 +612,24 @@ export async function onForwardingChanged(ctx: FiltersContext, owner: string, su
 
 // ─── Erreurs -> HTTP ───
 
-export function sieveError(err: unknown): H3Error {
+export function sieveError(err: unknown, event?: H3Event): H3Error {
   if (isError(err)) return err
   if (err instanceof SieveGenerateError) {
-    return createError({ statusCode: 400, statusMessage: 'Fonctionnalité refusée', message: err.message })
+    return createError({ statusCode: 400, statusMessage: 'Fonctionnalité refusée', message: localizedErrorMessage(event, err) })
   }
   if (err instanceof SieveError) {
-    const map: Record<SieveErrorCode, [number, string]> = {
-      AUTH_FAILED: [401, 'Authentification refusée par le serveur de filtres.'],
-      NOT_FOUND: [404, err.message || 'Élément introuvable.'],
-      INVALID: [400, err.serverMessage ?? err.message ?? 'Script invalide.'],
-      UNAVAILABLE: [503, 'Serveur de filtres indisponible.'],
-      CONNECT_FAILED: [503, 'Les filtres ne sont pas disponibles sur ce serveur.'],
+    // Message du serveur ManageSieve (INVALID) : transmis tel quel, dans sa langue.
+    const own = err.i18n ? serverT(event, err.i18n.key, err.i18n.params) : null
+    const map: Record<SieveErrorCode, [number, string, string]> = {
+      AUTH_FAILED: [401, 'Authentification refusée par le serveur de filtres.', serverT(event, 'sieve.authFailed')],
+      NOT_FOUND: [404, err.message || 'Élément introuvable.', own ?? (err.message || serverT(event, 'sieve.itemNotFound'))],
+      INVALID: [400, err.serverMessage ?? err.message ?? 'Script invalide.', err.serverMessage ?? own ?? err.message ?? serverT(event, 'sieve.invalidScript')],
+      UNAVAILABLE: [503, 'Serveur de filtres indisponible.', serverT(event, 'sieve.serverUnavailable')],
+      CONNECT_FAILED: [503, 'Les filtres ne sont pas disponibles sur ce serveur.', serverT(event, 'sieve.unavailableHere')],
     }
-    const [statusCode, message] = map[err.code]
-    return createError({ statusCode, statusMessage: message, message })
+    const [statusCode, statusMessage, message] = map[err.code]
+    return createError({ statusCode, statusMessage, message })
   }
   console.error('[webmail] erreur sieve inattendue', err instanceof Error ? err.name : typeof err)
-  return createError({ statusCode: 500, statusMessage: 'Erreur serveur', message: 'Erreur serveur' })
+  return createError({ statusCode: 500, statusMessage: 'Erreur serveur', message: serverT(event, 'server.error') })
 }

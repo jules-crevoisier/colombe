@@ -1,6 +1,7 @@
 import { authUsername, getConfig } from '../../lib/config'
 import { buildAppleProfile, profileFilename } from '../../lib/devices/mobileconfig'
 import { mailError, requireMail } from '../../utils/mail-session'
+import { serverT } from '../../lib/i18n'
 
 /**
  * Profil de configuration Apple (iPhone, iPad, Mac) pour le compte connecté.
@@ -12,7 +13,7 @@ export default defineEventHandler(async (event) => {
     const config = getConfig()
     const { imap, smtp } = config.clients
     if (!imap || !smtp) {
-      const message = 'Les paramètres de connexion externes ne sont pas configurés par l\'administrateur.'
+      const message = serverT(event, 'devices.notConfigured')
       throw createError({ statusCode: 409, statusMessage: 'Non configuré', message })
     }
     const body = buildAppleProfile({
@@ -32,6 +33,6 @@ export default defineEventHandler(async (event) => {
     return body
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

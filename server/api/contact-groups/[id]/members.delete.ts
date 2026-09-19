@@ -17,6 +17,6 @@ export default defineEventHandler(async (event): Promise<void> => {
     setResponseStatus(event, 204)
   }
   catch (err) {
-    throw contactHttpError(err)
+    throw contactHttpError(err, event)
   }
 })

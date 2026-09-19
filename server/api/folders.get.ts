@@ -25,7 +25,7 @@ export default defineEventHandler(async (event): Promise<Folder[]> => {
       return overridden.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, 'fr'))
     }
     catch (err) {
-      throw mailError(err)
+      throw mailError(err, event)
     }
   })
 })

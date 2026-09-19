@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ArrowLeft, ChevronDown, Eye, EyeOff, KeyRound, LoaderCircle, ShieldCheck } from '@lucide/vue'
 import type { LoginResult } from '#shared/types/mail'
+import { useI18n } from 'vue-i18n'
 
 definePageMeta({ layout: 'auth' })
 
 const { config, addressExample, load: loadSiteConfig } = useSiteConfig()
-useHead({ title: computed(() => `Connexion — ${config.value.productName}`) })
+const { t } = useI18n()
+const { active: activeLanguage, choose: chooseLanguage } = useLoginLanguage()
+useHead({ title: computed(() => t('login.pageTitle', { product: config.value.productName })) })
 
 // ─── SSO (OIDC) : début ───
 const route = useRoute()
@@ -19,24 +22,20 @@ const passwordOpen = ref(false)
 const ssoLoading = ref(false)
 const ssoHref = computed(() => apiUrl('/api/auth/oidc/start'))
 
-/** Messages de GET /api/auth/oidc/callback → /login?error=<code>. */
-const SSO_ERRORS: Record<string, string> = {
-  expired: 'La connexion a expiré. Recommencez.',
-  cancelled: 'Connexion annulée.',
-  idp: 'Le service d’authentification de l’établissement a refusé la connexion.',
-  invalid: 'La réponse du service d’authentification est invalide. Recommencez.',
-  claim: 'Votre compte ne fournit pas d’adresse de messagerie. Contactez le support.',
-  domain: 'Ce compte n’a pas d’adresse de messagerie acceptée ici.',
-  mailbox: 'Votre boîte aux lettres n’est pas accessible avec ce compte. Contactez le support.',
-  unavailable: 'Service d’authentification ou de messagerie indisponible. Réessayez plus tard.',
-  rate: 'Trop de tentatives. Réessayez dans quelques minutes.',
+/** Codes de GET /api/auth/oidc/callback → /login?error=<code> (messages : login.sso.*). */
+const SSO_ERRORS = ['expired', 'cancelled', 'idp', 'invalid', 'claim', 'domain', 'mailbox', 'unavailable', 'rate'] as const
+type SsoError = typeof SSO_ERRORS[number]
+function isSsoError(code: string): code is SsoError {
+  return (SSO_ERRORS as readonly string[]).includes(code)
 }
+/** Code d'erreur SSO reçu : traduit à l'affichage, donc suit un changement de langue. */
+const ssoError = ref<SsoError | 'other' | null>(null)
 
 onMounted(async () => {
   const code = typeof route.query.error === 'string' ? route.query.error : ''
   const twoFactor = route.query.step === '2fa'
   if (code || twoFactor) void navigateTo({ path: '/login', query: {} }, { replace: true })
-  if (code) error.value = SSO_ERRORS[code] ?? 'Connexion impossible pour le moment. Réessayez plus tard.'
+  if (code) ssoError.value = isSsoError(code) ? code : 'other'
   if (twoFactor) {
     // Connexion unique réussie, code de double authentification Colombe attendu.
     step.value = 'code'
@@ -48,12 +47,12 @@ onMounted(async () => {
 })
 // ─── SSO (OIDC) : fin ───
 
-const emailLabel = computed(() => (config.value.login.defaultDomain ? 'Adresse e-mail ou identifiant' : 'Adresse e-mail'))
+const emailLabel = computed(() => (config.value.login.defaultDomain ? t('login.emailOrUserLabel') : t('login.emailLabel')))
 const emailInputType = computed(() => (config.value.login.defaultDomain ? 'text' : 'email'))
-const loginMessage = computed(() => config.value.loginMessage || (config.value.orgName ? `Messagerie ${config.value.orgName}` : ''))
+const loginMessage = computed(() => config.value.loginMessage || (config.value.orgName ? t('login.orgMessage', { org: config.value.orgName }) : ''))
 const supportHref = computed(() => config.value.supportUrl ?? (config.value.supportEmail ? `mailto:${config.value.supportEmail}` : null))
 const demo = computed(() => config.value.demo)
-const demoDescription = computed(() => `Un compte de démonstration est créé pour vous, avec des messages d'exemple. Il est effacé au bout de ${demo.value?.ttlHours ?? 4} heures. Aucun e-mail ne quitte ce serveur.`)
+const demoDescription = computed(() => t('login.demoDescription', { hours: demo.value?.ttlHours ?? 4 }))
 
 const step = ref<'password' | 'code'>('password')
 const email = ref('')
@@ -62,16 +61,26 @@ const code = ref('')
 const useRecovery = ref(false)
 const showPassword = ref(false)
 const loading = ref(false)
-const error = ref('')
+const errorMessage = ref('')
+/** Message affiché : erreur de connexion, ou erreur SSO traduite dans la langue active. */
+const error = computed<string>({
+  get: () => errorMessage.value || (ssoError.value === 'other' ? t('login.errors.generic') : ssoError.value ? t(`login.sso.${ssoError.value}`) : ''),
+  set: (value) => {
+    errorMessage.value = value
+    ssoError.value = null
+  },
+})
 const codeInput = ref<{ $el: HTMLInputElement } | null>(null)
 const { fetch: refreshSession } = useUserSession()
+const LOGIN_LANGUAGES = ['fr', 'en'] as const
 
 function describe(err: unknown, context: 'password' | 'code'): string {
   const status = statusOf(err)
-  if (status === 401) return context === 'password' ? 'Adresse ou mot de passe incorrect.' : errorText(err, 'Code incorrect.')
+  // Message du serveur (Accept-Language = langue active), sinon libellé local.
+  if (status === 401) return errorText(err, context === 'password' ? t('login.errors.badCredentials') : t('login.errors.badCode'))
   if (status === 403 || status === 429 || status === 503) return errorText(err)
-  if (status === 400) return context === 'password' ? 'Saisissez une adresse e-mail valide et votre mot de passe.' : 'Code invalide.'
-  return 'Connexion impossible pour le moment. Réessayez plus tard.'
+  if (status === 400) return context === 'password' ? t('login.errors.invalidInput') : t('login.errors.invalidCode')
+  return t('login.errors.generic')
 }
 
 async function finish() {
@@ -84,7 +93,7 @@ async function finish() {
 function describeDemo(err: unknown): string {
   const status = statusOf(err)
   if (status === 429) return errorText(err)
-  return 'Impossible de créer la démonstration pour le moment. Réessayez plus tard.'
+  return t('login.errors.demo')
 }
 
 async function tryDemo() {
@@ -138,7 +147,7 @@ async function submitCode() {
     error.value = describe(err, 'code')
     code.value = ''
     // Attente expirée ou trop d'essais : retour à l'étape mot de passe.
-    if (statusOf(err) === 401 && /reconnect|expir/i.test(error.value)) step.value = 'password'
+    if (statusOf(err) === 401 && /reconnect|expir|sign in again/i.test(error.value)) step.value = 'password'
   }
   finally {
     loading.value = false
@@ -163,7 +172,9 @@ function backToPassword() {
       <div class="flex flex-col gap-10">
         <BrandDove class="w-full max-w-[520px] [--dove-trail:rgb(236_232_222/0.35)]" />
         <p class="max-w-md font-heading text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-balance xl:text-[46px]">
-          Votre courrier, <em class="text-[#f59e6b] italic">plié avec soin</em>.
+          <i18n-t keypath="login.tagline" scope="global">
+            <template #emphasis><em class="text-[#f59e6b] italic">{{ t('login.taglineEmphasis') }}</em></template>
+          </i18n-t>
         </p>
       </div>
       <div v-if="config.hasLogo || config.orgName" class="flex items-center gap-2 text-sm text-[#ece8de]/75">
@@ -174,6 +185,23 @@ function backToPassword() {
 
   <main class="flex items-center justify-center px-5 py-10 sm:px-10">
    <div class="w-full max-w-[400px] animate-settle">
+    <div class="-mt-4 mb-4 flex justify-end sm:-mt-6">
+      <div role="group" :aria-label="t('language.switcher')" class="inline-flex rounded-lg border border-border p-0.5 text-sm">
+        <button
+          v-for="lang in LOGIN_LANGUAGES"
+          :key="lang"
+          type="button"
+          :lang="lang"
+          :aria-label="t(`language.${lang}`)"
+          :aria-pressed="activeLanguage === lang"
+          class="grid h-11 min-w-11 place-items-center rounded-md px-2 font-semibold uppercase focus-visible:outline-2 focus-visible:outline-ring"
+          :class="activeLanguage === lang ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'"
+          @click="chooseLanguage(lang)"
+        >
+          {{ lang }}
+        </button>
+      </div>
+    </div>
     <div class="mb-8 flex flex-col items-start gap-5">
       <span v-if="step === 'code'" class="grid size-12 place-items-center rounded-xl bg-primary text-xl font-bold text-primary-foreground" aria-hidden="true">
         <ShieldCheck class="size-6" />
@@ -187,10 +215,10 @@ function backToPassword() {
         </div>
       </div>
       <div>
-        <h1 class="font-heading text-[34px] leading-[1.1] font-medium tracking-[-0.02em] sm:text-[40px]">{{ step === 'code' ? 'Validation en deux étapes' : 'Connexion' }}</h1>
+        <h1 class="font-heading text-[34px] leading-[1.1] font-medium tracking-[-0.02em] sm:text-[40px]">{{ step === 'code' ? t('login.twoFactorTitle') : t('login.title') }}</h1>
         <p class="mt-3 text-base text-muted-foreground">
           <template v-if="step === 'code'">
-            {{ useRecovery ? 'Saisissez l’un de vos codes de secours.' : 'Saisissez le code à 6 chiffres affiché par votre application d’authentification.' }}
+            {{ useRecovery ? t('login.recoveryHint') : t('login.totpHint') }}
           </template>
           <template v-else-if="loginMessage">{{ loginMessage }}</template>
         </p>
@@ -202,13 +230,13 @@ function backToPassword() {
       <p id="login-error" class="min-h-5 text-sm text-destructive" role="alert" aria-live="assertive">{{ error }}</p>
       <Button type="button" class="h-12 w-full rounded-lg text-base font-semibold" :disabled="loading" @click="tryDemo">
         <LoaderCircle v-if="loading" class="size-5 animate-spin" aria-hidden="true" />
-        {{ loading ? 'Création de la démo…' : 'Essayer la démo' }}
+        {{ loading ? t('login.demoCreating') : t('login.demoTry') }}
       </Button>
     </div>
 
     <div v-else-if="step === 'password' && !methodsReady" class="flex flex-col gap-5" aria-busy="true">
       <div class="h-12 w-full animate-pulse rounded-lg bg-muted" />
-      <span class="sr-only">Chargement…</span>
+      <span class="sr-only">{{ t('common.loading') }}</span>
     </div>
 
     <div v-else-if="step === 'password' && oidcEnabled" class="flex flex-col gap-5">
@@ -230,7 +258,7 @@ function backToPassword() {
           aria-controls="password-login"
           @click="passwordOpen = !passwordOpen"
         >
-          Se connecter avec un mot de passe
+          {{ t('login.usePassword') }}
           <ChevronDown class="size-4 transition-transform" :class="{ 'rotate-180': passwordOpen }" aria-hidden="true" />
         </button>
 
@@ -241,19 +269,19 @@ function backToPassword() {
           </div>
 
           <div class="flex flex-col gap-2">
-            <Label for="password">Mot de passe</Label>
+            <Label for="password">{{ t('login.passwordLabel') }}</Label>
             <div class="relative">
               <Input id="password" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required class="h-12 rounded-lg pr-12 text-base" :aria-invalid="!!error || undefined" aria-describedby="login-error" />
-              <button type="button" class="absolute top-0.5 right-0.5 grid size-11 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring" :aria-label="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'" :aria-pressed="showPassword" @click="showPassword = !showPassword">
+              <button type="button" class="absolute top-0.5 right-0.5 grid size-11 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring" :aria-label="showPassword ? t('login.hidePassword') : t('login.showPassword')" :aria-pressed="showPassword" @click="showPassword = !showPassword">
                 <component :is="showPassword ? EyeOff : Eye" class="size-5" aria-hidden="true" />
               </button>
             </div>
-            <a v-if="config.passwordResetUrl" :href="config.passwordResetUrl" target="_blank" rel="noopener noreferrer" class="self-start text-sm font-medium text-primary hover:underline">Mot de passe oublié ?</a>
+            <a v-if="config.passwordResetUrl" :href="config.passwordResetUrl" target="_blank" rel="noopener noreferrer" class="self-start text-sm font-medium text-primary hover:underline">{{ t('login.forgotPassword') }}</a>
           </div>
 
           <Button type="submit" variant="outline" class="h-12 w-full rounded-lg text-base font-semibold" :disabled="loading || !email || !password">
             <LoaderCircle v-if="loading" class="size-5 animate-spin" aria-hidden="true" />
-            {{ loading ? 'Connexion…' : 'Se connecter' }}
+            {{ loading ? t('login.submitting') : t('login.submit') }}
           </Button>
         </form>
       </template>
@@ -266,27 +294,27 @@ function backToPassword() {
       </div>
 
       <div class="flex flex-col gap-2">
-        <Label for="password">Mot de passe</Label>
+        <Label for="password">{{ t('login.passwordLabel') }}</Label>
         <div class="relative">
           <Input id="password" v-model="password" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" required class="h-12 rounded-lg pr-12 text-base" :aria-invalid="!!error || undefined" aria-describedby="login-error" />
-          <button type="button" class="absolute top-0.5 right-0.5 grid size-11 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring" :aria-label="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'" :aria-pressed="showPassword" @click="showPassword = !showPassword">
+          <button type="button" class="absolute top-0.5 right-0.5 grid size-11 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring" :aria-label="showPassword ? t('login.hidePassword') : t('login.showPassword')" :aria-pressed="showPassword" @click="showPassword = !showPassword">
             <component :is="showPassword ? EyeOff : Eye" class="size-5" aria-hidden="true" />
           </button>
         </div>
-        <a v-if="config.passwordResetUrl" :href="config.passwordResetUrl" target="_blank" rel="noopener noreferrer" class="self-start text-sm font-medium text-primary hover:underline">Mot de passe oublié ?</a>
+        <a v-if="config.passwordResetUrl" :href="config.passwordResetUrl" target="_blank" rel="noopener noreferrer" class="self-start text-sm font-medium text-primary hover:underline">{{ t('login.forgotPassword') }}</a>
       </div>
 
       <p id="login-error" class="min-h-5 text-sm text-destructive" role="alert" aria-live="assertive">{{ error }}</p>
 
       <Button type="submit" class="h-12 w-full rounded-lg text-base font-semibold" :disabled="loading || !email || !password">
         <LoaderCircle v-if="loading" class="size-5 animate-spin" aria-hidden="true" />
-        {{ loading ? 'Connexion…' : 'Se connecter' }}
+        {{ loading ? t('login.submitting') : t('login.submit') }}
       </Button>
     </form>
 
     <form v-else class="flex flex-col gap-5" novalidate @submit.prevent="submitCode">
       <div class="flex flex-col gap-2">
-        <Label for="code">{{ useRecovery ? 'Code de secours' : 'Code de vérification' }}</Label>
+        <Label for="code">{{ useRecovery ? t('login.recoveryCodeLabel') : t('login.totpCodeLabel') }}</Label>
         <Input
           id="code"
           ref="codeInput"
@@ -308,15 +336,15 @@ function backToPassword() {
 
       <Button type="submit" class="h-12 w-full rounded-lg text-base font-semibold" :disabled="loading || code.trim().length < 6">
         <LoaderCircle v-if="loading" class="size-5 animate-spin" aria-hidden="true" />
-        {{ loading ? 'Vérification…' : 'Valider' }}
+        {{ loading ? t('login.verifying') : t('login.verify') }}
       </Button>
 
       <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
         <button type="button" class="inline-flex h-11 items-center gap-1 rounded-lg px-2 text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" @click="backToPassword">
-          <ArrowLeft class="size-4" aria-hidden="true" /> Retour
+          <ArrowLeft class="size-4" aria-hidden="true" /> {{ t('common.back') }}
         </button>
         <button type="button" class="h-11 rounded-lg px-2 font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring" @click="useRecovery = !useRecovery; code = ''; error = ''">
-          {{ useRecovery ? 'Utiliser l’application' : 'Utiliser un code de secours' }}
+          {{ useRecovery ? t('login.useApp') : t('login.useRecovery') }}
         </button>
       </div>
     </form>
@@ -324,16 +352,16 @@ function backToPassword() {
     <div class="mt-8 flex gap-3 rounded-lg border border-dashed border-line-strong px-4 py-3">
       <ShieldCheck class="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <p class="text-xs leading-relaxed text-muted-foreground">
-        Ne saisissez jamais votre mot de passe sur une page reçue par e-mail. Le service informatique ne vous le demandera jamais.
+        {{ t('login.phishingWarning') }}
       </p>
     </div>
 
     <p v-if="supportHref" class="mt-4 text-center text-xs">
-      <a :href="supportHref" target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-foreground hover:underline">Besoin d'aide ?</a>
+      <a :href="supportHref" target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-foreground hover:underline">{{ t('login.help') }}</a>
     </p>
     <p v-if="config.portalUrl" class="mt-2 text-center text-sm">
       <a :href="config.portalUrl" class="inline-flex h-11 items-center gap-1.5 rounded-lg px-3 font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">
-        <ArrowLeft class="size-4" aria-hidden="true" /> Retour à l’ENT
+        <ArrowLeft class="size-4" aria-hidden="true" /> {{ t('login.backToPortal') }}
       </a>
     </p>
    </div>

@@ -9,6 +9,6 @@ export default defineEventHandler(async (event): Promise<TwoFactorStatus> => {
     return twoFactorStatus(useDb(), email)
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

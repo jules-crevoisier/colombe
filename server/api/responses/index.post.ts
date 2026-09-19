@@ -4,6 +4,7 @@ import { addResponse, ResponseLimitError } from '../../lib/store/responses'
 import { OutgoingImageError } from '../../lib/mail/sanitize-outgoing'
 import { requireMail } from '../../utils/mail-session'
 import { useDb } from '../../lib/store/db'
+import { localizedErrorMessage } from '../../lib/i18n'
 
 const inputSchema = z.object({
   name: z.string().trim().min(1).max(100),
@@ -20,8 +21,8 @@ export default defineEventHandler(async (event): Promise<CannedResponse> => {
     return response
   }
   catch (err) {
-    if (err instanceof ResponseLimitError) throw createError({ statusCode: 400, statusMessage: 'Trop de réponses types', message: err.message })
-    if (err instanceof OutgoingImageError) throw createError({ statusCode: 400, statusMessage: 'Image invalide', message: err.message })
+    if (err instanceof ResponseLimitError) throw createError({ statusCode: 400, statusMessage: 'Trop de réponses types', message: localizedErrorMessage(event, err) })
+    if (err instanceof OutgoingImageError) throw createError({ statusCode: 400, statusMessage: 'Image invalide', message: localizedErrorMessage(event, err) })
     throw err
   }
 })

@@ -2,6 +2,7 @@ import { simpleParser } from 'mailparser'
 import type { AddressObject, Attachment, EmailAddress, ParsedMail } from 'mailparser'
 import { sanitizeEmailHtml } from './sanitize'
 import type { Address, AttachmentMeta, MessageDetail, Priority } from '#shared/types/mail'
+import { NO_SUBJECT } from '#shared/types/mail'
 
 export interface MessageContext {
   uid: number
@@ -174,7 +175,7 @@ export async function parseMessage(raw: Buffer, ctx: MessageContext): Promise<Me
     size: att.size || att.content.length,
   }))
 
-  const subject = parsed.subject?.trim() ? parsed.subject : '(sans objet)'
+  const subject = parsed.subject?.trim() ? parsed.subject : NO_SUBJECT
   const references = Array.isArray(parsed.references)
     ? parsed.references
     : parsed.references ? [parsed.references] : []

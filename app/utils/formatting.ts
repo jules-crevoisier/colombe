@@ -1,3 +1,5 @@
+import { i18n, intlLocale } from '~/lib/i18n'
+
 export interface DateFormatPrefs {
   timeZone?: string
   dateFormat?: 'relative' | 'short' | 'long'
@@ -45,10 +47,7 @@ export function formatMessageDate(dateString: string, locale: string, prefs?: Da
     if (date.getUTCFullYear() === now.getUTCFullYear()) {
       return date.toLocaleString(locale, { day: 'numeric', month: 'short' })
     }
-    const day = String(date.getUTCDate()).padStart(2, '0')
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-    const year = date.getUTCFullYear()
-    return `${day}/${month}/${year}`
+    return date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
   }
 
   const dateParts = partsInZone(date, timeZone)
@@ -59,7 +58,7 @@ export function formatMessageDate(dateString: string, locale: string, prefs?: Da
   if (dateParts.year === nowParts.year) {
     return date.toLocaleString(locale, { day: 'numeric', month: 'short', timeZone })
   }
-  return `${String(dateParts.day).padStart(2, '0')}/${String(dateParts.month).padStart(2, '0')}/${dateParts.year}`
+  return date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric', timeZone })
 }
 
 /**
@@ -129,10 +128,25 @@ export function getAvatarTone(email: string): string {
 }
 
 /**
- * Formate un volume en Go avec la notation française (virgule décimale).
- * Ex. 1288490188 -> « 1,2 Go ».
+ * Formate un volume en Go dans la langue active.
+ * Ex. 1288490188 -> « 1,2 Go » (français), « 1.2 GB » (anglais).
  */
 export function formatGigabytes(bytes: number): string {
   const gib = bytes / (1024 * 1024 * 1024)
-  return `${gib.toLocaleString('fr-FR', { maximumFractionDigits: 1, minimumFractionDigits: 1 })} Go`
+  return `${gib.toLocaleString(intlLocale(), { maximumFractionDigits: 1, minimumFractionDigits: 1 })} ${i18n.global.t('units.gigabyte')}`
+}
+
+/**
+ * Taille d'un fichier dans la langue active : « 12 Ko » sous 1 Mo, sinon « 1,5 Mo ».
+ * `minOneKb` : jamais « 0 Ko » (pièces jointes en cours d'ajout).
+ */
+export function formatFileSize(bytes: number, minOneKb = false): string {
+  const locale = intlLocale()
+  const { t } = i18n.global
+  if (bytes < 1024 * 1024) {
+    const kb = Math.round(bytes / 1024)
+    return `${(minOneKb ? Math.max(1, kb) : kb).toLocaleString(locale, { useGrouping: false })} ${t('units.kilobyte')}`
+  }
+  const mb = bytes / 1024 / 1024
+  return `${mb.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })} ${t('units.megabyte')}`
 }

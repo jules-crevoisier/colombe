@@ -1,32 +1,31 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
+import { useI18n } from 'vue-i18n'
 import type { Folder, SpecialFolders } from '#shared/types/mail'
 
 const api = useSettingsApi()
 const prefs = usePrefsStore()
+const { t } = useI18n()
 
 const folders = ref<Folder[]>([])
 const sizes = ref<Record<string, number>>({})
 const loading = ref(true)
 const togglingPath = ref<string | null>(null)
 
-const SPECIAL_FIELDS: { key: keyof SpecialFolders; label: string }[] = [
-  { key: 'sent', label: 'Dossier des messages envoyés' },
-  { key: 'drafts', label: 'Brouillons' },
-  { key: 'trash', label: 'Corbeille' },
-  { key: 'junk', label: 'Spam' },
-  { key: 'archive', label: 'Archives' },
-]
+const SPECIAL_FIELDS = computed<{ key: keyof SpecialFolders; label: string }[]>(() => [
+  { key: 'sent', label: t('settings.folders.specialFields.sent') },
+  { key: 'drafts', label: t('folders.special.drafts') },
+  { key: 'trash', label: t('folders.special.trash') },
+  { key: 'junk', label: t('folders.special.junk') },
+  { key: 'archive', label: t('folders.special.archive') },
+])
 
 function depth(path: string, delimiter: string): number {
   return delimiter ? path.split(delimiter).length - 1 : 0
 }
 
 function formatSize(bytes: number | undefined): string {
-  if (bytes == null) return '…'
-  if (bytes < 1024) return `${bytes} o`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`
-  return `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} Mo`
+  return bytes == null ? '…' : formatFileSize(bytes)
 }
 
 async function load() {
@@ -44,7 +43,7 @@ async function load() {
     }))
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de charger les dossiers.'))
+    toast.error(errorText(err, t('settings.folders.loadError')))
   }
   finally {
     loading.value = false
@@ -60,7 +59,7 @@ async function toggleSubscribed(folder: Folder, subscribed: boolean) {
   }
   catch (err) {
     folder.subscribed = previous
-    toast.error(errorText(err, 'Impossible de modifier cet abonnement.'))
+    toast.error(errorText(err, t('settings.folders.subscribeError')))
   }
   finally {
     togglingPath.value = null
@@ -93,11 +92,11 @@ onMounted(load)
 
     <template v-else>
       <!-- Tableau ARIA : une ligne par dossier, nommée par son contenu (lecteurs d'écran). -->
-      <div role="table" aria-label="Tous les dossiers" class="flex flex-col gap-1">
+      <div role="table" :aria-label="t('settings.folders.table.ariaLabel')" class="flex flex-col gap-1">
         <div role="row" class="flex items-center gap-3 px-2 py-1 text-xs font-medium text-muted-foreground">
-          <span role="columnheader" class="flex-1">Dossier</span>
-          <span role="columnheader" class="w-16 text-right">Taille</span>
-          <span role="columnheader" class="w-24 text-right">Afficher</span>
+          <span role="columnheader" class="flex-1">{{ t('settings.folders.table.folder') }}</span>
+          <span role="columnheader" class="w-16 text-right">{{ t('settings.folders.table.size') }}</span>
+          <span role="columnheader" class="w-24 text-right">{{ t('settings.folders.table.show') }}</span>
         </div>
         <div
           v-for="folder in folders"
@@ -106,14 +105,14 @@ onMounted(load)
           class="flex min-h-11 items-center gap-3 rounded-lg border border-border px-2 py-1"
         >
           <span role="cell" class="flex-1 truncate text-sm" :style="{ paddingLeft: `${depth(folder.path, folder.delimiter) * 1.25}rem` }">
-            {{ folder.name }}
+            {{ folderLabel(folder) }}
           </span>
           <span role="cell" class="w-16 shrink-0 text-right text-xs text-muted-foreground">{{ formatSize(sizes[folder.path]) }}</span>
           <span role="cell" class="flex w-24 shrink-0 justify-end">
             <Switch
               :model-value="folder.subscribed"
               :disabled="togglingPath === folder.path"
-              :aria-label="`Afficher ${folder.name}`"
+              :aria-label="t('settings.folders.table.showFolder', { name: folderLabel(folder) })"
               @update:model-value="(v: boolean) => toggleSubscribed(folder, v)"
             />
           </span>
@@ -121,7 +120,7 @@ onMounted(load)
       </div>
 
       <div class="border-t border-border pt-8">
-        <h3 class="mb-4 font-heading text-xl font-medium">Dossiers spéciaux</h3>
+        <h3 class="mb-4 font-heading text-xl font-medium">{{ t('settings.folders.specialHeading') }}</h3>
         <div class="grid gap-4 sm:grid-cols-2">
           <div v-for="field in SPECIAL_FIELDS" :key="field.key" class="space-y-2">
             <Label :for="`special-folder-${field.key}`" class="text-sm font-medium">{{ field.label }}</Label>
@@ -130,9 +129,9 @@ onMounted(load)
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__auto__">Détection automatique</SelectItem>
+                <SelectItem value="__auto__">{{ t('settings.folders.autoDetect') }}</SelectItem>
                 <SelectItem v-for="folder in folders" :key="folder.path" :value="folder.path">
-                  {{ folder.name }}
+                  {{ folderLabel(folder) }}
                 </SelectItem>
               </SelectContent>
             </Select>

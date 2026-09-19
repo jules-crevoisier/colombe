@@ -2,36 +2,38 @@
 import { ChevronLeft } from '@lucide/vue'
 import { useMediaQuery } from '@vueuse/core'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
+import { useI18n } from 'vue-i18n'
 
 definePageMeta({ layout: 'mail' })
 
 const route = useRoute()
 const prefs = usePrefsStore()
+const { t } = useI18n()
 
 /** Anciens paramètres migrés vers un nouvel onglet (ex. la signature devient une identité). */
 const TAB_ALIASES: Record<string, string> = { signature: 'identities' }
 
 const SECTIONS = [
-  { value: 'general', label: 'Général' },
-  { value: 'identities', label: 'Identités' },
-  { value: 'responses', label: 'Réponses types' },
-  { value: 'display', label: 'Affichage' },
-  { value: 'compose', label: 'Rédaction' },
-  { value: 'folders', label: 'Dossiers' },
-  { value: 'filters', label: 'Filtres' },
-  { value: 'vacation', label: 'Réponse automatique' },
-  { value: 'forward', label: 'Transfert' },
-  { value: 'devices', label: 'Autres applications' },
-  { value: 'server', label: 'Serveur' },
-  { value: 'security', label: 'Sécurité' },
-  { value: 'contacts', label: 'Contacts' },
+  { value: 'general' },
+  { value: 'identities' },
+  { value: 'responses' },
+  { value: 'display' },
+  { value: 'compose' },
+  { value: 'folders' },
+  { value: 'filters' },
+  { value: 'vacation' },
+  { value: 'forward' },
+  { value: 'devices' },
+  { value: 'server' },
+  { value: 'security' },
+  { value: 'contacts' },
 ] as const
 
 const isDesktop = useMediaQuery('(min-width: 1024px)')
 
 /** Titre de section (h2) : repère pour les lecteurs d'écran, identique à l'onglet. */
 function sectionLabel(value: string): string {
-  return SECTIONS.find(s => s.value === value)?.label ?? ''
+  return t(`settings.tabs.${value}`)
 }
 
 const selectedTab = computed({
@@ -52,7 +54,7 @@ onMounted(async () => {
 })
 
 useHead({
-  title: 'Paramètres - Colombe',
+  title: computed(() => t('settings.page.title')),
 })
 </script>
 
@@ -63,11 +65,11 @@ useHead({
       <NuxtLink
         to="/mail/INBOX"
         class="grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:size-10"
-        aria-label="Retour à la messagerie"
+        :aria-label="t('settings.page.backToMail')"
       >
         <ChevronLeft class="size-5" aria-hidden="true" />
       </NuxtLink>
-      <h1 class="font-heading text-[26px] leading-tight font-medium tracking-[-0.015em] lg:text-[30px]">Paramètres</h1>
+      <h1 class="font-heading text-[26px] leading-tight font-medium tracking-[-0.015em] lg:text-[30px]">{{ t('settings.page.heading') }}</h1>
     </div>
 
     <!-- Contenu -->
@@ -76,14 +78,14 @@ useHead({
         <!-- Onglets : même langage que les dossiers (signet d'encre), jamais de pilule.
              Liste verticale à gauche à partir de 1024 px ; rangée soulignée défilante en dessous. -->
         <TabsRoot v-model="selectedTab" :orientation="isDesktop ? 'vertical' : 'horizontal'" class="w-full lg:flex lg:items-start lg:gap-10">
-          <TabsList aria-label="Sections des paramètres" class="-mx-4 mb-6 flex gap-1 overflow-x-auto border-b border-border px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:sticky lg:top-0 lg:mx-0 lg:mb-0 lg:w-52 lg:shrink-0 lg:flex-col lg:gap-px lg:overflow-visible lg:border-b-0 lg:px-0">
+          <TabsList :aria-label="t('settings.page.sectionsLabel')" class="-mx-4 mb-6 flex gap-1 overflow-x-auto border-b border-border px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:sticky lg:top-0 lg:mx-0 lg:mb-0 lg:w-52 lg:shrink-0 lg:flex-col lg:gap-px lg:overflow-visible lg:border-b-0 lg:px-0">
             <TabsTrigger
               v-for="section in SECTIONS"
               :key="section.value"
               :value="section.value"
               class="relative -mb-px h-11 flex-none border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=active]:border-nav-marker data-[state=active]:font-semibold data-[state=active]:text-foreground lg:mb-0 lg:h-9 lg:w-full lg:justify-start lg:rounded-md lg:border-b-0 lg:text-left lg:text-foreground/85 lg:hover:bg-foreground/[0.05] lg:data-[state=active]:bg-accent lg:data-[state=active]:before:absolute lg:data-[state=active]:before:top-1/2 lg:data-[state=active]:before:left-0 lg:data-[state=active]:before:h-4 lg:data-[state=active]:before:w-[3px] lg:data-[state=active]:before:-translate-y-1/2 lg:data-[state=active]:before:rounded-r-sm lg:data-[state=active]:before:bg-nav-marker"
             >
-              {{ section.label }}
+              {{ sectionLabel(section.value) }}
             </TabsTrigger>
           </TabsList>
 

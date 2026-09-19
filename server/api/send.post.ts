@@ -8,6 +8,7 @@ import { mailError, requireMail } from '../utils/mail-session'
 import { recordRecipients } from '../lib/store/contacts'
 import { useDb } from '../lib/store/db'
 import { findIdentity, getDefaultIdentity } from '../lib/store/identities'
+import { serverT } from '../lib/i18n'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -18,7 +19,7 @@ export default defineEventHandler(async (event) => {
     // Identité d'envoi (R2.1) : doit appartenir à l'utilisateur, sinon la requête est invalide.
     const identity = payload.identityId != null ? findIdentity(db, email, payload.identityId) : getDefaultIdentity(db, email)
     if (!identity) {
-      throw createError({ statusCode: 400, statusMessage: 'Identité invalide', message: 'Cette identité n\'existe pas.' })
+      throw createError({ statusCode: 400, statusMessage: 'Identité invalide', message: serverT(event, 'identities.invalid') })
     }
     // Copie cachée automatique de l'identité : ajoutée aux destinataires réels
     // (enveloppe SMTP) et à la copie « Envoyés », jamais à l'en-tête transmis.
@@ -27,7 +28,7 @@ export default defineEventHandler(async (event) => {
     // Même limite que Postfix : un compte volé ne doit pas pouvoir relayer du spam.
     const key = `email:${email}`
     if (sendLimiter.isLimited(key)) {
-      throw createError({ statusCode: 429, statusMessage: 'Limite d\'envoi atteinte', message: 'Limite d\'envoi atteinte. Réessayez plus tard.' })
+      throw createError({ statusCode: 429, statusMessage: 'Limite d\'envoi atteinte', message: serverT(event, 'send.limit') })
     }
 
     // Handle forwardAsAttachment - fetch raw messages and add as message/rfc822
@@ -107,6 +108,6 @@ export default defineEventHandler(async (event) => {
     return null
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

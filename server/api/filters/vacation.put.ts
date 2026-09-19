@@ -11,6 +11,6 @@ export default defineEventHandler(async (event) => {
     const { confirmPassword, totpCode, ...settings } = body
     return await putVacation({ event, email, sid }, settings, { confirmPassword, totpCode })
   } catch (err) {
-    throw sieveError(err)
+    throw sieveError(err, event)
   }
 })

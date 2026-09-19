@@ -3,6 +3,7 @@ import { zipSync } from 'fflate'
 import { parseMessage } from '../../../lib/mail/parse'
 import { getAttachment } from '../../../lib/mail/parse'
 import { mailError, requireMail } from '../../../utils/mail-session'
+import { serverT } from '../../../lib/i18n'
 
 const paramsSchema = z.object({ uid: z.coerce.number().int().positive() })
 const querySchema = z.object({
@@ -28,7 +29,7 @@ export default defineEventHandler(async (event) => {
     })
 
     if (stored.attachments.length === 0) {
-      throw createError({ statusCode: 400, statusMessage: 'Pas de pièce jointe', message: 'Ce message n\'a pas de pièce jointe' })
+      throw createError({ statusCode: 400, statusMessage: 'Pas de pièce jointe', message: serverT(event, 'messages.noAttachments') })
     }
 
     const files: Record<string, Uint8Array> = {}
@@ -62,6 +63,6 @@ export default defineEventHandler(async (event) => {
     setHeader(event, 'Content-Disposition', 'attachment; filename="pieces-jointes.zip"')
     return Buffer.from(zip)
   } catch (err: unknown) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

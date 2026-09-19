@@ -1,18 +1,24 @@
 import { randomUUID } from 'node:crypto'
+import type { AppLocale } from '#shared/types/i18n'
+import { translate } from '../i18n'
 
 interface MDNOptions {
   from: string
   originalMessageId: string | null
   originalSubject: string
   recipientEmail: string
+  /** Langue de la partie lisible (préférence du compte qui envoie l'accusé), défaut français. */
+  locale?: AppLocale
 }
 
 export function buildMDNMessage(opts: MDNOptions): Buffer {
   const now = new Date()
   const messageId = `<${randomUUID()}@${opts.from.split('@')[1] || 'localhost'}>`
 
-  // Human-readable part in French
-  const humanReadable = `Cet accusé de lecture confirme que le message reçu le ${now.toLocaleDateString('fr-FR')} à ${now.toLocaleTimeString('fr-FR')} a bien été consulté.\n\nObjet du message: ${opts.originalSubject}\n\nCet accusé de lecture a été généré automatiquement par Colombe.`
+  // Partie lisible, dans la langue du compte qui envoie l'accusé.
+  const locale = opts.locale ?? 'fr'
+  const intl = locale === 'fr' ? 'fr-FR' : 'en-GB'
+  const humanReadable = translate(locale, 'mdn.body', { date: now.toLocaleDateString(intl), time: now.toLocaleTimeString(intl), subject: opts.originalSubject })
 
   // Machine-readable part (RFC 3798)
   const machineReadable = `Reporting-UA: Colombe; webmail
@@ -31,7 +37,7 @@ Disposition: manual-action/MDN-sent-manually; displayed`
     `Message-ID: ${messageId}`,
     `MIME-Version: 1.0`,
     `Content-Type: multipart/report; report-type=disposition-notification; boundary="${boundary}"`,
-    'Content-Language: fr',
+    `Content-Language: ${locale}`,
     '',
   ]
 

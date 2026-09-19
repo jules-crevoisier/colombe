@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
     session = await requireMail(event)
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 
   const { kind, server } = mailConfig(event)

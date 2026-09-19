@@ -96,6 +96,6 @@ export default defineEventHandler(async (event): Promise<ThreadResult> => {
     return { items: threadItems.slice(0, 50) }
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

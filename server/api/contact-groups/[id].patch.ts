@@ -17,6 +17,6 @@ export default defineEventHandler(async (event): Promise<ContactGroup> => {
     return updateGroup(db, email, id, name)
   }
   catch (err) {
-    throw contactHttpError(err)
+    throw contactHttpError(err, event)
   }
 })

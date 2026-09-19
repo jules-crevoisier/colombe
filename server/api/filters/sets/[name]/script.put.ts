@@ -15,6 +15,6 @@ export default defineEventHandler(async (event) => {
       totpCode: body.totpCode,
     })
   } catch (err) {
-    throw sieveError(err)
+    throw sieveError(err, event)
   }
 })

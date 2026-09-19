@@ -46,6 +46,7 @@ const prefsSchema = z.object({
   idleMinutes: z.union([z.literal(15), z.literal(30), z.literal(60), z.literal(120)]),
   threadList: z.boolean(),
   welcomed: z.boolean(),
+  language: z.enum(['auto', 'fr', 'en']),
 })
 
 export function getPrefs(db: DatabaseSync, owner: string): Prefs {

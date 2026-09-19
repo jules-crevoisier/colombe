@@ -3,10 +3,12 @@ import { toast } from 'vue-sonner'
 import { Archive, BookUser, ChevronDown, ChevronRight, EllipsisVertical, FileText, Folder as FolderIcon, FolderPlus, HardDrive, Inbox, PenLine, Pencil, Send, ShieldAlert, Trash2 } from '@lucide/vue'
 import type { Component } from 'vue'
 import type { Folder, SpecialUse } from '#shared/types/mail'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ collapsed?: boolean }>()
 const emit = defineEmits<{ navigate: [] }>()
 
+const { t } = useI18n()
 const mail = useMailStore()
 const compose = useComposeStore()
 const api = useMailApi()
@@ -115,12 +117,12 @@ async function onDrop(folder: Folder, e: DragEvent) {
   try {
     await api.move(payload.folder, payload.uids, folder.path)
     const n = payload.uids.length
-    toast(`${n} message${n > 1 ? 's' : ''} déplacé${n > 1 ? 's' : ''} vers « ${folder.name} »`)
+    toast(t('folderNav.toast.moved', { n, folder: folderLabel(folder) }, n))
     await mail.loadFolders()
     mail.notifyChange(payload.folder)
   }
   catch (err) {
-    toast.error(errorText(err, 'Le déplacement a échoué.'))
+    toast.error(errorText(err, t('folderNav.toast.moveDropFailed')))
   }
 }
 
@@ -147,7 +149,7 @@ async function submitFolder() {
   const d = dialog.value
   const name = folderName.value.trim()
   if (!d || !name) {
-    nameError.value = 'Saisissez un nom.'
+    nameError.value = t('folderNav.dialog.nameRequired')
     return
   }
   saving.value = true
@@ -155,18 +157,18 @@ async function submitFolder() {
   try {
     if (d.mode === 'create') {
       const created = await api.createFolder(name, d.parent)
-      toast(`Dossier « ${created.name} » créé`)
+      toast(t('folderNav.toast.created', { name: folderLabel(created) }))
     }
     else if (d.folder) {
       const { path } = await api.renameFolder(d.folder.path, name)
-      toast(`Dossier renommé en « ${name} »`)
+      toast(t('folderNav.toast.renamed', { name }))
       if (current.value === d.folder.path) await navigateTo(`/mail/${encodeURIComponent(path)}`)
     }
     dialog.value = null
     await mail.loadFolders()
   }
   catch (err) {
-    nameError.value = errorText(err, 'Opération impossible.')
+    nameError.value = errorText(err, t('folderNav.dialog.saveFailed'))
   }
   finally {
     saving.value = false
@@ -178,13 +180,15 @@ async function confirmDelete() {
   if (!folder) return
   try {
     await api.deleteFolder(folder.path)
-    toast(`Dossier « ${folder.name} » supprimé${folder.total ? ' — ses messages sont dans la Corbeille' : ''}`)
+    toast(folder.total
+      ? t('folderNav.toast.deletedWithMessages', { name: folderLabel(folder), trash: t('folders.special.trash') })
+      : t('folderNav.toast.deleted', { name: folderLabel(folder) }))
     if (current.value === folder.path) await navigateTo('/mail/INBOX')
     await mail.loadFolders()
     void mail.loadQuota(true)
   }
   catch (err) {
-    toast.error(errorText(err, 'Suppression impossible.'))
+    toast.error(errorText(err, t('folderNav.dialog.deleteFailed')))
   }
   finally {
     toDelete.value = null
@@ -197,13 +201,13 @@ async function confirmEmpty() {
   if (!folder) return
   try {
     await api.emptyFolder(folder.path)
-    toast(`Dossier « ${folder.name} » vidé`)
+    toast(t('folderNav.toast.emptied', { name: folderLabel(folder) }))
     mail.notifyChange(folder.path)
     await mail.loadFolders()
     void mail.loadQuota(true)
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de vider ce dossier.'))
+    toast.error(errorText(err, t('folderNav.dialog.emptyFailed')))
   }
 }
 
@@ -224,12 +228,12 @@ async function submitMove() {
   moveSaving.value = true
   try {
     await api.moveFolder(folder.path, moveTarget.value === ROOT_VALUE ? null : moveTarget.value)
-    toast(`Dossier « ${folder.name} » déplacé`)
+    toast(t('folderNav.toast.movedTo', { name: folderLabel(folder) }))
     moveDialog.value = null
     await mail.loadFolders()
   }
   catch (err) {
-    toast.error(errorText(err, 'Déplacement impossible.'))
+    toast.error(errorText(err, t('folderNav.dialog.moveFailed')))
   }
   finally {
     moveSaving.value = false
@@ -249,7 +253,7 @@ const quotaRatio = computed(() => {
 </script>
 
 <template>
-  <nav aria-label="Dossiers" class="flex h-full min-h-0 flex-col gap-4">
+  <nav :aria-label="t('folderNav.ariaLabel')" class="flex h-full min-h-0 flex-col gap-4">
     <!-- « Nouveau message » : une lettre à l'encre, coin replié orange (le bec). -->
     <Tooltip :disabled="!props.collapsed">
       <TooltipTrigger as-child>
@@ -257,14 +261,14 @@ const quotaRatio = computed(() => {
           type="button"
           class="fold-corner group/compose flex h-12 shrink-0 items-center gap-3 rounded-lg bg-compose text-[15px] font-semibold text-compose-foreground transition-[filter,transform] hover:brightness-[1.12] active:translate-y-px"
           :class="props.collapsed ? 'w-12 justify-center self-center' : 'w-full px-4'"
-          :aria-label="props.collapsed ? 'Nouveau message' : undefined"
+          :aria-label="props.collapsed ? t('folderNav.compose') : undefined"
           @click="newMessage"
         >
           <PenLine class="size-[18px] shrink-0" aria-hidden="true" />
-          <span v-if="!props.collapsed">Nouveau message</span>
+          <span v-if="!props.collapsed">{{ t('folderNav.compose') }}</span>
         </button>
       </TooltipTrigger>
-      <TooltipContent side="right">Nouveau message</TooltipContent>
+      <TooltipContent side="right">{{ t('folderNav.compose') }}</TooltipContent>
     </Tooltip>
 
     <ul class="-mx-1 flex min-h-0 flex-col gap-px overflow-y-auto px-1 pb-2">
@@ -287,7 +291,7 @@ const quotaRatio = computed(() => {
           type="button"
           class="absolute top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring lg:size-6"
           :style="{ left: `${row.depth * 16}px` }"
-          :aria-label="collapsedPaths.has(row.folder.path) ? `Développer ${row.folder.name}` : `Réduire ${row.folder.name}`"
+          :aria-label="collapsedPaths.has(row.folder.path) ? t('folderNav.expand', { name: folderLabel(row.folder) }) : t('folderNav.collapse', { name: folderLabel(row.folder) })"
           :aria-expanded="!collapsedPaths.has(row.folder.path)"
           @click="toggleCollapse(row.folder.path)"
         >
@@ -309,20 +313,20 @@ const quotaRatio = computed(() => {
               ]"
               :style="props.collapsed ? undefined : { paddingLeft: `${12 + row.depth * 16 + (row.hasChildren ? 20 : 0)}px` }"
               :aria-current="current === row.folder.path ? 'page' : undefined"
-              :aria-label="props.collapsed ? `${row.folder.name}${badge(row.folder) ? `, ${badge(row.folder)} non lus` : ''}` : undefined"
+              :aria-label="props.collapsed ? `${folderLabel(row.folder)}${badge(row.folder) ? t('folderNav.unreadSuffix', { n: badge(row.folder) }) : ''}` : undefined"
               @click="emit('navigate')"
             >
               <component :is="iconOf(row.folder)" class="size-[18px] shrink-0" :class="current === row.folder.path ? 'text-nav-marker' : 'text-muted-foreground'" :stroke-width="1.75" aria-hidden="true" />
               <template v-if="!props.collapsed">
-                <span class="flex-1 truncate" :class="{ 'font-semibold': badge(row.folder) > 0 }">{{ row.folder.name }}</span>
+                <span class="flex-1 truncate" :class="{ 'font-semibold': badge(row.folder) > 0 }">{{ folderLabel(row.folder) }}</span>
                 <span v-if="badge(row.folder) > 0" class="text-xs tabular-nums" :class="[row.folder.specialUse === 'drafts' ? 'text-muted-foreground' : 'font-semibold text-foreground', { 'group-hover:hidden group-focus-within:hidden': !row.folder.specialUse }]">
-                  {{ badge(row.folder) }}<span class="sr-only">{{ row.folder.specialUse === 'drafts' ? ' brouillons' : ' non lus' }}</span>
+                  {{ badge(row.folder) }}<span class="sr-only">{{ row.folder.specialUse === 'drafts' ? t('folderNav.srDrafts') : t('folderNav.srUnread') }}</span>
                 </span>
               </template>
               <span v-else-if="badge(row.folder) > 0" class="absolute top-2 right-2 size-2 rounded-full bg-unread-dot ring-2 ring-surface-app" aria-hidden="true" />
             </NuxtLink>
           </TooltipTrigger>
-          <TooltipContent side="right">{{ row.folder.name }}</TooltipContent>
+          <TooltipContent side="right">{{ folderLabel(row.folder) }}</TooltipContent>
         </Tooltip>
 
         <DropdownMenu v-if="!row.folder.specialUse && !props.collapsed">
@@ -330,33 +334,33 @@ const quotaRatio = computed(() => {
             <button
               type="button"
               class="absolute top-0 right-0 grid size-11 place-items-center rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=open]:opacity-100 lg:size-9 lg:opacity-0 lg:group-hover:opacity-100"
-              :aria-label="`Actions pour le dossier ${row.folder.name}`"
+              :aria-label="t('folderNav.actionsFor', { name: folderLabel(row.folder) })"
             >
               <EllipsisVertical class="size-4" aria-hidden="true" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             <DropdownMenuItem @select="openCreate(row.folder.path)">
-              <FolderPlus class="size-4" aria-hidden="true" /> Nouveau sous-dossier
+              <FolderPlus class="size-4" aria-hidden="true" /> {{ t('folderNav.dialog.newSubfolderTitle') }}
             </DropdownMenuItem>
             <DropdownMenuItem @select="openRename(row.folder)">
-              <Pencil class="size-4" aria-hidden="true" /> Renommer
+              <Pencil class="size-4" aria-hidden="true" /> {{ t('common.rename') }}
             </DropdownMenuItem>
             <DropdownMenuItem @select="openMove(row.folder)">
-              <FolderIcon class="size-4" aria-hidden="true" /> Déplacer vers…
+              <FolderIcon class="size-4" aria-hidden="true" /> {{ t('folderNav.moveTo') }}
             </DropdownMenuItem>
             <DropdownMenuItem @select="toEmpty = row.folder">
-              <Trash2 class="size-4" aria-hidden="true" /> Vider le dossier
+              <Trash2 class="size-4" aria-hidden="true" /> {{ t('folderNav.emptyFolder') }}
             </DropdownMenuItem>
             <DropdownMenuItem class="text-destructive focus:text-destructive" @select="toDelete = row.folder">
-              <Trash2 class="size-4" aria-hidden="true" /> Supprimer
+              <Trash2 class="size-4" aria-hidden="true" /> {{ t('common.delete') }}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </li>
       <li v-if="mail.error" class="px-4 py-2 text-sm text-destructive">
-        Impossible de charger les dossiers.
-        <button type="button" class="underline" @click="mail.loadFolders()">Réessayer</button>
+        {{ t('folderNav.loadFailed') }}
+        <button type="button" class="underline" @click="mail.loadFolders()">{{ t('common.retry') }}</button>
       </li>
     </ul>
 
@@ -370,11 +374,11 @@ const quotaRatio = computed(() => {
             : 'text-foreground/90 hover:bg-foreground/[0.05] hover:text-foreground',
           props.collapsed ? 'size-11 justify-center' : 'pl-3',
         ]"
-        :aria-label="props.collapsed ? 'Contacts' : undefined"
+        :aria-label="props.collapsed ? t('folderNav.contactsLink') : undefined"
         @click="emit('navigate')"
       >
         <BookUser class="size-[18px] shrink-0 text-muted-foreground" :stroke-width="1.75" aria-hidden="true" />
-        <span v-if="!props.collapsed">Contacts</span>
+        <span v-if="!props.collapsed">{{ t('folderNav.contactsLink') }}</span>
       </NuxtLink>
 
       <button
@@ -383,7 +387,7 @@ const quotaRatio = computed(() => {
         class="flex h-11 items-center gap-3 rounded-md pl-3 text-sm text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring lg:h-9"
         @click="openCreate()"
       >
-        <FolderPlus class="size-[18px]" :stroke-width="1.75" aria-hidden="true" /> Nouveau dossier
+        <FolderPlus class="size-[18px]" :stroke-width="1.75" aria-hidden="true" /> {{ t('folderNav.newFolder') }}
       </button>
     </div>
 
@@ -391,27 +395,27 @@ const quotaRatio = computed(() => {
     <div v-if="!props.collapsed && quota?.limitBytes" class="mt-auto flex flex-col gap-2 px-3 pt-2 pb-1 text-xs text-muted-foreground">
       <div class="flex items-center gap-2">
         <HardDrive class="size-3.5 shrink-0" aria-hidden="true" />
-        <span>Espace utilisé</span>
+        <span>{{ t('folderNav.quota.label') }}</span>
       </div>
-      <div class="h-1 w-full overflow-hidden rounded-full bg-border" role="progressbar" aria-label="Espace utilisé" :aria-valuenow="Math.round(quotaRatio * 100)" aria-valuemin="0" aria-valuemax="100">
+      <div class="h-1 w-full overflow-hidden rounded-full bg-border" role="progressbar" :aria-label="t('folderNav.quota.label')" :aria-valuenow="Math.round(quotaRatio * 100)" aria-valuemin="0" aria-valuemax="100">
         <div class="h-full rounded-full bg-nav-marker" :style="{ width: `${Math.max(quotaRatio * 100, 1.5)}%` }" />
       </div>
-      <span class="tabular-nums">{{ formatGigabytes(quota.usedBytes) }} sur {{ formatGigabytes(quota.limitBytes) }}</span>
+      <span class="tabular-nums">{{ t('folderNav.quota.usage', { used: formatGigabytes(quota.usedBytes), limit: formatGigabytes(quota.limitBytes) }) }}</span>
     </div>
 
     <Dialog :open="dialog !== null" @update:open="(v: boolean) => { if (!v) dialog = null }">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{{ dialog?.mode === 'rename' ? 'Renommer le dossier' : dialog?.parent ? 'Nouveau sous-dossier' : 'Nouveau dossier' }}</DialogTitle>
-          <DialogDescription>{{ dialog?.mode === 'rename' ? `Nouveau nom pour « ${dialog.folder?.name} »` : dialog?.parent ? `Créé dans « ${mail.byPath(dialog.parent)?.name ?? dialog.parent} ».` : 'Le dossier est créé à la racine de votre messagerie.' }}</DialogDescription>
+          <DialogTitle>{{ dialog?.mode === 'rename' ? t('folderNav.dialog.renameTitle') : dialog?.parent ? t('folderNav.dialog.newSubfolderTitle') : t('folderNav.newFolder') }}</DialogTitle>
+          <DialogDescription>{{ dialog?.mode === 'rename' ? t('folderNav.dialog.renameDescription', { name: dialog.folder ? folderLabel(dialog.folder) : '' }) : dialog?.parent ? t('folderNav.dialog.subfolderDescription', { name: mail.byPath(dialog.parent) ? folderLabel(mail.byPath(dialog.parent)!) : dialog.parent }) : t('folderNav.dialog.rootDescription') }}</DialogDescription>
         </DialogHeader>
         <form class="flex flex-col gap-3" @submit.prevent="submitFolder">
-          <Label for="folder-name">Nom du dossier</Label>
+          <Label for="folder-name">{{ t('folderNav.dialog.nameLabel') }}</Label>
           <Input id="folder-name" v-model="folderName" maxlength="100" autocomplete="off" class="h-11 text-base" :aria-invalid="!!nameError || undefined" aria-describedby="folder-name-error" />
           <p id="folder-name-error" class="min-h-5 text-sm text-destructive" role="alert">{{ nameError }}</p>
           <DialogFooter>
-            <Button type="button" variant="ghost" class="h-11 rounded-lg px-5" @click="dialog = null">Annuler</Button>
-            <Button type="submit" class="h-11 rounded-lg px-5" :disabled="saving">{{ dialog?.mode === 'rename' ? 'Renommer' : 'Créer' }}</Button>
+            <Button type="button" variant="ghost" class="h-11 rounded-lg px-5" @click="dialog = null">{{ t('common.cancel') }}</Button>
+            <Button type="submit" class="h-11 rounded-lg px-5" :disabled="saving">{{ dialog?.mode === 'rename' ? t('common.rename') : t('common.create') }}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -421,23 +425,23 @@ const quotaRatio = computed(() => {
     <Dialog :open="moveDialog !== null" @update:open="(v: boolean) => { if (!v) moveDialog = null }">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Déplacer « {{ moveDialog?.name }} »</DialogTitle>
+          <DialogTitle>{{ t('folderNav.dialog.moveTitle', { name: moveDialog ? folderLabel(moveDialog) : '' }) }}</DialogTitle>
         </DialogHeader>
         <div class="flex flex-col gap-3">
-          <Label for="move-target">Destination</Label>
+          <Label for="move-target">{{ t('folderNav.dialog.destinationLabel') }}</Label>
           <Select :model-value="moveTarget" @update:model-value="(v) => { moveTarget = String(v) }">
             <SelectTrigger id="move-target" class="h-11 w-full text-base">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem :value="ROOT_VALUE">(Racine)</SelectItem>
-              <SelectItem v-for="f in moveDialog ? moveTargetsFor(moveDialog) : []" :key="f.path" :value="f.path">{{ f.name }}</SelectItem>
+              <SelectItem :value="ROOT_VALUE">{{ t('folderNav.dialog.rootOption') }}</SelectItem>
+              <SelectItem v-for="f in moveDialog ? moveTargetsFor(moveDialog) : []" :key="f.path" :value="f.path">{{ folderLabel(f) }}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <DialogFooter>
-          <Button type="button" variant="ghost" class="h-11 rounded-lg px-5" @click="moveDialog = null">Annuler</Button>
-          <Button type="button" class="h-11 rounded-lg px-5" :disabled="moveSaving" @click="submitMove">Déplacer</Button>
+          <Button type="button" variant="ghost" class="h-11 rounded-lg px-5" @click="moveDialog = null">{{ t('common.cancel') }}</Button>
+          <Button type="button" class="h-11 rounded-lg px-5" :disabled="moveSaving" @click="submitMove">{{ t('common.move') }}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -445,14 +449,14 @@ const quotaRatio = computed(() => {
     <AlertDialog :open="toDelete !== null" @update:open="(v: boolean) => { if (!v) toDelete = null }">
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Supprimer « {{ toDelete?.name }} » ?</AlertDialogTitle>
+          <AlertDialogTitle>{{ t('folderNav.dialog.deleteTitle', { name: toDelete ? folderLabel(toDelete) : '' }) }}</AlertDialogTitle>
           <AlertDialogDescription>
-            {{ toDelete?.total ? `Ses ${toDelete.total} message(s) seront placés dans la Corbeille.` : 'Ce dossier est vide.' }}
+            {{ toDelete?.total ? t('folderNav.dialog.deleteWithMessages', { n: toDelete.total, trash: t('folders.special.trash') }, toDelete.total) : t('folderNav.dialog.deleteEmpty') }}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel class="h-11 rounded-lg">Annuler</AlertDialogCancel>
-          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmDelete">Supprimer</AlertDialogAction>
+          <AlertDialogCancel class="h-11 rounded-lg">{{ t('common.cancel') }}</AlertDialogCancel>
+          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmDelete">{{ t('common.delete') }}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -461,12 +465,12 @@ const quotaRatio = computed(() => {
     <AlertDialog :open="toEmpty !== null" @update:open="(v: boolean) => { if (!v) toEmpty = null }">
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Vider « {{ toEmpty?.name }} » ?</AlertDialogTitle>
-          <AlertDialogDescription>Tous les messages de ce dossier seront supprimés définitivement.</AlertDialogDescription>
+          <AlertDialogTitle>{{ t('folderNav.dialog.emptyTitle', { name: toEmpty ? folderLabel(toEmpty) : '' }) }}</AlertDialogTitle>
+          <AlertDialogDescription>{{ t('folderNav.dialog.emptyDescription') }}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel class="h-11 rounded-lg">Annuler</AlertDialogCancel>
-          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmEmpty">Vider</AlertDialogAction>
+          <AlertDialogCancel class="h-11 rounded-lg">{{ t('common.cancel') }}</AlertDialogCancel>
+          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmEmpty">{{ t('folderNav.dialog.emptyConfirm') }}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

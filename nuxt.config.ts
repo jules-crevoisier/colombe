@@ -28,6 +28,14 @@ export default defineNuxtConfig({
   css: ['~/assets/css/tailwind.css'],
   vite: {
     plugins: [tailwindcss()],
+    // vue-i18n (build esm-bundler) : API de composition seule, compilation JIT des
+    // messages (sans eval, compatible avec la CSP), pas d'outils de développement.
+    define: {
+      __VUE_I18N_FULL_INSTALL__: true,
+      __VUE_I18N_LEGACY_API__: false,
+      __INTLIFY_PROD_DEVTOOLS__: false,
+      __INTLIFY_DROP_MESSAGE_COMPILER__: false,
+    },
   },
   shadcn: {
     prefix: '',

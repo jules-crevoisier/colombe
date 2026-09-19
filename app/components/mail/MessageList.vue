@@ -3,7 +3,9 @@ import { toast } from 'vue-sonner'
 import { onKeyStroke } from '@vueuse/core'
 import { Archive, ArrowDownUp, ChevronLeft, ChevronRight, CircleAlert, Download, EllipsisVertical, FolderInput, ListChecks, Mail, MailOpen, RefreshCw, Search as SearchIcon, Trash2, X } from '@lucide/vue'
 import type { MessagePage, MessageQuery, MessageSummary, SortKey } from '#shared/types/mail'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const route = useRoute()
 const api = useMailApi()
 const mail = useMailStore()
@@ -26,7 +28,7 @@ const order = computed(() => {
   return typeof o === 'string' && ['asc', 'desc'].includes(o) ? o as 'asc' | 'desc' : 'desc'
 })
 const folder = computed(() => mail.byPath(folderPath.value))
-const folderName = computed(() => folder.value?.name ?? folderPath.value)
+const folderName = computed(() => (folder.value ? folderLabel(folder.value) : folderPath.value))
 const isDrafts = computed(() => folder.value?.specialUse === 'drafts')
 const isTrash = computed(() => folder.value?.specialUse === 'trash')
 const isJunk = computed(() => folder.value?.specialUse === 'junk')
@@ -122,7 +124,7 @@ const total = computed(() => data.value?.total ?? 0)
 const rangeLabel = computed(() => {
   if (!total.value) return ''
   const start = (page.value - 1) * pageSize.value + 1
-  return `${start}–${Math.min(page.value * pageSize.value, total.value)} sur ${total.value}`
+  return t('mail.list.pagination.range', { start, end: Math.min(page.value * pageSize.value, total.value), total: total.value })
 })
 const lastPage = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 
@@ -180,7 +182,7 @@ async function openDraft(m: MessageSummary) {
     await compose.openDraft(await api.message(folderPath.value, m.uid))
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible d’ouvrir le brouillon.'))
+    toast.error(errorText(err, t('mail.list.toasts.openDraftFailed')))
   }
 }
 
@@ -200,16 +202,12 @@ async function run(action: () => Promise<unknown>, done: string, onSuccess?: () 
   }
 }
 
-function plural(n: number, word: string) {
-  return `${n} ${word}${n > 1 ? 's' : ''}`
-}
-
 const markSeen = (seen: boolean) => {
   const uids = [...selected.value]
   for (const m of selection.value) m.seen = seen
   return run(
     () => api.setFlags(folderPath.value, uids, { seen }),
-    seen ? 'Marqué comme lu' : 'Marqué comme non lu',
+    seen ? t('mail.list.toasts.markedRead') : t('mail.list.toasts.markedUnread'),
     () => cacheStore.patchFlags(folderPath.value, uids, { seen }),
   )
 }
@@ -240,16 +238,16 @@ function removeUids(uids: number[]) {
       if (source === folderPath.value) await load()
     }
     catch (err) {
-      toast.error(errorText(err, 'La suppression a échoué.'))
+      toast.error(errorText(err, t('mail.list.toasts.deleteFailed')))
     }
     finally {
       unhide()
     }
   }, 5000)
-  toast(`${plural(n, 'message')} placé${n > 1 ? 's' : ''} dans la corbeille`, {
+  toast(t('mail.list.toasts.trashed', { n }, n), {
     duration: 5000,
     action: {
-      label: 'Annuler',
+      label: t('mail.list.toasts.undo'),
       onClick: () => {
         clearTimeout(timer)
         unhide()
@@ -267,11 +265,11 @@ async function confirmPermanentDelete() {
   try {
     await api.remove(source, uids)
     cacheStore.removeMessages(source, uids)
-    toast(`${plural(n, 'message')} supprimé${n > 1 ? 's' : ''} définitivement`)
+    toast(t('mail.list.toasts.deletedPermanently', { n }, n))
     await Promise.all([load(), mail.loadFolders()])
   }
   catch (err) {
-    toast.error(errorText(err, 'La suppression a échoué.'))
+    toast.error(errorText(err, t('mail.list.toasts.deleteFailed')))
   }
 }
 const removeSelected = () => removeUids([...selected.value])
@@ -280,7 +278,7 @@ const moveSelected = (destination: string, label: string) => {
   const n = uids.length
   return run(
     () => api.move(folderPath.value, uids, destination),
-    `${plural(n, 'message')} déplacé${n > 1 ? 's' : ''} vers « ${label} »`,
+    t('mail.list.toasts.moved', { n, label }, n),
     () => {
       cacheStore.removeMessages(folderPath.value, uids)
       cacheStore.invalidateFolderLists(destination)
@@ -337,7 +335,7 @@ onKey('e', () => {
   const uids = targetUids()
   if (archive.value && folderPath.value !== archive.value.path && uids.length) {
     selected.value = new Set(uids)
-    void moveSelected(archive.value.path, archive.value.name)
+    void moveSelected(archive.value.path, folderLabel(archive.value))
   }
 })
 onKey('#', () => removeUids(targetUids()))
@@ -360,7 +358,7 @@ async function markAllAsRead() {
     // Affichage immédiat (la page visible passe en « lu »), puis rechargement en arrière-plan.
     if (data.value) data.value = { ...data.value, items: data.value.items.map(m => ({ ...m, seen: true })) }
     cacheStore.invalidateFolderLists(folderPath.value)
-    toast('Tous les messages marqués comme lus')
+    toast(t('mail.list.toasts.allMarkedRead'))
     await Promise.all([load(), mail.loadFolders()])
   }
   catch (err) {
@@ -373,7 +371,7 @@ async function copySelected(destination: string, label: string) {
   const n = uids.length
   return run(
     () => api.copy(folderPath.value, uids, destination),
-    `${plural(n, 'message')} copié${n > 1 ? 's' : ''} vers « ${label} »`,
+    t('mail.list.toasts.copied', { n, label }, n),
     () => cacheStore.invalidateFolderLists(destination),
   )
 }
@@ -381,10 +379,9 @@ async function copySelected(destination: string, label: string) {
 async function junkSelected(junk: boolean) {
   const uids = [...selected.value]
   const n = uids.length
-  const label = junk ? 'Signaler comme spam' : 'Ce n\'est pas un spam'
   return run(
     () => api.junk(folderPath.value, uids, junk),
-    junk ? `${plural(n, 'message')} déplacé${n > 1 ? 's' : ''} vers le spam` : `${plural(n, 'message')} déplacé${n > 1 ? 's' : ''} vers la boîte de réception`,
+    junk ? t('mail.list.toasts.movedToJunk', { n }, n) : t('mail.list.toasts.movedToInbox', { n }, n),
     () => {
       cacheStore.removeMessages(folderPath.value, uids)
       const target = mail.special(junk ? 'junk' : 'inbox')
@@ -409,11 +406,11 @@ async function importFiles(e: Event) {
   try {
     const result = await api.importEml(folderPath.value, Array.from(files))
     cacheStore.invalidateFolderLists(folderPath.value)
-    toast(`${result.imported} message${result.imported > 1 ? 's' : ''} importé${result.imported > 1 ? 's' : ''}`)
+    toast(t('mail.list.toasts.imported', { n: result.imported }, result.imported))
     await Promise.all([load(), mail.loadFolders()])
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible d\'importer les messages.'))
+    toast.error(errorText(err, t('mail.list.toasts.importFailed')))
   }
   if (fileInput.value) fileInput.value.value = ''
 }
@@ -422,7 +419,7 @@ async function emptyFolderConfirm() {
   try {
     await api.emptyFolder(folderPath.value)
     cacheStore.invalidateFolder(folderPath.value)
-    toast(isTrash.value ? 'Corbeille vidée' : 'Spam vidé')
+    toast(isTrash.value ? t('mail.list.toasts.trashEmptied') : t('mail.list.toasts.junkEmptied'))
     selected.value = new Set()
     await Promise.all([load(), mail.loadFolders()])
   }
@@ -440,71 +437,71 @@ function onDragStart(m: MessageSummary, e: DragEvent) {
   e.dataTransfer.effectAllowed = 'move'
 }
 
-useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folderName.value)) })
+useHead({ title: computed(() => (q.value ? t('mail.list.pageTitle.search', { query: q.value }) : folderName.value)) })
 </script>
 
 <template>
-  <section class="@container flex min-h-0 flex-1 flex-col" :aria-labelledby="'titre-dossier'">
+  <section class="@container flex min-h-0 flex-1 flex-col" aria-labelledby="titre-dossier">
     <!-- En-tête du dossier : titre en serif, comme l'en-tête d'une lettre. -->
     <div class="flex items-baseline gap-3 px-4 pt-5 pb-1 lg:px-5">
       <h1 id="titre-dossier" class="min-w-0 truncate font-heading text-[26px] leading-tight font-medium tracking-[-0.015em] @3xl:text-[28px]">
-        {{ q ? `Résultats pour « ${q} »` : folderName }}
+        {{ q ? t('mail.list.header.searchResults', { query: q }) : folderName }}
       </h1>
-      <span v-if="!q && folder && folder.unread > 0 && folder.specialUse !== 'drafts'" class="shrink-0 text-sm text-muted-foreground tabular-nums" aria-hidden="true">{{ folder.unread }} non lu{{ folder.unread > 1 ? 's' : '' }}</span>
+      <span v-if="!q && folder && folder.unread > 0 && folder.specialUse !== 'drafts'" class="shrink-0 text-sm text-muted-foreground tabular-nums" aria-hidden="true">{{ t('mail.list.header.unreadCount', { n: folder.unread }, folder.unread) }}</span>
     </div>
 
     <!-- Barre d'outils -->
-    <div class="sticky top-16 z-20 flex h-14 shrink-0 items-center gap-0.5 border-b border-border bg-surface-panel px-2 lg:static lg:h-12 lg:px-3" role="toolbar" aria-label="Actions sur les messages">
+    <div class="sticky top-16 z-20 flex h-14 shrink-0 items-center gap-0.5 border-b border-border bg-surface-panel px-2 lg:static lg:h-12 lg:px-3" role="toolbar" :aria-label="t('mail.list.toolbar.ariaLabel')">
       <label class="grid size-11 cursor-pointer place-items-center rounded-lg hover:bg-accent lg:size-10">
-        <span class="sr-only">{{ allState === true ? 'Tout désélectionner' : 'Tout sélectionner' }}</span>
+        <span class="sr-only">{{ allState === true ? t('mail.list.toolbar.deselectAll') : t('mail.list.toolbar.selectAll') }}</span>
         <Checkbox :model-value="allState" :disabled="!items.length" @update:model-value="toggleAll" />
       </label>
 
       <!-- Menu de sélection (R2.7) -->
       <DropdownMenu>
-        <MailMenuButton :icon="ListChecks" label="Options de sélection" />
+        <MailMenuButton :icon="ListChecks" :label="t('mail.list.selectionMenu.label')" />
         <DropdownMenuContent align="start" class="w-48">
-          <DropdownMenuItem @select="selectAll">Tous</DropdownMenuItem>
-          <DropdownMenuItem @select="selectNone">Aucun</DropdownMenuItem>
-          <DropdownMenuItem @select="selectUnreadOnly">Non lus</DropdownMenuItem>
-          <DropdownMenuItem @select="selectFlaggedOnly">Suivis</DropdownMenuItem>
-          <DropdownMenuItem @select="invertSelection">Inverser la sélection</DropdownMenuItem>
+          <DropdownMenuItem @select="selectAll">{{ t('mail.list.selectionMenu.all') }}</DropdownMenuItem>
+          <DropdownMenuItem @select="selectNone">{{ t('mail.list.selectionMenu.none') }}</DropdownMenuItem>
+          <DropdownMenuItem @select="selectUnreadOnly">{{ t('mail.list.selectionMenu.unread') }}</DropdownMenuItem>
+          <DropdownMenuItem @select="selectFlaggedOnly">{{ t('mail.list.selectionMenu.flagged') }}</DropdownMenuItem>
+          <DropdownMenuItem @select="invertSelection">{{ t('mail.list.selectionMenu.invert') }}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
       <template v-if="!selected.size">
-        <MailIconButton :icon="RefreshCw" label="Actualiser" @click="load(); mail.loadFolders()" />
+        <MailIconButton :icon="RefreshCw" :label="t('mail.list.toolbar.refresh')" @click="load(); mail.loadFolders()" />
         <!-- Revalidation discrète d'une page déjà affichée (cache) : pas de squelette, juste cet indicateur. -->
         <RefreshCw v-if="refreshing" class="size-3.5 shrink-0 animate-spin text-muted-foreground" aria-hidden="true" />
-        <span v-if="refreshing" class="sr-only" aria-live="polite">Actualisation de la liste…</span>
+        <span v-if="refreshing" class="sr-only" aria-live="polite">{{ t('mail.list.toolbar.refreshing') }}</span>
         <!-- Trier menu -->
         <DropdownMenu>
-          <MailMenuButton :icon="ArrowDownUp" label="Trier" />
+          <MailMenuButton :icon="ArrowDownUp" :label="t('mail.list.sortMenu.label')" />
           <DropdownMenuContent align="start" class="w-48">
-            <DropdownMenuLabel>Trier par</DropdownMenuLabel>
+            <DropdownMenuLabel>{{ t('mail.list.sortMenu.sortBy') }}</DropdownMenuLabel>
             <DropdownMenuRadioGroup :model-value="sort" @update:model-value="(v) => setSort(String(v))">
-              <DropdownMenuRadioItem value="date">Date</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="from">Expéditeur</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="subject">Objet</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="size">Taille</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="date">{{ t('mail.list.sortMenu.date') }}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="from">{{ t('mail.list.sortMenu.sender') }}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="subject">{{ t('mail.list.sortMenu.subject') }}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="size">{{ t('mail.list.sortMenu.size') }}</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
             <DropdownMenuRadioGroup :model-value="order" @update:model-value="(v) => setOrder(String(v))">
-              <DropdownMenuRadioItem value="asc">Ordre croissant</DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="desc">Ordre décroissant</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="asc">{{ t('mail.list.sortMenu.ascending') }}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="desc">{{ t('mail.list.sortMenu.descending') }}</DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
         <!-- Plus d'actions menu (no selection) -->
         <DropdownMenu>
-          <MailMenuButton :icon="EllipsisVertical" label="Plus d'actions" />
+          <MailMenuButton :icon="EllipsisVertical" :label="t('mail.list.moreActions.label')" />
           <DropdownMenuContent align="start" class="w-56">
             <DropdownMenuItem @select="markAllAsRead">
               <Mail class="size-4" aria-hidden="true" />
-              Marquer tout comme lu
+              {{ t('mail.list.moreActions.markAllRead') }}
             </DropdownMenuItem>
             <DropdownMenuItem @select="fileInput?.click()">
-              <span>Importer des messages (.eml)</span>
+              <span>{{ t('mail.list.moreActions.importMessages') }}</span>
             </DropdownMenuItem>
             <input
               ref="fileInput"
@@ -519,46 +516,46 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
       </template>
       <template v-else>
         <span class="mx-1 grid h-6 min-w-6 place-items-center rounded-md bg-primary px-1.5 text-xs font-semibold text-primary-foreground tabular-nums" aria-live="polite">{{ selected.size }}</span>
-        <MailIconButton v-if="archive && folderPath !== archive.path" :icon="Archive" label="Archiver" @click="moveSelected(archive.path, archive.name)" />
-        <MailIconButton :icon="Trash2" :label="folder?.specialUse === 'trash' ? 'Supprimer définitivement' : 'Supprimer'" @click="removeSelected" />
-        <MailIconButton v-if="selectionUnread" :icon="MailOpen" label="Marquer comme lu" @click="markSeen(true)" />
-        <MailIconButton v-else :icon="Mail" label="Marquer comme non lu" @click="markSeen(false)" />
+        <MailIconButton v-if="archive && folderPath !== archive.path" :icon="Archive" :label="t('mail.list.actions.archive')" @click="moveSelected(archive.path, folderLabel(archive))" />
+        <MailIconButton :icon="Trash2" :label="folder?.specialUse === 'trash' ? t('mail.list.actions.deletePermanently') : t('mail.list.actions.delete')" @click="removeSelected" />
+        <MailIconButton v-if="selectionUnread" :icon="MailOpen" :label="t('mail.list.actions.markRead')" @click="markSeen(true)" />
+        <MailIconButton v-else :icon="Mail" :label="t('mail.list.actions.markUnread')" @click="markSeen(false)" />
         <!-- Plus d'actions menu (with selection) -->
         <DropdownMenu>
-          <MailMenuButton :icon="EllipsisVertical" label="Plus d'actions" />
+          <MailMenuButton :icon="EllipsisVertical" :label="t('mail.list.moreActions.label')" />
           <DropdownMenuContent align="start" class="w-56">
             <!-- Copier vers -->
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <FolderInput class="size-4" aria-hidden="true" />
-                Copier vers…
+                {{ t('mail.list.actions.copyTo') }}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent class="w-48">
-                <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="copySelected(f.path, f.name)">
-                  {{ f.name }}
+                <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="copySelected(f.path, folderLabel(f))">
+                  {{ folderLabel(f) }}
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             <!-- Télécharger zip -->
             <DropdownMenuItem @select="downloadSelected">
               <Download class="size-4" aria-hidden="true" />
-              Télécharger (.zip)
+              {{ t('mail.list.actions.downloadZip') }}
             </DropdownMenuItem>
             <!-- Signaler comme spam / Ce n'est pas un spam -->
             <DropdownMenuItem v-if="!isJunk" @select="junkSelected(true)">
-              Signaler comme spam
+              {{ t('mail.list.actions.reportSpam') }}
             </DropdownMenuItem>
             <DropdownMenuItem v-else @select="junkSelected(false)">
-              Ce n'est pas un spam
+              {{ t('mail.list.actions.notSpam') }}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <DropdownMenu>
-          <MailMenuButton :icon="FolderInput" label="Déplacer vers" />
+          <MailMenuButton :icon="FolderInput" :label="t('mail.list.actions.moveTo')" />
           <DropdownMenuContent align="start" class="w-56">
-            <DropdownMenuLabel>Déplacer vers</DropdownMenuLabel>
-            <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="moveSelected(f.path, f.name)">
-              {{ f.name }}
+            <DropdownMenuLabel>{{ t('mail.list.actions.moveTo') }}</DropdownMenuLabel>
+            <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="moveSelected(f.path, folderLabel(f))">
+              {{ folderLabel(f) }}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -569,20 +566,20 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
         <AlertDialog>
           <AlertDialogTrigger as-child>
             <button type="button" class="ml-auto h-11 rounded-lg px-3 text-sm font-semibold text-destructive hover:bg-destructive/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:h-9">
-              {{ isTrash ? 'Vider la corbeille' : 'Vider le spam' }}
+              {{ isTrash ? t('mail.list.emptyFolder.trashAction') : t('mail.list.emptyFolder.junkAction') }}
             </button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{{ isTrash ? 'Vider la corbeille' : 'Vider le spam' }}</AlertDialogTitle>
+              <AlertDialogTitle>{{ isTrash ? t('mail.list.emptyFolder.trashAction') : t('mail.list.emptyFolder.junkAction') }}</AlertDialogTitle>
             </AlertDialogHeader>
             <AlertDialogDescription>
-              Cette action supprimera définitivement tous les messages de {{ isTrash ? 'la corbeille' : 'le dossier spam' }}.
+              {{ isTrash ? t('mail.list.emptyFolder.trashDescription') : t('mail.list.emptyFolder.junkDescription') }}
             </AlertDialogDescription>
             <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogCancel>{{ t('common.cancel') }}</AlertDialogCancel>
               <AlertDialogAction class="bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="emptyFolderConfirm">
-                Vider
+                {{ t('mail.list.emptyFolder.confirm') }}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -591,24 +588,24 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
 
       <div class="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
         <span v-if="rangeLabel" class="hidden px-2 tabular-nums sm:inline">{{ rangeLabel }}</span>
-        <MailIconButton :icon="ChevronLeft" label="Page précédente" :disabled="page <= 1" @click="goToPage(page - 1)" />
-        <MailIconButton :icon="ChevronRight" label="Page suivante" :disabled="page >= lastPage" @click="goToPage(page + 1)" />
+        <MailIconButton :icon="ChevronLeft" :label="t('mail.list.pagination.previous')" :disabled="page <= 1" @click="goToPage(page - 1)" />
+        <MailIconButton :icon="ChevronRight" :label="t('mail.list.pagination.next')" :disabled="page >= lastPage" @click="goToPage(page + 1)" />
       </div>
     </div>
 
     <div v-if="q" class="flex items-center gap-2 border-b border-border bg-surface-app/50 px-4 py-1.5 text-sm">
       <SearchIcon class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <span class="min-w-0 flex-1 truncate text-muted-foreground" aria-live="polite">
-        {{ loading ? 'Recherche…' : `${total} résultat${total > 1 ? 's' : ''} dans ${folderName}` }}
+        {{ loading ? t('mail.list.search.searching') : t('mail.list.search.resultsCount', { n: total, folder: folderName }, total) }}
       </span>
       <NuxtLink :to="`/mail/${encodeURIComponent(folderPath)}`" class="inline-flex h-11 items-center gap-1 rounded-lg px-3 font-semibold text-primary hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring lg:h-9">
-        <X class="size-4" aria-hidden="true" /> Effacer
+        <X class="size-4" aria-hidden="true" /> {{ t('mail.list.search.clear') }}
       </NuxtLink>
     </div>
 
     <div class="min-h-0 flex-1 overflow-y-auto pb-24 lg:pb-0">
       <!-- Chargement -->
-      <ul v-if="loading" aria-busy="true" aria-label="Chargement en cours">
+      <ul v-if="loading" aria-busy="true" :aria-label="t('mail.list.loading.ariaLabel')">
         <li v-for="n in 10" :key="n" class="flex items-center gap-3 border-b border-border px-4 py-3 @3xl:h-11 @3xl:py-0">
           <Skeleton class="size-10 shrink-0 rounded-full lg:size-4 lg:rounded" />
           <div class="flex flex-1 flex-col gap-2 @3xl:flex-row @3xl:items-center @3xl:gap-4">
@@ -621,19 +618,19 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
       <!-- Erreur -->
       <div v-else-if="failed" class="flex flex-col items-center gap-3 px-6 py-16 text-center" role="alert">
         <CircleAlert class="size-10 text-destructive" aria-hidden="true" />
-        <p class="font-heading text-xl font-medium">Impossible de charger les messages.</p>
-        <Button variant="outline" class="h-11 px-6" @click="load()">Réessayer</Button>
+        <p class="font-heading text-xl font-medium">{{ t('mail.list.error.title') }}</p>
+        <Button variant="outline" class="h-11 px-6" @click="load()">{{ t('common.retry') }}</Button>
       </div>
 
       <!-- Vide : la colombe, et une phrase simple. -->
       <div v-else-if="!items.length" class="flex animate-settle flex-col items-center px-6 py-16 text-center @3xl:py-24">
         <BrandDove class="mb-5 w-44 @3xl:w-52" :trail="!q" />
-        <p class="font-heading text-[22px] leading-snug font-medium text-foreground">{{ q ? 'Rien trouvé' : 'Tout est calme ici' }}</p>
-        <p v-if="q" class="mt-1 max-w-xs text-base text-muted-foreground">Aucun résultat pour « {{ q }} ».</p>
-        <p v-else class="mt-1 max-w-xs text-base text-muted-foreground">Aucun message dans ce dossier.</p>
+        <p class="font-heading text-[22px] leading-snug font-medium text-foreground">{{ q ? t('mail.list.empty.noResults') : t('mail.list.empty.allCalm') }}</p>
+        <p v-if="q" class="mt-1 max-w-xs text-base text-muted-foreground">{{ t('mail.list.empty.noResultsFor', { query: q }) }}</p>
+        <p v-else class="mt-1 max-w-xs text-base text-muted-foreground">{{ t('mail.list.empty.noMessages') }}</p>
       </div>
 
-      <ul v-else aria-label="Messages" @focusin="onRowFocus">
+      <ul v-else :aria-label="t('mail.list.messagesAriaLabel')" @focusin="onRowFocus">
         <MailMessageRow
           v-for="m in items"
           :key="m.uid"
@@ -655,14 +652,14 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
     <AlertDialog :open="permanentDeleteUids !== null" @update:open="(v: boolean) => { if (!v) permanentDeleteUids = null }">
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Supprimer définitivement ?</AlertDialogTitle>
+          <AlertDialogTitle>{{ t('mail.list.permanentDelete.title') }}</AlertDialogTitle>
           <AlertDialogDescription>
-            {{ plural(permanentDeleteUids?.length ?? 0, 'message') }} {{ (permanentDeleteUids?.length ?? 0) > 1 ? 'seront supprimés' : 'sera supprimé' }} définitivement.
+            {{ t('mail.list.permanentDelete.description', { n: permanentDeleteUids?.length ?? 0 }, permanentDeleteUids?.length ?? 0) }}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel class="h-11 rounded-lg">Annuler</AlertDialogCancel>
-          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmPermanentDelete">Supprimer</AlertDialogAction>
+          <AlertDialogCancel class="h-11 rounded-lg">{{ t('common.cancel') }}</AlertDialogCancel>
+          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmPermanentDelete">{{ t('common.delete') }}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

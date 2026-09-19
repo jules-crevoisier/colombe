@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import { parseMessage } from '../../../lib/mail/parse'
 import { buildMDNMessage } from '../../../lib/mail/mdn'
+import { accountLocale } from '../../../lib/i18n/account'
 import { mailError, requireMail } from '../../../utils/mail-session'
+import { serverT } from '../../../lib/i18n'
 
 const paramsSchema = z.object({ uid: z.coerce.number().int().positive() })
 const bodySchema = z.object({
@@ -25,7 +27,7 @@ export default defineEventHandler(async (event) => {
     })
 
     if (!msg.readReceiptTo || stored.flags.includes('$MDNSent')) {
-      throw createError({ statusCode: 409, statusMessage: 'Accusé non disponible', message: 'Cet expéditeur n\'a pas demandé d\'accusé de lecture, ou il a déjà été envoyé' })
+      throw createError({ statusCode: 409, statusMessage: 'Accusé non disponible', message: serverT(event, 'messages.mdnUnavailable') })
     }
 
     const mdnRaw = buildMDNMessage({
@@ -33,6 +35,7 @@ export default defineEventHandler(async (event) => {
       originalMessageId: msg.messageId,
       originalSubject: msg.subject,
       recipientEmail: msg.readReceiptTo.address,
+      locale: accountLocale(event, email),
     })
 
     await backend.send(mdnRaw, { from: email, to: [msg.readReceiptTo.address] })
@@ -41,6 +44,6 @@ export default defineEventHandler(async (event) => {
     setResponseStatus(event, 204)
     return null
   } catch (err: unknown) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

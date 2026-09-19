@@ -4,6 +4,7 @@ import { addIdentity, IdentityLimitError } from '../../lib/store/identities'
 import { OutgoingImageError } from '../../lib/mail/sanitize-outgoing'
 import { requireMail } from '../../utils/mail-session'
 import { useDb } from '../../lib/store/db'
+import { localizedErrorMessage } from '../../lib/i18n'
 
 const inputSchema = z.object({
   name: z.string().trim().max(200).optional(),
@@ -24,8 +25,8 @@ export default defineEventHandler(async (event): Promise<Identity> => {
     return identity
   }
   catch (err) {
-    if (err instanceof IdentityLimitError) throw createError({ statusCode: 400, statusMessage: 'Trop d\'identités', message: err.message })
-    if (err instanceof OutgoingImageError) throw createError({ statusCode: 400, statusMessage: 'Image invalide', message: err.message })
+    if (err instanceof IdentityLimitError) throw createError({ statusCode: 400, statusMessage: 'Trop d\'identités', message: localizedErrorMessage(event, err) })
+    if (err instanceof OutgoingImageError) throw createError({ statusCode: 400, statusMessage: 'Image invalide', message: localizedErrorMessage(event, err) })
     throw err
   }
 })

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import { ChevronDown, ChevronUp, Plus, Upload } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import type { FilterRule, FilterSet, FiltersStatus } from '#shared/types/mail'
 
+const { t } = useI18n()
 const api = useFiltersApi()
 const mail = useMailStore()
 const filtersStore = useFiltersStore()
@@ -31,7 +33,8 @@ const newSetCopyFrom = ref('')
 const creatingSet = ref(false)
 
 function folderName(path: string): string {
-  return mail.byPath(path)?.name ?? path
+  const folder = mail.byPath(path)
+  return folder ? folderLabel(folder) : path
 }
 
 async function loadSelectedSet(): Promise<void> {
@@ -46,7 +49,7 @@ async function loadSelectedSet(): Promise<void> {
     scriptDraft.value = selectedSet.value.script
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de charger ce jeu de filtres.'))
+    toast.error(errorText(err, t('filters.sets.loadFailed')))
   }
 }
 
@@ -63,7 +66,7 @@ async function load(): Promise<void> {
     }
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de charger les filtres.'))
+    toast.error(errorText(err, t('filters.list.loadFailed')))
   }
   finally {
     loading.value = false
@@ -87,7 +90,7 @@ async function persistActiveRules(rules: FilterRule[], successMessage?: string):
   }
   catch (err) {
     if (!(err instanceof Error && err.name === 'ConfirmCancelled')) {
-      toast.error(errorText(err, "Impossible d'enregistrer les filtres."))
+      toast.error(errorText(err, t('filters.list.saveFailed')))
     }
   }
 }
@@ -96,7 +99,7 @@ function toggleEnabled(rule: FilterRule, value: boolean): void {
   void persistActiveRules(activeRules.value.map(r => (r.id === rule.id ? { ...r, enabled: value } : r)))
 }
 function deleteRule(rule: FilterRule): void {
-  void persistActiveRules(activeRules.value.filter(r => r.id !== rule.id), 'Filtre supprimé.')
+  void persistActiveRules(activeRules.value.filter(r => r.id !== rule.id), t('filters.list.deleted'))
 }
 function moveRule(rule: FilterRule, direction: -1 | 1): void {
   const index = activeRules.value.findIndex(r => r.id === rule.id)
@@ -122,7 +125,7 @@ async function createSet(): Promise<void> {
   creatingSet.value = true
   try {
     const created = await api.createSet(newSetName.value.trim(), newSetCopyFrom.value || undefined)
-    toast.success('Jeu de filtres créé.')
+    toast.success(t('filters.sets.created'))
     newSetDialogOpen.value = false
     newSetName.value = ''
     newSetCopyFrom.value = ''
@@ -131,7 +134,7 @@ async function createSet(): Promise<void> {
     selectedSetName.value = created.name
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de créer ce jeu de filtres.'))
+    toast.error(errorText(err, t('filters.sets.createFailed')))
   }
   finally {
     creatingSet.value = false
@@ -143,12 +146,12 @@ async function activateSelectedSet(): Promise<void> {
   activating.value = true
   try {
     await api.activateSet(selectedSetName.value)
-    toast.success('Jeu de filtres activé.')
+    toast.success(t('filters.sets.activated'))
     sieveStore.invalidateStatus()
     await load()
   }
   catch (err) {
-    toast.error(errorText(err, "Impossible d'activer ce jeu de filtres."))
+    toast.error(errorText(err, t('filters.sets.activateFailed')))
   }
   finally {
     activating.value = false
@@ -159,14 +162,14 @@ async function confirmDeleteSet(): Promise<void> {
   if (!selectedSetName.value) return
   try {
     await api.deleteSet(selectedSetName.value)
-    toast.success('Jeu de filtres supprimé.')
+    toast.success(t('filters.sets.deleted'))
     deleteSetDialogOpen.value = false
     sieveStore.invalidateStatus()
     await load()
   }
   catch (err) {
     deleteSetDialogOpen.value = false
-    toast.error(errorText(err, 'Impossible de supprimer ce jeu de filtres.'))
+    toast.error(errorText(err, t('filters.sets.deleteFailed')))
   }
 }
 
@@ -181,13 +184,13 @@ async function onImportFile(event: Event): Promise<void> {
   importing.value = true
   try {
     await confirmDialog.value!.withConfirmation(confirm => api.importSet(file, confirm))
-    toast.success('Jeu de filtres importé.')
+    toast.success(t('filters.sets.imported'))
     sieveStore.invalidateStatus()
     await load()
   }
   catch (err) {
     if (!(err instanceof Error && err.name === 'ConfirmCancelled')) {
-      toast.error(errorText(err, "Impossible d'importer ce fichier."))
+      toast.error(errorText(err, t('filters.sets.importFailed')))
     }
   }
   finally {
@@ -201,13 +204,13 @@ async function saveScript(): Promise<void> {
   try {
     const saved = await confirmDialog.value!.withConfirmation(confirm => api.saveSetScript(selectedSetName.value, scriptDraft.value, confirm))
     selectedSet.value = saved
-    toast.success('Script enregistré.')
+    toast.success(t('filters.sets.scriptSaved'))
     sieveStore.invalidateStatus()
     await load()
   }
   catch (err) {
     if (!(err instanceof Error && err.name === 'ConfirmCancelled')) {
-      toast.error(errorText(err, "Impossible d'enregistrer le script."))
+      toast.error(errorText(err, t('filters.sets.scriptSaveFailed')))
     }
   }
   finally {
@@ -224,27 +227,27 @@ async function saveScript(): Promise<void> {
     </div>
 
     <p v-else-if="!status?.available" class="text-sm text-muted-foreground">
-      Les filtres ne sont pas disponibles sur ce serveur.
+      {{ t('filters.unavailable') }}
     </p>
 
     <template v-else>
       <div class="space-y-2">
-        <ul aria-label="Filtres" class="flex flex-col gap-2">
+        <ul :aria-label="t('filters.list.ariaLabel')" class="flex flex-col gap-2">
           <li v-for="(rule, index) in activeRules" :key="rule.id" class="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:gap-3">
-            <Switch :model-value="rule.enabled" aria-label="Actif" @update:model-value="(v: boolean) => toggleEnabled(rule, v)" />
+            <Switch :model-value="rule.enabled" :aria-label="t('filters.list.activeLabel')" @update:model-value="(v: boolean) => toggleEnabled(rule, v)" />
             <span class="min-w-0 flex-1 truncate text-sm">{{ describeRule(rule, folderName) }}</span>
             <div class="flex flex-wrap items-center gap-1">
-              <MailIconButton :icon="ChevronUp" label="Monter" :disabled="index === 0" @click="moveRule(rule, -1)" />
-              <MailIconButton :icon="ChevronDown" label="Descendre" :disabled="index === activeRules.length - 1" @click="moveRule(rule, 1)" />
-              <Button variant="outline" class="h-11 rounded-lg px-4" @click="openEditFilter(rule)">Modifier</Button>
-              <Button variant="outline" class="h-11 rounded-lg px-4" @click="deleteRule(rule)">Supprimer</Button>
+              <MailIconButton :icon="ChevronUp" :label="t('filters.list.moveUp')" :disabled="index === 0" @click="moveRule(rule, -1)" />
+              <MailIconButton :icon="ChevronDown" :label="t('filters.list.moveDown')" :disabled="index === activeRules.length - 1" @click="moveRule(rule, 1)" />
+              <Button variant="outline" class="h-11 rounded-lg px-4" @click="openEditFilter(rule)">{{ t('common.edit') }}</Button>
+              <Button variant="outline" class="h-11 rounded-lg px-4" @click="deleteRule(rule)">{{ t('common.delete') }}</Button>
             </div>
           </li>
         </ul>
-        <p v-if="activeRules.length === 0" class="text-sm text-muted-foreground">Aucun filtre pour l'instant.</p>
+        <p v-if="activeRules.length === 0" class="text-sm text-muted-foreground">{{ t('filters.list.empty') }}</p>
 
         <Button variant="outline" class="h-11 justify-start rounded-lg" @click="openNewFilter">
-          <Plus class="size-4" aria-hidden="true" /> Nouveau filtre
+          <Plus class="size-4" aria-hidden="true" /> {{ t('filters.list.newFilter') }}
         </Button>
       </div>
 
@@ -255,46 +258,46 @@ async function saveScript(): Promise<void> {
           :aria-expanded="advancedOpen"
           @click="advancedOpen = !advancedOpen"
         >
-          Mode avancé
+          {{ t('filters.advancedMode') }}
           <ChevronDown class="size-4 shrink-0 transition-transform" :class="advancedOpen ? 'rotate-180' : ''" aria-hidden="true" />
         </button>
 
         <div v-if="advancedOpen" class="mt-4 space-y-6">
           <div class="space-y-2">
-            <Label for="filter-set-select">Ensemble de filtres</Label>
+            <Label for="filter-set-select">{{ t('filters.sets.label') }}</Label>
             <Select v-model="selectedSetName">
               <SelectTrigger id="filter-set-select" class="h-11 w-full text-base">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="set in status.sets" :key="set.name" :value="set.name">
-                  {{ set.name }}{{ set.active ? ' (actif)' : '' }}
+                  {{ set.name }}{{ set.active ? t('filters.sets.activeSuffix') : '' }}
                 </SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div class="flex flex-wrap gap-2">
-            <Button variant="outline" class="h-11 rounded-lg px-5" @click="newSetDialogOpen = true">Nouvel ensemble</Button>
-            <Button variant="outline" class="h-11 rounded-lg px-5" :disabled="!selectedSetName || activating" @click="activateSelectedSet">Activer</Button>
-            <Button variant="outline" class="h-11 rounded-lg px-5" :disabled="!selectedSetName" @click="deleteSetDialogOpen = true">Supprimer l'ensemble</Button>
+            <Button variant="outline" class="h-11 rounded-lg px-5" @click="newSetDialogOpen = true">{{ t('filters.sets.new') }}</Button>
+            <Button variant="outline" class="h-11 rounded-lg px-5" :disabled="!selectedSetName || activating" @click="activateSelectedSet">{{ t('common.enable') }}</Button>
+            <Button variant="outline" class="h-11 rounded-lg px-5" :disabled="!selectedSetName" @click="deleteSetDialogOpen = true">{{ t('filters.sets.delete') }}</Button>
             <Button v-if="selectedSetName" variant="outline" class="h-11 rounded-lg px-5" as-child>
-              <a :href="api.exportUrl(selectedSetName)" download>Exporter</a>
+              <a :href="api.exportUrl(selectedSetName)" download>{{ t('common.export') }}</a>
             </Button>
             <Button variant="outline" class="h-11 rounded-lg px-5" :disabled="importing" @click="triggerImport">
-              <Upload class="size-4" aria-hidden="true" /> Importer
+              <Upload class="size-4" aria-hidden="true" /> {{ t('filters.sets.import') }}
             </Button>
             <input ref="importInput" type="file" accept=".sieve" class="hidden" @change="onImportFile">
             <Button variant="outline" class="h-11 rounded-lg px-5" :disabled="!selectedSet" :aria-expanded="scriptEditorOpen" @click="scriptEditorOpen = !scriptEditorOpen">
-              Modifier le script
+              {{ t('filters.sets.editScript') }}
             </Button>
           </div>
 
           <div v-if="selectedSet && scriptEditorOpen" class="space-y-2">
-            <Label for="filter-script">Script</Label>
+            <Label for="filter-script">{{ t('filters.sets.scriptLabel') }}</Label>
             <Textarea id="filter-script" v-model="scriptDraft" class="min-h-56 font-mono text-sm" spellcheck="false" />
             <Button class="h-11 rounded-lg px-6" :disabled="savingScript" @click="saveScript">
-              {{ savingScript ? 'Enregistrement…' : 'Enregistrer le script' }}
+              {{ savingScript ? t('common.saving') : t('filters.sets.saveScript') }}
             </Button>
           </div>
         </div>
@@ -304,29 +307,29 @@ async function saveScript(): Promise<void> {
       <Dialog v-model:open="newSetDialogOpen">
         <DialogContent class="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Nouvel ensemble</DialogTitle>
+            <DialogTitle>{{ t('filters.sets.new') }}</DialogTitle>
           </DialogHeader>
           <div class="space-y-4">
             <div class="space-y-2">
-              <Label for="new-set-name">Nom</Label>
+              <Label for="new-set-name">{{ t('filters.sets.nameLabel') }}</Label>
               <Input id="new-set-name" v-model="newSetName" class="h-11 text-base" />
             </div>
             <div class="space-y-2">
-              <Label for="new-set-copy">Copier depuis</Label>
+              <Label for="new-set-copy">{{ t('filters.sets.copyFromLabel') }}</Label>
               <Select v-model="newSetCopyFrom">
                 <SelectTrigger id="new-set-copy" class="h-11 w-full text-base">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Aucun (vide)</SelectItem>
+                  <SelectItem value="">{{ t('filters.sets.none') }}</SelectItem>
                   <SelectItem v-for="set in status?.sets ?? []" :key="set.name" :value="set.name">{{ set.name }}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter class="sm:justify-end">
-            <Button variant="outline" class="h-11 rounded-lg px-6" @click="newSetDialogOpen = false">Annuler</Button>
-            <Button class="h-11 rounded-lg px-6" :disabled="!newSetName.trim() || creatingSet" @click="createSet">Créer</Button>
+            <Button variant="outline" class="h-11 rounded-lg px-6" @click="newSetDialogOpen = false">{{ t('common.cancel') }}</Button>
+            <Button class="h-11 rounded-lg px-6" :disabled="!newSetName.trim() || creatingSet" @click="createSet">{{ t('common.create') }}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -334,12 +337,12 @@ async function saveScript(): Promise<void> {
       <AlertDialog v-model:open="deleteSetDialogOpen">
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer cet ensemble ?</AlertDialogTitle>
-            <AlertDialogDescription>Cette action est définitive.</AlertDialogDescription>
+            <AlertDialogTitle>{{ t('filters.sets.deleteConfirmTitle') }}</AlertDialogTitle>
+            <AlertDialogDescription>{{ t('filters.sets.deleteConfirmDescription') }}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction @click="confirmDeleteSet">Supprimer l'ensemble</AlertDialogAction>
+            <AlertDialogCancel>{{ t('common.cancel') }}</AlertDialogCancel>
+            <AlertDialogAction @click="confirmDeleteSet">{{ t('filters.sets.delete') }}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

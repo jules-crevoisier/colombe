@@ -4,6 +4,7 @@ import { parseContactsCsv } from '../../lib/contacts/csv'
 import { requireMail } from '../../utils/mail-session'
 import { useDb } from '../../lib/store/db'
 import type { ContactImportResult } from '#shared/types/mail'
+import { serverT } from '../../lib/i18n'
 
 const MAX_SIZE = 5 * 1024 * 1024
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -20,15 +21,15 @@ export default defineEventHandler(async (event): Promise<ContactImportResult> =>
 
   const formData = await readMultipartFormData(event)
   if (!formData) {
-    throw createError({ statusCode: 400, statusMessage: 'Fichier requis', message: 'Fichier requis.' })
+    throw createError({ statusCode: 400, statusMessage: 'Fichier requis', message: serverT(event, 'contacts.fileRequired') })
   }
 
   const file = formData.find(f => f.name === 'file')
   if (!file || !file.data || !file.data.length) {
-    throw createError({ statusCode: 400, statusMessage: 'Fichier requis', message: 'Fichier requis.' })
+    throw createError({ statusCode: 400, statusMessage: 'Fichier requis', message: serverT(event, 'contacts.fileRequired') })
   }
   if (file.data.length > MAX_SIZE) {
-    throw createError({ statusCode: 413, statusMessage: 'Trop volumineux', message: 'Le fichier dépasse 5 Mo.' })
+    throw createError({ statusCode: 413, statusMessage: 'Trop volumineux', message: serverT(event, 'contacts.fileTooLarge') })
   }
 
   const filename = (file.filename ?? '').toLowerCase()
@@ -36,7 +37,7 @@ export default defineEventHandler(async (event): Promise<ContactImportResult> =>
   const isVcf = filename.endsWith('.vcf') || contentType.includes('vcard')
   const isCsv = filename.endsWith('.csv') || contentType.includes('csv')
   if (!isVcf && !isCsv) {
-    throw createError({ statusCode: 400, statusMessage: 'Format non pris en charge', message: 'Seuls les fichiers .vcf ou .csv sont acceptés.' })
+    throw createError({ statusCode: 400, statusMessage: 'Format non pris en charge', message: serverT(event, 'contacts.unsupportedFormat') })
   }
 
   const content = file.data.toString('utf-8')

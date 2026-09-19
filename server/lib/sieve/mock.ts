@@ -57,7 +57,7 @@ export class MockSieveSession {
   async getScript(name: string): Promise<string> {
     const s = stateFor(this.email)
     const content = s.scripts.get(name)
-    if (content === undefined) throw new SieveError('NOT_FOUND', `Jeu de filtres introuvable : ${name}`)
+    if (content === undefined) throw new SieveError('NOT_FOUND', `Jeu de filtres introuvable : ${name}`, undefined, { key: 'sieve.setNotFoundNamed', params: { name } })
     return content
   }
 
@@ -68,7 +68,7 @@ export class MockSieveSession {
 
   /** Sanité basique via le lexique Sieve (pas une validation sémantique complète, comme un vrai serveur). */
   async checkScript(content: string): Promise<void> {
-    if (!content.trim()) throw new SieveError('INVALID', 'Script Sieve vide')
+    if (!content.trim()) throw new SieveError('INVALID', 'Script Sieve vide', undefined, { key: 'sieve.emptyScript' })
     let opens = 0
     let closes = 0
     try {
@@ -77,28 +77,28 @@ export class MockSieveSession {
         if (tok.kind === 'block-end') closes++
       }
     } catch {
-      throw new SieveError('INVALID', 'Script Sieve invalide')
+      throw new SieveError('INVALID', 'Script Sieve invalide', undefined, { key: 'sieve.invalidSieve' })
     }
-    if (opens !== closes) throw new SieveError('INVALID', 'Script Sieve invalide : blocs non équilibrés')
+    if (opens !== closes) throw new SieveError('INVALID', 'Script Sieve invalide : blocs non équilibrés', undefined, { key: 'sieve.unbalanced' })
   }
 
   async setActive(name: string): Promise<void> {
     const s = stateFor(this.email)
-    if (name !== '' && !s.scripts.has(name)) throw new SieveError('NOT_FOUND', `Jeu de filtres introuvable : ${name}`)
+    if (name !== '' && !s.scripts.has(name)) throw new SieveError('NOT_FOUND', `Jeu de filtres introuvable : ${name}`, undefined, { key: 'sieve.setNotFoundNamed', params: { name } })
     s.active = name === '' ? null : name
   }
 
   async deleteScript(name: string): Promise<void> {
     const s = stateFor(this.email)
-    if (!s.scripts.has(name)) throw new SieveError('NOT_FOUND', `Jeu de filtres introuvable : ${name}`)
-    if (s.active === name) throw new SieveError('INVALID', 'Impossible de supprimer le jeu de filtres actif.')
+    if (!s.scripts.has(name)) throw new SieveError('NOT_FOUND', `Jeu de filtres introuvable : ${name}`, undefined, { key: 'sieve.setNotFoundNamed', params: { name } })
+    if (s.active === name) throw new SieveError('INVALID', 'Impossible de supprimer le jeu de filtres actif.', undefined, { key: 'sieve.cannotDeleteActive' })
     s.scripts.delete(name)
   }
 
   async renameScript(oldName: string, newName: string): Promise<void> {
     const s = stateFor(this.email)
     const content = s.scripts.get(oldName)
-    if (content === undefined) throw new SieveError('NOT_FOUND', `Jeu de filtres introuvable : ${oldName}`)
+    if (content === undefined) throw new SieveError('NOT_FOUND', `Jeu de filtres introuvable : ${oldName}`, undefined, { key: 'sieve.setNotFoundNamed', params: { name: oldName } })
     s.scripts.delete(oldName)
     s.scripts.set(newName, content)
     if (s.active === oldName) s.active = newName

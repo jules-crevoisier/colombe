@@ -8,6 +8,6 @@ export default defineEventHandler(async (event) => {
     setResponseStatus(event, 204)
     return null
   } catch (err) {
-    throw sieveError(err)
+    throw sieveError(err, event)
   }
 })

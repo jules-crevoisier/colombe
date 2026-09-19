@@ -119,6 +119,7 @@ Si aucun nom public n'est connu (Colombe configuré sur `localhost` sans
 | `COLOMBE_LOGO_FILE` | — | Logo de l'établissement (`.svg`, `.png`, `.jpg` ou `.webp`), chemin absolu ou relatif au dossier de travail. Servi par `GET /api/branding/logo`. |
 | `COLOMBE_PASSWORD_RESET_URL` | — | Lien « Mot de passe oublié ? » vers l'outil de votre établissement (Colombe ne change aucun mot de passe). |
 | `COLOMBE_SUPPORT_URL`, `COLOMBE_SUPPORT_EMAIL` | — | Lien « Besoin d'aide ? ». |
+| `COLOMBE_DEFAULT_LANGUAGE` | `fr` | Langue de l'interface (`fr` ou `en`) quand le navigateur ne propose ni le français ni l'anglais, et langue des alertes envoyées par Colombe aux comptes restés en « Automatique ». Chaque utilisateur peut choisir sa langue dans **Paramètres → Général**. |
 
 ## Annuaire de l'établissement (LDAP)
 

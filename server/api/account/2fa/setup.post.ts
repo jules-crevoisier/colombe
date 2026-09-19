@@ -5,6 +5,7 @@ import { generateSecret, otpauthUri } from '../../../lib/auth/totp'
 import { useDb } from '../../../lib/store/db'
 import { isTwoFactorEnabled, storePendingSecret } from '../../../lib/store/twofactor'
 import { mailError, requireMail } from '../../../utils/mail-session'
+import { serverT } from '../../../lib/i18n'
 
 /** Génère un secret (non actif tant qu'il n'est pas confirmé par un code). QR code rendu localement. */
 export default defineEventHandler(async (event): Promise<TwoFactorSetup> => {
@@ -12,7 +13,7 @@ export default defineEventHandler(async (event): Promise<TwoFactorSetup> => {
     const { email } = await requireMail(event)
     const db = useDb()
     if (isTwoFactorEnabled(db, email)) {
-      throw createError({ statusCode: 409, statusMessage: 'Déjà active', message: 'La double authentification est déjà active.' })
+      throw createError({ statusCode: 409, statusMessage: 'Déjà active', message: serverT(event, 'twoFactor.alreadyActive') })
     }
     const secret = generateSecret()
     storePendingSecret(db, email, secret, dataKey())
@@ -20,6 +21,6 @@ export default defineEventHandler(async (event): Promise<TwoFactorSetup> => {
     return { otpauthUri: uri, qrSvg: renderSVG(uri, { border: 2 }), secret }
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

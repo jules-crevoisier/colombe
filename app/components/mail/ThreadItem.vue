@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ChevronDown } from '@lucide/vue'
 import type { MessageDetail, MessageSummary } from '#shared/types/mail'
+import { useI18n } from 'vue-i18n'
+import { intlLocale } from '~/lib/i18n'
+
+const { t } = useI18n()
 
 /**
  * Message d'une conversation, replié par défaut ; le corps n'est chargé qu'à l'ouverture.
@@ -35,8 +39,8 @@ async function toggle() {
   }
 }
 
-const sender = computed(() => props.item.from?.name || props.item.from?.address || '(inconnu)')
-const date = computed(() => formatFullDate(props.item.date, 'fr-FR', { timeZone: prefsStore.prefs.timeZone, dateFormat: prefsStore.prefs.dateFormat, timeFormat: prefsStore.prefs.timeFormat }))
+const sender = computed(() => props.item.from?.name || props.item.from?.address || t('mail.thread.unknownSender'))
+const date = computed(() => formatFullDate(props.item.date, intlLocale(), { timeZone: prefsStore.prefs.timeZone, dateFormat: prefsStore.prefs.dateFormat, timeFormat: prefsStore.prefs.timeFormat }))
 const html = computed(() => (prefsStore.prefs.preferHtml ? detail.value?.html ?? null : null))
 </script>
 
@@ -60,10 +64,10 @@ const html = computed(() => (prefsStore.prefs.preferHtml ? detail.value?.html ??
       <div v-if="expanded" class="px-3 pb-3">
         <time class="mb-2 block text-xs text-muted-foreground sm:hidden" :datetime="item.date">{{ date }}</time>
         <Skeleton v-if="loading" class="h-32 w-full rounded-lg" />
-        <p v-else-if="failed" class="text-sm text-destructive" role="alert">Impossible d’afficher ce message.</p>
+        <p v-else-if="failed" class="text-sm text-destructive" role="alert">{{ t('mail.thread.loadFailed') }}</p>
         <template v-else-if="detail">
           <button v-if="detail.remoteImages > 0 && !showRemote" type="button" class="mb-2 inline-flex min-h-11 items-center rounded-md px-1 text-xs font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring lg:min-h-8" @click="showRemote = true">
-            Afficher les images distantes
+            {{ t('mail.thread.showRemoteImages') }}
           </button>
           <div class="overflow-hidden rounded-md border border-border bg-white">
             <MailFrame :html="html" :text="detail.text" :show-remote="showRemote" class="!min-h-48" />

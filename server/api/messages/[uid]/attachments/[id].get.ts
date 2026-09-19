@@ -34,6 +34,6 @@ export default defineEventHandler(async (event) => {
 
     return attachment.content
   } catch (err: unknown) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

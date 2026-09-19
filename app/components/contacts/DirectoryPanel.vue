@@ -3,6 +3,7 @@ import { toast } from 'vue-sonner'
 import { watchDebounced } from '@vueuse/core'
 import { Search, Building2, Phone, UserPlus, GraduationCap } from '@lucide/vue'
 import type { DirectoryEntry } from '#shared/types/mail'
+import { useI18n } from 'vue-i18n'
 
 /**
  * Annuaire LDAP de l'établissement (GET /api/directory/search), onglet « Annuaire »
@@ -11,6 +12,7 @@ import type { DirectoryEntry } from '#shared/types/mail'
  */
 const emit = defineEmits<{ added: [] }>()
 
+const { t } = useI18n()
 const directoryApi = useDirectoryApi()
 const contactsApi = useContactsApi()
 
@@ -53,11 +55,11 @@ async function addToContacts(entry: DirectoryEntry) {
   try {
     await contactsApi.quickAdd(entry.email, entry.name)
     addedEmails.value.add(entry.email)
-    toast.success(`${entry.name || entry.email} ajouté aux contacts`)
+    toast.success(t('contacts.directory.added', { name: entry.name || entry.email }))
     emit('added')
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible d\'ajouter ce contact.'))
+    toast.error(errorText(err, t('contacts.directory.addFailed')))
   }
   finally {
     addingEmail.value = null
@@ -69,16 +71,16 @@ async function addToContacts(entry: DirectoryEntry) {
   <div class="flex h-full min-h-0 flex-col">
     <div class="flex shrink-0 flex-col gap-3 border-b border-border p-3">
       <div>
-        <h2 class="font-heading text-lg font-medium">Annuaire de l'établissement</h2>
-        <p class="text-sm text-muted-foreground">Recherchez un nom ou une adresse dans l'annuaire de l'établissement.</p>
+        <h2 class="font-heading text-lg font-medium">{{ t('contacts.directory.title') }}</h2>
+        <p class="text-sm text-muted-foreground">{{ t('contacts.directory.subtitle') }}</p>
       </div>
       <div class="relative">
         <Search class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
         <Input
           v-model="search"
           type="search"
-          placeholder="Rechercher dans l'annuaire (nom, prénom, adresse…)"
-          aria-label="Rechercher dans l'annuaire de l'établissement"
+          :placeholder="t('contacts.directory.searchPlaceholder')"
+          :aria-label="t('contacts.directory.searchAriaLabel')"
           class="h-11 pl-9 text-base"
         />
       </div>
@@ -89,19 +91,19 @@ async function addToContacts(entry: DirectoryEntry) {
         <Skeleton v-for="n in 4" :key="n" class="h-20 w-full rounded-xl" />
       </div>
       <p v-else-if="failed" role="alert" class="p-6 text-sm text-destructive">
-        Annuaire momentanément indisponible. Réessayez plus tard.
+        {{ t('contacts.directory.unavailable') }}
       </p>
       <div v-else-if="!searched" class="flex animate-settle flex-col items-center px-6 py-14 text-center">
         <Building2 class="mb-4 size-12 text-muted-foreground/60" aria-hidden="true" />
-        <p class="font-heading text-[20px] leading-snug font-medium">Rechercher dans l'annuaire</p>
-        <p class="mt-1 max-w-xs text-base text-muted-foreground">Tapez au moins 3 caractères pour lancer la recherche.</p>
+        <p class="font-heading text-[20px] leading-snug font-medium">{{ t('contacts.directory.promptTitle') }}</p>
+        <p class="mt-1 max-w-xs text-base text-muted-foreground">{{ t('contacts.directory.promptHint') }}</p>
       </div>
       <div v-else-if="!results.length" class="flex animate-settle flex-col items-center px-6 py-14 text-center">
         <Building2 class="mb-4 size-12 text-muted-foreground/60" aria-hidden="true" />
-        <p class="font-heading text-[20px] leading-snug font-medium">Personne à ce nom</p>
-        <p class="mt-1 max-w-xs text-base text-muted-foreground">Aucun résultat dans l'annuaire pour cette recherche.</p>
+        <p class="font-heading text-[20px] leading-snug font-medium">{{ t('contacts.noOneFound') }}</p>
+        <p class="mt-1 max-w-xs text-base text-muted-foreground">{{ t('contacts.directory.noResultsHint') }}</p>
       </div>
-      <ul v-else aria-label="Résultats de l'annuaire" class="flex flex-col">
+      <ul v-else :aria-label="t('contacts.directory.resultsLabel')" class="flex flex-col">
         <li v-for="entry in results" :key="entry.email" class="flex items-start gap-3 border-b border-border p-3 sm:items-center">
           <span class="grid size-11 shrink-0 place-items-center rounded-full text-sm font-semibold text-white" :class="getAvatarTone(entry.email)" aria-hidden="true">
             {{ getInitials(entry.name || entry.email) }}
@@ -125,11 +127,11 @@ async function addToContacts(entry: DirectoryEntry) {
             variant="outline"
             class="h-11 shrink-0 px-3 text-sm lg:h-9"
             :disabled="addingEmail === entry.email || addedEmails.has(entry.email)"
-            :aria-label="addedEmails.has(entry.email) ? `${entry.name || entry.email} ajouté aux contacts` : `Ajouter ${entry.name || entry.email} à mes contacts`"
+            :aria-label="addedEmails.has(entry.email) ? t('contacts.directory.added', { name: entry.name || entry.email }) : t('contacts.directory.addAriaLabel', { name: entry.name || entry.email })"
             @click="addToContacts(entry)"
           >
             <UserPlus class="size-4" aria-hidden="true" />
-            <span class="hidden sm:inline" aria-hidden="true">{{ addedEmails.has(entry.email) ? 'Ajouté' : 'Ajouter à mes contacts' }}</span>
+            <span class="hidden sm:inline" aria-hidden="true">{{ addedEmails.has(entry.email) ? t('contacts.directory.addedShort') : t('contacts.directory.addAction') }}</span>
           </Button>
         </li>
       </ul>

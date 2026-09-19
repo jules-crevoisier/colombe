@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import { Plus } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import type { CannedResponse } from '#shared/types/mail'
 
 const MAX_RESPONSES = 100
 const MAX_NAME_LENGTH = 100
 
 const api = useSettingsApi()
+const { t } = useI18n()
 
 const responses = ref<CannedResponse[]>([])
 const loading = ref(true)
@@ -27,7 +29,7 @@ async function load() {
     responses.value = await api.responses()
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de charger les réponses types.'))
+    toast.error(errorText(err, t('settings.responses.loadError')))
   }
   finally {
     loading.value = false
@@ -52,7 +54,7 @@ function startCreate() {
 
 async function save() {
   if (!name.value.trim()) {
-    toast.error('Entrez un nom.')
+    toast.error(t('settings.responses.form.nameRequired'))
     return
   }
   saving.value = true
@@ -62,17 +64,17 @@ async function save() {
       responses.value.push(created)
       creating.value = false
       selectedId.value = created.id
-      toast.success('Réponse type créée.')
+      toast.success(t('settings.responses.created'))
     }
     else if (selectedId.value != null) {
       const updated = await api.updateResponse(selectedId.value, { name: name.value.trim(), html: html.value })
       const index = responses.value.findIndex(r => r.id === updated.id)
       if (index >= 0) responses.value[index] = updated
-      toast.success('Réponse type enregistrée.')
+      toast.success(t('settings.responses.saved'))
     }
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible d\'enregistrer la réponse type.'))
+    toast.error(errorText(err, t('settings.responses.saveError')))
   }
   finally {
     saving.value = false
@@ -89,11 +91,11 @@ async function confirmDelete() {
     creating.value = false
     name.value = ''
     html.value = ''
-    toast.success('Réponse type supprimée.')
+    toast.success(t('settings.responses.deleted'))
   }
   catch (err) {
     deleteDialogOpen.value = false
-    toast.error(errorText(err, 'Impossible de supprimer cette réponse type.'))
+    toast.error(errorText(err, t('settings.responses.deleteError')))
   }
 }
 
@@ -108,7 +110,7 @@ onMounted(load)
     </div>
 
     <template v-else>
-      <p v-if="!responses.length && !creating" class="text-sm text-muted-foreground">Aucune réponse type pour l'instant.</p>
+      <p v-if="!responses.length && !creating" class="text-sm text-muted-foreground">{{ t('settings.responses.empty') }}</p>
 
       <div v-if="responses.length" class="flex flex-col gap-2">
         <button
@@ -125,29 +127,29 @@ onMounted(load)
 
       <Button variant="outline" class="h-11 justify-start rounded-lg" :disabled="!canAdd" @click="startCreate">
         <Plus class="size-4" aria-hidden="true" />
-        Nouvelle réponse type
+        {{ t('settings.responses.add') }}
       </Button>
-      <p v-if="!canAdd" class="text-xs text-muted-foreground">Limite de {{ MAX_RESPONSES }} réponses types atteinte.</p>
+      <p v-if="!canAdd" class="text-xs text-muted-foreground">{{ t('settings.responses.limitReached', { n: MAX_RESPONSES }) }}</p>
 
       <form v-if="creating || selected" class="flex flex-col gap-6 rounded-xl border border-border p-4" @submit.prevent="save">
         <div class="space-y-2">
-          <Label for="response-name">Nom</Label>
+          <Label for="response-name">{{ t('settings.responses.form.name') }}</Label>
           <Input id="response-name" v-model="name" class="h-11 text-base" :maxlength="MAX_NAME_LENGTH" required />
         </div>
 
         <div class="space-y-2">
-          <Label for="response-text">Texte</Label>
+          <Label for="response-text">{{ t('settings.responses.form.text') }}</Label>
           <div class="flex min-h-56 flex-col overflow-hidden rounded-xl border border-border bg-surface-panel focus-within:ring-2 focus-within:ring-ring">
-            <MailRichEditor id="response-text" v-model:html="html" label="Texte" placeholder="Rédigez le texte de la réponse type…" />
+            <MailRichEditor id="response-text" v-model:html="html" :label="t('settings.responses.form.text')" :placeholder="t('settings.responses.form.textPlaceholder')" />
           </div>
         </div>
 
         <div class="flex flex-wrap items-center justify-end gap-3">
           <Button v-if="selected" type="button" variant="destructive" class="h-11 rounded-lg px-6" @click="deleteDialogOpen = true">
-            Supprimer
+            {{ t('common.delete') }}
           </Button>
           <Button type="submit" class="h-11 rounded-lg px-6" :disabled="saving">
-            {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
+            {{ saving ? t('common.saving') : t('common.save') }}
           </Button>
         </div>
       </form>
@@ -155,12 +157,12 @@ onMounted(load)
       <AlertDialog v-model:open="deleteDialogOpen">
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer cette réponse type ?</AlertDialogTitle>
-            <AlertDialogDescription>Cette action est définitive.</AlertDialogDescription>
+            <AlertDialogTitle>{{ t('settings.responses.deleteConfirmTitle') }}</AlertDialogTitle>
+            <AlertDialogDescription>{{ t('settings.responses.deleteConfirmDescription') }}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction @click="confirmDelete">Supprimer</AlertDialogAction>
+            <AlertDialogCancel>{{ t('common.cancel') }}</AlertDialogCancel>
+            <AlertDialogAction @click="confirmDelete">{{ t('common.delete') }}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

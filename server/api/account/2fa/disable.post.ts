@@ -3,6 +3,7 @@ import { verifySecondFactor } from '../../../lib/auth/second-factor'
 import { useDb } from '../../../lib/store/db'
 import { disableTwoFactor, isTwoFactorEnabled } from '../../../lib/store/twofactor'
 import { mailError, requireMail } from '../../../utils/mail-session'
+import { serverT } from '../../../lib/i18n'
 
 const bodySchema = z.object({ code: z.string().trim().min(6).max(32) })
 
@@ -13,16 +14,16 @@ export default defineEventHandler(async (event) => {
     const { email } = await requireMail(event)
     const db = useDb()
     if (!isTwoFactorEnabled(db, email)) {
-      throw createError({ statusCode: 409, statusMessage: 'Inactive', message: 'La double authentification n’est pas active.' })
+      throw createError({ statusCode: 409, statusMessage: 'Inactive', message: serverT(event, 'twoFactor.notActive') })
     }
     if (!verifySecondFactor(db, email, code, { requireEnabled: true, allowRecovery: true })) {
-      throw createError({ statusCode: 400, statusMessage: 'Code refusé', message: 'Code incorrect.' })
+      throw createError({ statusCode: 400, statusMessage: 'Code refusé', message: serverT(event, 'auth.badCode') })
     }
     disableTwoFactor(db, email)
     setResponseStatus(event, 204)
     return null
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

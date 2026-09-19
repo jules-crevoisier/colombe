@@ -4,9 +4,11 @@ import { watchDebounced } from '@vueuse/core'
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui'
 import { FileDown, FolderOpen, Plus, Search, Users } from '@lucide/vue'
 import type { Contact, ContactDetail, ContactDetailInput, ContactGroup } from '#shared/types/mail'
+import { useI18n } from 'vue-i18n'
 
 definePageMeta({ layout: 'mail' })
 
+const { t } = useI18n()
 const api = useContactsApi()
 const { config: siteConfig } = useSiteConfig()
 const activeTab = ref<'contacts' | 'directory'>('contacts')
@@ -99,12 +101,12 @@ async function submitCreate(input: ContactDetailInput) {
   try {
     const created = await api.create(input)
     createOpen.value = false
-    toast.success('Contact ajouté')
+    toast.success(t('contacts.toast.created'))
     await loadContacts()
     selectedId.value = created.id
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de créer le contact.'))
+    toast.error(errorText(err, t('contacts.errors.createFailed')))
   }
 }
 
@@ -123,11 +125,11 @@ async function submitCreateGroup() {
   try {
     await api.createGroup(name)
     groupDialogOpen.value = false
-    toast.success('Groupe créé')
+    toast.success(t('contacts.toast.groupCreated'))
     await loadGroups()
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de créer le groupe.'))
+    toast.error(errorText(err, t('contacts.errors.groupCreateFailed')))
   }
   finally {
     groupSaving.value = false
@@ -141,34 +143,36 @@ async function importFiles(e: Event) {
   if (!file) return
   try {
     const result = await api.importFile(file, file.name)
-    toast(`${result.imported} contact${result.imported > 1 ? 's' : ''} importé${result.imported > 1 ? 's' : ''}${result.skipped ? `, ${result.skipped} ignoré${result.skipped > 1 ? 's' : ''}` : ''}`)
+    const imported = t('contacts.toast.imported', result.imported)
+    const skipped = result.skipped ? t('contacts.toast.importedSkipped', result.skipped) : ''
+    toast(imported + skipped)
     await loadContacts()
   }
   catch (err) {
-    toast.error(errorText(err, 'Import impossible.'))
+    toast.error(errorText(err, t('contacts.errors.importFailed')))
   }
   if (fileInput.value) fileInput.value.value = ''
 }
 
-useHead({ title: 'Contacts' })
+useHead({ title: computed(() => t('contacts.pageTitle')) })
 </script>
 
 <template>
   <TabsRoot v-model="activeTab" class="flex h-full min-h-0 flex-col">
     <!-- Onglets : masqués sans annuaire LDAP configuré, l'interface reste identique
          à avant (docs/dev — annuaire de l'établissement). -->
-    <TabsList v-if="siteConfig.features.directory" aria-label="Contacts" class="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-3 pt-2 [scrollbar-width:none] sm:px-4">
+    <TabsList v-if="siteConfig.features.directory" :aria-label="t('contacts.pageTitle')" class="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-3 pt-2 [scrollbar-width:none] sm:px-4">
       <TabsTrigger
         value="contacts"
         class="relative -mb-px h-11 flex-none border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=active]:border-nav-marker data-[state=active]:font-semibold data-[state=active]:text-foreground"
       >
-        Mes contacts
+        {{ t('contacts.myContacts') }}
       </TabsTrigger>
       <TabsTrigger
         value="directory"
         class="relative -mb-px h-11 flex-none border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=active]:border-nav-marker data-[state=active]:font-semibold data-[state=active]:text-foreground"
       >
-        Annuaire de l'établissement
+        {{ t('contacts.directory.title') }}
       </TabsTrigger>
     </TabsList>
 
@@ -178,14 +182,14 @@ useHead({ title: 'Contacts' })
 
   <TabsContent value="contacts" class="flex min-h-0 flex-1 flex-col outline-none lg:flex-row">
     <!-- Groupes (à gauche sur bureau, bandeau en haut sur mobile) -->
-    <nav aria-label="Groupes de contacts" class="flex shrink-0 gap-1 overflow-x-auto border-b border-border p-2 [scrollbar-width:none] lg:w-56 lg:flex-col lg:overflow-visible lg:border-r lg:border-b-0 lg:p-3">
+    <nav :aria-label="t('contacts.groupsNavLabel')" class="flex shrink-0 gap-1 overflow-x-auto border-b border-border p-2 [scrollbar-width:none] lg:w-56 lg:flex-col lg:overflow-visible lg:border-r lg:border-b-0 lg:p-3">
       <button
         type="button"
         class="flex h-11 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium whitespace-nowrap hover:bg-foreground/[0.05] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring lg:h-9"
         :class="view === 'all' ? 'bg-accent font-semibold text-foreground' : ''"
         @click="view = 'all'"
       >
-        <FolderOpen class="size-4 shrink-0" aria-hidden="true" /> <span>Tous les contacts</span>
+        <FolderOpen class="size-4 shrink-0" aria-hidden="true" /> <span>{{ t('contacts.allContacts') }}</span>
       </button>
       <button
         type="button"
@@ -193,7 +197,7 @@ useHead({ title: 'Contacts' })
         :class="view === 'collected' ? 'bg-accent font-semibold text-foreground' : ''"
         @click="view = 'collected'"
       >
-        <Users class="size-4 shrink-0" aria-hidden="true" /> <span>Adresses collectées</span>
+        <Users class="size-4 shrink-0" aria-hidden="true" /> <span>{{ t('contacts.collectedAddresses') }}</span>
       </button>
       <div class="my-1 hidden border-t border-border lg:block" />
       <button
@@ -208,7 +212,7 @@ useHead({ title: 'Contacts' })
         <span class="shrink-0 text-xs text-muted-foreground">{{ g.memberCount }}</span>
       </button>
       <button type="button" class="flex h-11 shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-medium whitespace-nowrap text-muted-foreground hover:bg-accent lg:h-9" @click="openCreateGroup">
-        <Plus class="size-4 shrink-0" aria-hidden="true" /> Nouveau groupe
+        <Plus class="size-4 shrink-0" aria-hidden="true" /> {{ t('contacts.newGroup') }}
       </button>
     </nav>
 
@@ -216,18 +220,18 @@ useHead({ title: 'Contacts' })
     <div class="min-w-0 flex-1 flex-col overflow-hidden" :class="selectedId !== null ? 'hidden lg:flex' : 'flex'">
       <div class="flex shrink-0 flex-col gap-3 border-b border-border p-3">
         <div class="flex items-center justify-between gap-2">
-          <h1 class="font-heading text-[26px] leading-tight font-medium tracking-[-0.015em]">Contacts</h1>
+          <h1 class="font-heading text-[26px] leading-tight font-medium tracking-[-0.015em]">{{ t('contacts.pageTitle') }}</h1>
           <div class="flex flex-wrap gap-2">
             <Button class="h-11 px-4 text-sm lg:h-10" @click="openCreate">
-              <Plus class="size-4" aria-hidden="true" /> Nouveau contact
+              <Plus class="size-4" aria-hidden="true" /> {{ t('contacts.newContact') }}
             </Button>
             <Button variant="outline" class="h-11 px-4 text-sm lg:h-10" @click="fileInput?.click()">
-              Importer
+              {{ t('contacts.import') }}
             </Button>
             <input ref="fileInput" type="file" accept=".vcf,.csv,text/vcard,text/csv" hidden @change="importFiles">
             <Button as-child variant="outline" class="h-11 px-4 text-sm lg:h-10">
               <a :href="api.exportVcfUrl()">
-                <FileDown class="size-4" aria-hidden="true" /> Exporter (.vcf)
+                <FileDown class="size-4" aria-hidden="true" /> {{ t('contacts.exportVcf') }}
               </a>
             </Button>
           </div>
@@ -237,8 +241,8 @@ useHead({ title: 'Contacts' })
           <Input
             v-model="search"
             type="search"
-            placeholder="Rechercher un contact"
-            aria-label="Rechercher un contact"
+            :placeholder="t('contacts.searchPlaceholder')"
+            :aria-label="t('contacts.searchPlaceholder')"
             class="h-11 pl-9 text-base"
           />
         </div>
@@ -248,11 +252,11 @@ useHead({ title: 'Contacts' })
         <div v-if="loading" class="flex flex-col gap-2 p-3">
           <Skeleton v-for="n in 6" :key="n" class="h-14 w-full rounded-xl" />
         </div>
-        <p v-else-if="failed" role="alert" class="p-6 text-sm text-destructive">Impossible de charger les contacts.</p>
+        <p v-else-if="failed" role="alert" class="p-6 text-sm text-destructive">{{ t('contacts.loadFailed') }}</p>
         <div v-else-if="!contacts.length" class="flex animate-settle flex-col items-center px-6 py-14 text-center">
           <BrandDove class="mb-5 w-40" :trail="!search" />
-          <p class="font-heading text-[22px] leading-snug font-medium">{{ search ? 'Personne à ce nom' : 'Un carnet encore vierge' }}</p>
-          <p class="mt-1 max-w-xs text-base text-muted-foreground">{{ search ? 'Aucun contact trouvé.' : 'Aucun contact pour le moment.' }}</p>
+          <p class="font-heading text-[22px] leading-snug font-medium">{{ search ? t('contacts.noOneFound') : t('contacts.empty.title') }}</p>
+          <p class="mt-1 max-w-xs text-base text-muted-foreground">{{ search ? t('contacts.empty.noResultsHint') : t('contacts.empty.hint') }}</p>
         </div>
         <ul v-else aria-label="Contacts" class="flex flex-col">
           <li v-for="c in contacts" :key="c.id">
@@ -284,10 +288,10 @@ useHead({ title: 'Contacts' })
     <Dialog :open="createOpen" @update:open="(v: boolean) => { if (!v) createOpen = false }">
       <DialogContent class="flex max-h-[85dvh] flex-col gap-0 sm:max-w-2xl">
         <DialogHeader class="border-b px-6 py-4">
-          <DialogTitle>Nouveau contact</DialogTitle>
+          <DialogTitle>{{ t('contacts.newContact') }}</DialogTitle>
         </DialogHeader>
         <div class="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-          <ContactsContactForm v-model="createForm" submit-label="Enregistrer" @submit="submitCreate" @cancel="createOpen = false" />
+          <ContactsContactForm v-model="createForm" :submit-label="t('common.save')" @submit="submitCreate" @cancel="createOpen = false" />
         </div>
       </DialogContent>
     </Dialog>
@@ -296,14 +300,14 @@ useHead({ title: 'Contacts' })
     <Dialog :open="groupDialogOpen" @update:open="(v: boolean) => { if (!v) groupDialogOpen = false }">
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Nouveau groupe</DialogTitle>
+          <DialogTitle>{{ t('contacts.newGroup') }}</DialogTitle>
         </DialogHeader>
         <form class="flex flex-col gap-3" @submit.prevent="submitCreateGroup">
-          <Label for="group-name">Nom</Label>
+          <Label for="group-name">{{ t('contacts.nameLabel') }}</Label>
           <Input id="group-name" v-model="newGroupName" maxlength="100" autocomplete="off" class="h-11 text-base" />
           <DialogFooter>
-            <Button type="button" variant="ghost" class="h-11 rounded-lg px-5" @click="groupDialogOpen = false">Annuler</Button>
-            <Button type="submit" class="h-11 rounded-lg px-5" :disabled="groupSaving || !newGroupName.trim()">Enregistrer</Button>
+            <Button type="button" variant="ghost" class="h-11 rounded-lg px-5" @click="groupDialogOpen = false">{{ t('common.cancel') }}</Button>
+            <Button type="submit" class="h-11 rounded-lg px-5" :disabled="groupSaving || !newGroupName.trim()">{{ t('common.save') }}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

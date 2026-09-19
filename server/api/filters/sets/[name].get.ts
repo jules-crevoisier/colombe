@@ -10,6 +10,6 @@ export default defineEventHandler(async (event) => {
     const { email, sid } = await requireMail(event)
     return await getFilterSet({ event, email, sid }, name)
   } catch (err) {
-    throw sieveError(err)
+    throw sieveError(err, event)
   }
 })

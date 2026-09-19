@@ -3,6 +3,8 @@
  * Ne contient que ce que la page de connexion affiche déjà : jamais d'hôte interne,
  * de port interne ni de secret.
  */
+import type { AppLocale } from './i18n'
+
 export interface PublicConfig {
   /** Nom du produit affiché (défaut « Colombe »). */
   productName: string
@@ -37,6 +39,8 @@ export interface PublicConfig {
   /** Lien « Retour à l'ENT » (COLOMBE_PORTAL_URL), ou null. */
   portalUrl: string | null
   // ─── SSO (OIDC) : fin ───
+  /** Langue par défaut de l'interface (COLOMBE_DEFAULT_LANGUAGE), si le navigateur ne propose ni fr ni en. */
+  defaultLanguage: AppLocale
   limits: {
     /** Total des pièces jointes d'un message, en octets (COLOMBE_MAX_ATTACHMENTS_MB). */
     attachmentsBytes: number

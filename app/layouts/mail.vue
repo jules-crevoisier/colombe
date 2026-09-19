@@ -3,7 +3,9 @@ import type { SearchField } from '#shared/types/mail'
 import { onKeyStroke, useColorMode, useDocumentVisibility, useIntervalFn } from '@vueuse/core'
 import { House, Keyboard, LogOut, Menu, Moon, PenLine, Search, Settings, Sun, X, Sliders } from '@lucide/vue'
 import type { MessageQuery } from '#shared/types/mail'
+import { useI18n } from 'vue-i18n'
 
+const { t } = useI18n()
 const mail = useMailStore()
 const compose = useComposeStore()
 const api = useMailApi()
@@ -145,19 +147,19 @@ useHead({
       role="note"
       class="flex shrink-0 flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-border bg-amber-50 px-3 py-2 text-center text-xs text-amber-900 sm:text-sm dark:bg-amber-950/40 dark:text-amber-100"
     >
-      <span>Démo de Colombe : aucun e-mail ne quitte ce serveur, vos données sont effacées au bout de {{ siteConfig.demo.ttlHours }} heures.</span>
+      <span>{{ t('layout.demo.banner', { hours: siteConfig.demo.ttlHours }) }}</span>
       <a
         v-if="siteConfig.demo.projectUrl"
         :href="siteConfig.demo.projectUrl"
         target="_blank"
         rel="noopener"
         class="font-semibold underline underline-offset-2 hover:no-underline"
-      >Découvrir le projet</a>
+      >{{ t('layout.demo.discoverProject') }}</a>
     </div>
 
   <div class="flex min-h-0 flex-1 bg-surface-app">
     <a href="#contenu" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2.5 focus:text-primary-foreground">
-      Aller au contenu
+      {{ t('layout.skipToContent') }}
     </a>
 
     <!-- Bureau (≥ 1024 px) : colonne pleine hauteur, la marque en tête, puis les dossiers. -->
@@ -179,7 +181,7 @@ useHead({
 
     <div class="flex min-w-0 flex-1 flex-col">
       <header class="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-1 bg-surface-app px-2 sm:gap-2 lg:static lg:pr-3 lg:pl-0">
-        <MailIconButton :icon="Menu" label="Menu principal" @click="toggleMenu" />
+        <MailIconButton :icon="Menu" :label="t('layout.menuLabel')" @click="toggleMenu" />
         <NuxtLink to="/mail/INBOX" class="hidden items-center gap-2 rounded-lg pr-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:flex lg:hidden">
           <BrandLogo class="size-8" />
           <span class="font-heading text-[22px] leading-none font-semibold tracking-[-0.01em]">Colombe</span>
@@ -187,10 +189,10 @@ useHead({
 
         <form role="search" class="min-w-0 flex-1 lg:max-w-2xl" @submit.prevent="submitSearch">
           <div class="group relative flex h-11 items-center rounded-lg border border-border bg-search transition-[border-color,box-shadow] focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_oklab,var(--ring)_18%,transparent)] lg:h-10">
-            <button type="submit" class="grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring lg:size-10" aria-label="Lancer la recherche">
+            <button type="submit" class="grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-ring lg:size-10" :aria-label="t('layout.search.launch')">
               <Search class="size-[18px]" aria-hidden="true" />
             </button>
-            <label for="search" class="sr-only">Rechercher dans les messages</label>
+            <label for="search" class="sr-only">{{ t('layout.search.placeholder') }}</label>
             <input
               id="search"
               ref="searchInput"
@@ -198,7 +200,7 @@ useHead({
               type="search"
               enterkeyhint="search"
               autocomplete="off"
-              placeholder="Rechercher dans les messages"
+              :placeholder="t('layout.search.placeholder')"
               class="peer h-full min-w-0 flex-1 bg-transparent pr-2 text-base outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden"
               @keydown.esc="clearSearch"
             >
@@ -206,63 +208,63 @@ useHead({
             <!-- Options de recherche -->
             <Popover v-model:open="searchOptionsOpen">
               <PopoverTrigger as-child>
-                <button type="button" class="mr-0.5 grid size-10 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=open]:bg-accent lg:size-9" aria-label="Options de recherche">
+                <button type="button" class="mr-0.5 grid size-10 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=open]:bg-accent lg:size-9" :aria-label="t('layout.search.optionsLabel')">
                   <Sliders class="size-4" aria-hidden="true" />
                 </button>
               </PopoverTrigger>
               <!-- Contrôles natifs (cases, boutons radio, dates) : accessibles et sans dépendance. -->
               <PopoverContent align="end" :collision-padding="8" class="max-h-[var(--reka-popover-content-available-height)] w-[min(calc(100vw-2rem),24rem)] overflow-y-auto overscroll-contain p-4">
-                <form class="flex flex-col gap-4" aria-label="Options de recherche" @submit.prevent="submitSearch">
+                <form class="flex flex-col gap-4" :aria-label="t('layout.search.optionsLabel')" @submit.prevent="submitSearch">
                   <fieldset class="flex flex-col gap-0.5">
-                    <legend class="mb-1.5 text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">Chercher dans</legend>
-                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="subject" class="size-[18px] shrink-0"> Objet</label>
-                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="from" class="size-[18px] shrink-0"> Expéditeur</label>
-                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="to" class="size-[18px] shrink-0"> Destinataires</label>
-                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="body" class="size-[18px] shrink-0"> Corps du message</label>
+                    <legend class="mb-1.5 text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">{{ t('layout.search.fieldsLegend') }}</legend>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="subject" class="size-[18px] shrink-0"> {{ t('layout.search.fieldSubject') }}</label>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="from" class="size-[18px] shrink-0"> {{ t('layout.search.fieldFrom') }}</label>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="to" class="size-[18px] shrink-0"> {{ t('layout.search.fieldTo') }}</label>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.fields" type="checkbox" value="body" class="size-[18px] shrink-0"> {{ t('layout.search.fieldBody') }}</label>
                   </fieldset>
                   <fieldset class="flex flex-col gap-0.5">
-                    <legend class="mb-1.5 text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">Portée</legend>
-                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.scope" type="radio" name="search-scope" value="folder" class="size-[18px] shrink-0"> Ce dossier</label>
-                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.scope" type="radio" name="search-scope" value="all" class="size-[18px] shrink-0"> Tous les dossiers</label>
+                    <legend class="mb-1.5 text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">{{ t('layout.search.scopeLegend') }}</legend>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.scope" type="radio" name="search-scope" value="folder" class="size-[18px] shrink-0"> {{ t('layout.search.scopeFolder') }}</label>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.scope" type="radio" name="search-scope" value="all" class="size-[18px] shrink-0"> {{ t('layout.search.scopeAll') }}</label>
                   </fieldset>
                   <fieldset class="flex flex-col gap-0.5">
-                    <legend class="mb-1.5 text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">Filtres</legend>
-                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.unread" type="checkbox" class="size-[18px] shrink-0"> Non lus</label>
-                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.flagged" type="checkbox" class="size-[18px] shrink-0"> Suivis</label>
-                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.unanswered" type="checkbox" class="size-[18px] shrink-0"> Sans réponse</label>
-                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.attachments" type="checkbox" class="size-[18px] shrink-0"> Avec pièce jointe</label>
+                    <legend class="mb-1.5 text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">{{ t('layout.search.filtersLegend') }}</legend>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.unread" type="checkbox" class="size-[18px] shrink-0"> {{ t('layout.search.unread') }}</label>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.flagged" type="checkbox" class="size-[18px] shrink-0"> {{ t('layout.search.flagged') }}</label>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.unanswered" type="checkbox" class="size-[18px] shrink-0"> {{ t('layout.search.unanswered') }}</label>
+                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-accent lg:min-h-9"><input v-model="searchOptions.attachments" type="checkbox" class="size-[18px] shrink-0"> {{ t('layout.search.attachments') }}</label>
                   </fieldset>
                   <div class="grid grid-cols-2 gap-3">
                     <div class="flex flex-col gap-1.5">
-                      <Label for="search-since">Du</Label>
+                      <Label for="search-since">{{ t('layout.search.since') }}</Label>
                       <Input id="search-since" v-model="searchOptions.since" type="date" class="h-11 text-base" />
                     </div>
                     <div class="flex flex-col gap-1.5">
-                      <Label for="search-before">Au</Label>
+                      <Label for="search-before">{{ t('layout.search.before') }}</Label>
                       <Input id="search-before" v-model="searchOptions.before" type="date" class="h-11 text-base" />
                     </div>
                   </div>
                   <div class="flex gap-2 border-t border-border pt-4">
-                    <Button type="button" variant="outline" class="h-11 flex-1" @click="resetSearchOptions">Réinitialiser</Button>
-                    <Button type="submit" class="h-11 flex-1">Rechercher</Button>
+                    <Button type="button" variant="outline" class="h-11 flex-1" @click="resetSearchOptions">{{ t('layout.search.reset') }}</Button>
+                    <Button type="submit" class="h-11 flex-1">{{ t('common.search') }}</Button>
                   </div>
-                  <Button type="button" variant="ghost" class="h-11 w-full" @click="createFilterFromSearch">Créer un filtre</Button>
+                  <Button type="button" variant="ghost" class="h-11 w-full" @click="createFilterFromSearch">{{ t('layout.search.createFilter') }}</Button>
                 </form>
               </PopoverContent>
             </Popover>
 
-            <button v-if="search" type="button" class="mr-0.5 grid size-10 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring lg:size-9" aria-label="Effacer la recherche" @click="clearSearch">
+            <button v-if="search" type="button" class="mr-0.5 grid size-10 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring lg:size-9" :aria-label="t('layout.search.clear')" @click="clearSearch">
               <X class="size-[18px]" aria-hidden="true" />
             </button>
           </div>
         </form>
 
         <div class="flex shrink-0 items-center gap-1 lg:ml-auto">
-          <MailIconButton class="hidden sm:inline-flex" :icon="isDark ? Sun : Moon" :label="isDark ? 'Passer en mode clair' : 'Passer en mode sombre'" @click="mode = isDark ? 'light' : 'dark'" />
+          <MailIconButton class="hidden sm:inline-flex" :icon="isDark ? Sun : Moon" :label="isDark ? t('layout.theme.toLight') : t('layout.theme.toDark')" @click="mode = isDark ? 'light' : 'dark'" />
 
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
-              <button type="button" class="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[state=open]:bg-accent" :aria-label="`Compte ${email}`">
+              <button type="button" class="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[state=open]:bg-accent" :aria-label="t('layout.account.label', { email })">
                 <span class="grid size-8 place-items-center rounded-full text-[13px] font-semibold text-white" :class="getAvatarTone(email)">
                   {{ getInitials(email.split('@')[0]?.replace(/[._-]+/g, ' ') ?? '') }}
                 </span>
@@ -270,32 +272,32 @@ useHead({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" class="w-64">
               <DropdownMenuLabel class="font-normal">
-                <span class="block text-xs text-muted-foreground">Connecté en tant que</span>
+                <span class="block text-xs text-muted-foreground">{{ t('layout.account.signedInAs') }}</span>
                 <span class="block truncate font-medium">{{ email }}</span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem class="sm:hidden" @select="mode = isDark ? 'light' : 'dark'">
                 <component :is="isDark ? Sun : Moon" class="size-4" aria-hidden="true" />
-                {{ isDark ? 'Mode clair' : 'Mode sombre' }}
+                {{ isDark ? t('layout.account.lightMode') : t('layout.account.darkMode') }}
               </DropdownMenuItem>
               <DropdownMenuItem @select="navigateTo('/settings')">
                 <Settings class="size-4" aria-hidden="true" />
-                Paramètres
+                {{ t('layout.account.settings') }}
               </DropdownMenuItem>
               <DropdownMenuItem @select="shortcutsOpen = true">
                 <Keyboard class="size-4" aria-hidden="true" />
-                Raccourcis clavier
+                {{ t('layout.account.shortcuts') }}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem v-if="siteConfig.portalUrl" as-child>
                 <a :href="siteConfig.portalUrl">
                   <House class="size-4" aria-hidden="true" />
-                  Retour à l’ENT
+                  {{ t('login.backToPortal') }}
                 </a>
               </DropdownMenuItem>
               <DropdownMenuItem @select="api.logout()">
                 <LogOut class="size-4" aria-hidden="true" />
-                Se déconnecter
+                {{ t('layout.account.signOut') }}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -313,7 +315,7 @@ useHead({
         <SheetHeader class="flex-row items-center gap-2.5 p-1 pb-2">
           <BrandLogo class="size-8 shrink-0" />
           <SheetTitle class="font-heading text-[22px] leading-none font-semibold tracking-[-0.01em]">Colombe</SheetTitle>
-          <SheetDescription class="sr-only">Navigation entre les dossiers</SheetDescription>
+          <SheetDescription class="sr-only">{{ t('layout.drawer.navigation') }}</SheetDescription>
         </SheetHeader>
         <MailFolderNav @navigate="drawerOpen = false" />
       </SheetContent>
@@ -333,7 +335,7 @@ useHead({
         @click="compose.openNew()"
       >
         <PenLine class="size-5" aria-hidden="true" />
-        Nouveau message
+        {{ t('layout.compose.new') }}
       </button>
     </div>
 

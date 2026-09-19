@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { DatabaseSync } from 'node:sqlite'
 import type { CannedResponse, CannedResponseInput } from '#shared/types/mail'
 import { sanitizeOutgoingHtml } from '../mail/sanitize-outgoing'
+import type { LocalizedMessage } from '../i18n'
 
 /** 100 réponses types max par utilisateur (ROADMAP R2.2). */
 export const MAX_RESPONSES = 100
@@ -10,6 +11,7 @@ const MAX_HTML_BYTES = 1_000_000
 
 export class ResponseNotFoundError extends Error {
   readonly statusCode = 404
+  readonly i18n: LocalizedMessage = { key: 'responses.notFound' }
   constructor() {
     super('Réponse type introuvable.')
     this.name = 'ResponseNotFoundError'
@@ -18,6 +20,7 @@ export class ResponseNotFoundError extends Error {
 
 export class ResponseLimitError extends Error {
   readonly statusCode = 400
+  readonly i18n: LocalizedMessage = { key: 'responses.limit', params: { max: MAX_RESPONSES } }
   constructor() {
     super(`Nombre maximal de réponses types atteint (${MAX_RESPONSES}).`)
     this.name = 'ResponseLimitError'

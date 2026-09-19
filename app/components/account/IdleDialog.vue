@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 /**
  * Inactivité (docs/dev/PLAN-v3.md R2.6) : après `prefs.idleMinutes` sans activité,
  * demande « Toujours là ? ». Sans réponse dans les 60 s, déconnexion.
  */
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'wheel', 'scroll'] as const
 
+const { t } = useI18n()
 const prefs = usePrefsStore()
 const api = useMailApi()
 
@@ -70,11 +73,11 @@ watch(() => prefs.prefs.idleMinutes, () => {
   <AlertDialog :open="open" @update:open="(v: boolean) => { if (!v) stay() }">
     <AlertDialogContent>
       <AlertDialogHeader>
-        <AlertDialogTitle>Toujours là ?</AlertDialogTitle>
-        <AlertDialogDescription>Vous allez être déconnecté automatiquement dans quelques instants.</AlertDialogDescription>
+        <AlertDialogTitle>{{ t('account.idle.title') }}</AlertDialogTitle>
+        <AlertDialogDescription>{{ t('account.idle.description') }}</AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
-        <AlertDialogAction @click="stay">Rester connecté</AlertDialogAction>
+        <AlertDialogAction @click="stay">{{ t('account.idle.stayConnected') }}</AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>

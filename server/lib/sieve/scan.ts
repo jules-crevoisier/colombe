@@ -8,6 +8,7 @@
  * une variable `"${x}"`) est refusée, faute de pouvoir la résoudre.
  */
 import { isAllowedForwardTarget } from './generate'
+import type { ServerMessageKey } from '../i18n'
 
 export type ScanToken =
   | { kind: 'ident'; value: string }
@@ -215,25 +216,25 @@ export interface ScanSecurityOptions {
 }
 
 /**
- * Renvoie les messages d'erreur (FR, tels qu'attendus par le contrat) pour
- * chaque commande `redirect`/`notify`/`vacation :from` non conforme d'un
+ * Renvoie les messages d'erreur (clés traduites par la route, voir server/lib/i18n)
+ * pour chaque commande `redirect`/`notify`/`vacation :from` non conforme d'un
  * script écrit à la main. Tableau vide = script conforme.
  */
-export function findForbiddenDirectives(script: string, opts: ScanSecurityOptions): string[] {
+export function findForbiddenDirectives(script: string, opts: ScanSecurityOptions): ServerMessageKey[] {
   const tokens = tokenizeSieve(script)
   const findings = findRedirectTargets(tokens)
-  const problems: string[] = []
+  const problems: ServerMessageKey[] = []
 
   for (const f of findings) {
     if (f.command === 'vacation') {
       if (f.target === null || f.target.toLowerCase() !== opts.loginEmail.toLowerCase()) {
-        problems.push('La réponse automatique du script doit utiliser l\'adresse de connexion.')
+        problems.push('sieve.vacationAddress')
       }
       continue
     }
     const address = f.command === 'notify' ? stripMailto(f.target) : f.target
     if (address === null || !isAllowedForwardTarget(address, opts.forwardDomains)) {
-      problems.push('Transfert interdit vers ce domaine.')
+      problems.push('sieve.forwardDomainRefused')
     }
   }
 

@@ -1,23 +1,26 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 const prefs = usePrefsStore()
+const { t } = useI18n()
 
-const editorOptions = [
-  { value: true, label: 'Mise en forme' },
-  { value: false, label: 'Texte brut' },
-] as const
+const editorOptions = computed(() => [
+  { value: true, label: t('settings.compose.editor.options.rich') },
+  { value: false, label: t('settings.compose.editor.options.plain') },
+])
 
-const replyPositionOptions = [
-  { value: 'above', label: 'Au-dessus de la citation' },
-  { value: 'below', label: 'En dessous' },
-] as const
+const replyPositionOptions = computed(() => [
+  { value: 'above' as const, label: t('settings.compose.replyPosition.options.above') },
+  { value: 'below' as const, label: t('settings.compose.replyPosition.options.below') },
+])
 </script>
 
 <template>
   <div class="space-y-8">
     <!-- Éditeur -->
     <div class="space-y-2">
-      <Label :for="'pref-editor'" class="text-base font-medium">Éditeur</Label>
-      <p class="text-sm text-muted-foreground">Type d'éditeur utilisé pour rédiger un nouveau message</p>
+      <Label :for="'pref-editor'" class="text-base font-medium">{{ t('settings.compose.editor.label') }}</Label>
+      <p class="text-sm text-muted-foreground">{{ t('settings.compose.editor.description') }}</p>
       <Select :model-value="prefs.prefs.composeHtml ? 'true' : 'false'" @update:model-value="(v: string) => void prefs.save({ composeHtml: v === 'true' })">
         <SelectTrigger id="pref-editor" class="h-11 w-full text-base sm:w-48">
           <SelectValue />
@@ -32,7 +35,7 @@ const replyPositionOptions = [
 
     <!-- Position de la réponse -->
     <div class="space-y-2">
-      <Label :for="'pref-reply-position'" class="text-base font-medium">Position de la réponse</Label>
+      <Label :for="'pref-reply-position'" class="text-base font-medium">{{ t('settings.compose.replyPosition.label') }}</Label>
       <Select :model-value="prefs.prefs.replyPosition" @update:model-value="(v: string) => void prefs.save({ replyPosition: v as 'above' | 'below' })">
         <SelectTrigger id="pref-reply-position" class="h-11 w-full text-base sm:w-64">
           <SelectValue />

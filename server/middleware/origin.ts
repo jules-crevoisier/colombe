@@ -2,6 +2,8 @@
  * Protection CSRF complémentaire au cookie SameSite=Lax : toute requête /api
  * mutante doit provenir de la même origine (en-tête Origin, à défaut Referer).
  */
+import { serverT } from '../lib/i18n'
+
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
 function hostOf(value: string): string | null {
@@ -28,6 +30,6 @@ export default defineEventHandler((event) => {
   const requestHost = getRequestHost(event, { xForwardedHost: true }).toLowerCase()
 
   if (!sourceHost || sourceHost !== requestHost) {
-    throw createError({ statusCode: 403, statusMessage: 'Origine refusée', message: 'Origine refusée' })
+    throw createError({ statusCode: 403, statusMessage: 'Origine refusée', message: serverT(event, 'auth.originRefused') })
   }
 })

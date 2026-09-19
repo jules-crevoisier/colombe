@@ -10,6 +10,6 @@ export default defineEventHandler(async (event): Promise<DeviceSettings> => {
     return deviceSettings(email, getConfig())
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

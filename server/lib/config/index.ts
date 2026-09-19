@@ -8,6 +8,7 @@
 import { existsSync } from 'node:fs'
 import { isAbsolute, resolve } from 'node:path'
 import type { ClientSecurity, ClientServerSettings, LoginMethod, PublicConfig } from '#shared/types/config'
+import type { AppLocale } from '#shared/types/i18n'
 
 export type Env = Record<string, string | undefined>
 
@@ -122,6 +123,8 @@ export interface ColombeConfig {
   /** Lien « Retour à l'ENT » (COLOMBE_PORTAL_URL), ou null. */
   portalUrl: string | null
   // ─── SSO (OIDC) : fin ───
+  /** Langue de l'interface quand le navigateur ne propose ni français ni anglais (COLOMBE_DEFAULT_LANGUAGE). */
+  defaultLanguage: AppLocale
 }
 
 /** Recherche dans l'annuaire LDAP de l'établissement (schéma SupAnn / inetOrgPerson). */
@@ -497,6 +500,10 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
   const portalUrl = url('COLOMBE_PORTAL_URL')
   // ─── SSO (OIDC) : fin ───
 
+  const defaultLanguageRaw = (pick(env, 'COLOMBE_DEFAULT_LANGUAGE') ?? 'fr').toLowerCase()
+  if (defaultLanguageRaw !== 'fr' && defaultLanguageRaw !== 'en') problems.push(`COLOMBE_DEFAULT_LANGUAGE doit valoir fr ou en (reçu « ${defaultLanguageRaw} »).`)
+  const defaultLanguage: AppLocale = defaultLanguageRaw === 'en' ? 'en' : 'fr'
+
   if (problems.length) throw new ConfigError(problems)
 
   return {
@@ -539,6 +546,7 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
     mailSso,
     portalUrl,
     // ─── SSO (OIDC) : fin ───
+    defaultLanguage,
   }
 }
 
@@ -604,6 +612,7 @@ export function publicConfig(config: ColombeConfig): PublicConfig {
     // ─── SSO (OIDC) : début ───
     portalUrl: config.portalUrl,
     // ─── SSO (OIDC) : fin ───
+    defaultLanguage: config.defaultLanguage,
   }
 }
 

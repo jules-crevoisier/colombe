@@ -5,6 +5,7 @@ import { demoAccounts } from '../../lib/demo/accounts'
 import { demoLimiter } from '../../lib/session/rate-limit'
 import { credentialsStore } from '../../lib/session/credentials'
 import { clientIp } from '../../utils/mail-session'
+import { serverT } from '../../lib/i18n'
 
 /**
  * Démo publique (COLOMBE_DEMO=true) : crée un compte visiteur jetable
@@ -20,7 +21,7 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
 
   const ipKey = `ip:${clientIp(event)}`
   if (demoLimiter.isLimited(ipKey)) {
-    throw createError({ statusCode: 429, statusMessage: 'Trop de tentatives', message: 'Trop de comptes de démonstration créés depuis cette adresse. Réessayez dans quelques minutes.' })
+    throw createError({ statusCode: 429, statusMessage: 'Trop de tentatives', message: serverT(event, 'demo.tooMany') })
   }
   demoLimiter.hit(ipKey)
 

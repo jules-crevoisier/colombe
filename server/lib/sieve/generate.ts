@@ -8,12 +8,24 @@
  */
 import type { FilterAction, FilterCondition, FilterRule, ForwardSettings, VacationSettings } from '#shared/types/mail'
 import { writeManagedHeader } from './parse-json'
+import type { LocalizedMessage, ServerMessageKey } from '../i18n'
+import { frenchText } from '../i18n'
 
+/** Message d'origine en français ; `i18n` le traduit dans la langue de la requête (sieveError). */
 export class SieveGenerateError extends Error {
-  constructor(message: string) {
-    super(message)
+  readonly i18n: LocalizedMessage | undefined
+  constructor(message: string | LocalizedMessage) {
+    super(typeof message === 'string' ? message : frenchText(message))
     this.name = 'SieveGenerateError'
+    this.i18n = typeof message === 'string' ? undefined : message
   }
+}
+
+/** Fonctionnalité Sieve exigée par une règle (nom affiché : sieve.feature.*). */
+type SieveFeature = 'body' | 'date' | 'spam' | 'fileinto' | 'copyTo' | 'markRead' | 'flag' | 'addFlag' | 'forwardKeepCopy' | 'reject' | 'addHeader' | 'notify' | 'vacation' | 'vacationDates' | 'incomingCopy'
+
+function featureKey(feature: SieveFeature): ServerMessageKey {
+  return `sieve.feature.${feature}`
 }
 
 export interface GenerateInput {
@@ -55,9 +67,9 @@ class Emitter {
 
   constructor(private readonly capabilities: string[]) {}
 
-  require(name: string, featureLabel: string): void {
+  require(name: string, feature: SieveFeature): void {
     if (!this.capabilities.includes(name)) {
-      throw new SieveGenerateError(`Fonctionnalité non prise en charge par ce serveur de filtres : ${featureLabel}`)
+      throw new SieveGenerateError({ key: 'sieve.unsupportedFeature', params: { feature: { key: featureKey(feature) } } })
     }
     this.used.add(name)
   }
@@ -116,27 +128,27 @@ function buildCondition(condition: FilterCondition, e: Emitter): string {
       break
     }
     case 'body': {
-      e.require('body', 'condition sur le corps du message')
+      e.require('body', 'body')
       const { flag, value } = matchTest(condition.op, quote(condition.value), negate)
       body = `body ${flag}${comparatorSuffix(condition)} ${value}`
       break
     }
     case 'size': {
       const kb = Number(condition.value)
-      if (!Number.isFinite(kb) || kb < 0) throw new SieveGenerateError('Taille de condition invalide')
+      if (!Number.isFinite(kb) || kb < 0) throw new SieveGenerateError({ key: 'sieve.invalidSize' })
       const flag = condition.op === 'under' ? ':under' : ':over'
       body = `size ${flag} ${Math.round(kb)}K`
       break
     }
     case 'date': {
-      e.require('date', 'condition sur la date')
+      e.require('date', 'date')
       const cmp = condition.op === 'before' ? 'le' : 'ge'
       body = `date :value "${cmp}" "date" ${quote(condition.value)}`
       break
     }
     case 'spam': {
-      e.require('spamtest', 'condition sur le score de spam')
-      e.require('relational', 'condition sur le score de spam')
+      e.require('spamtest', 'spam')
+      e.require('relational', 'spam')
       body = `spamtest :value "ge" :comparator "i;ascii-numeric" ${quote(condition.value)}`
       break
     }
@@ -160,24 +172,24 @@ function buildActions(actions: FilterAction[], e: Emitter, forwardDomains: strin
   for (const action of actions) {
     switch (action.type) {
       case 'move':
-        e.require('fileinto', 'déplacement vers un dossier')
+        e.require('fileinto', 'fileinto')
         lines.push(`fileinto ${quote(action.folder)};`)
         break
       case 'copy':
-        e.require('fileinto', 'copie vers un dossier')
-        e.require('copy', 'copie vers un dossier')
+        e.require('fileinto', 'copyTo')
+        e.require('copy', 'copyTo')
         lines.push(`fileinto :copy ${quote(action.folder)};`)
         break
       case 'mark-read':
-        e.require('imap4flags', 'marquer comme lu')
+        e.require('imap4flags', 'markRead')
         lines.push('addflag "\\\\Seen";')
         break
       case 'flag':
-        e.require('imap4flags', 'suivre le message')
+        e.require('imap4flags', 'flag')
         lines.push('addflag "\\\\Flagged";')
         break
       case 'add-flag':
-        e.require('imap4flags', 'ajout d\'un indicateur')
+        e.require('imap4flags', 'addFlag')
         lines.push(`addflag ${quote(action.flag)};`)
         break
       case 'delete':
@@ -188,30 +200,30 @@ function buildActions(actions: FilterAction[], e: Emitter, forwardDomains: strin
         break
       case 'redirect': {
         if (!isAllowedForwardTarget(action.address, forwardDomains)) {
-          throw new SieveGenerateError('Transfert interdit vers ce domaine.')
+          throw new SieveGenerateError({ key: 'sieve.forwardDomainRefused' })
         }
-        if (action.keepCopy) e.require('copy', 'transfert avec copie conservée')
+        if (action.keepCopy) e.require('copy', 'forwardKeepCopy')
         lines.push(action.keepCopy ? `redirect :copy ${quote(action.address)};` : `redirect ${quote(action.address)};`)
         break
       }
       case 'reject':
-        e.require('reject', 'rejet du message')
+        e.require('reject', 'reject')
         lines.push(`reject ${quote(action.message.slice(0, 500))};`)
         break
       case 'add-header':
-        e.require('editheader', 'ajout d\'un en-tête')
+        e.require('editheader', 'addHeader')
         lines.push(`addheader ${quote(action.name)} ${quote(action.value)};`)
         break
       case 'notify': {
         if (!isAllowedForwardTarget(action.address, forwardDomains)) {
-          throw new SieveGenerateError('Transfert interdit vers ce domaine.')
+          throw new SieveGenerateError({ key: 'sieve.forwardDomainRefused' })
         }
-        e.require('enotify', 'notification')
+        e.require('enotify', 'notify')
         lines.push(`notify :message ${quote(action.message)} ${quote(`mailto:${action.address}`)};`)
         break
       }
       default:
-        throw new SieveGenerateError('Action de filtre non prise en charge')
+        throw new SieveGenerateError({ key: 'sieve.unsupportedAction' })
     }
   }
   return lines
@@ -224,15 +236,15 @@ function buildRule(rule: FilterRule, e: Emitter, forwardDomains: string[]): stri
 }
 
 function buildVacationBlock(vacation: VacationSettings, e: Emitter, forwardDomains: string[]): string {
-  e.require('vacation', 'réponse automatique')
+  e.require('vacation', 'vacation')
 
   const dateTests: string[] = []
   if (vacation.from) {
-    e.require('date', 'réponse automatique datée')
+    e.require('date', 'vacationDates')
     dateTests.push(`currentdate :value "ge" "date" ${quote(vacation.from)}`)
   }
   if (vacation.until) {
-    e.require('date', 'réponse automatique datée')
+    e.require('date', 'vacationDates')
     dateTests.push(`currentdate :value "le" "date" ${quote(vacation.until)}`)
   }
   const test = dateTests.length === 0 ? 'true' : dateTests.length === 1 ? dateTests[0] : `allof(${dateTests.join(', ')})`
@@ -247,9 +259,9 @@ function buildVacationBlock(vacation: VacationSettings, e: Emitter, forwardDomai
     body.push('    discard;')
   } else if (vacation.incoming === 'redirect' || vacation.incoming === 'copy') {
     if (!vacation.incomingAddress || !isAllowedForwardTarget(vacation.incomingAddress, forwardDomains)) {
-      throw new SieveGenerateError('Transfert interdit vers ce domaine.')
+      throw new SieveGenerateError({ key: 'sieve.forwardDomainRefused' })
     }
-    if (vacation.incoming === 'copy') e.require('copy', 'copie du courrier entrant')
+    if (vacation.incoming === 'copy') e.require('copy', 'incomingCopy')
     body.push(vacation.incoming === 'copy'
       ? `    redirect :copy ${quote(vacation.incomingAddress)};`
       : `    redirect ${quote(vacation.incomingAddress)};`)
@@ -261,9 +273,9 @@ function buildVacationBlock(vacation: VacationSettings, e: Emitter, forwardDomai
 
 function buildForwardBlock(forward: ForwardSettings, e: Emitter, forwardDomains: string[]): string {
   if (!isAllowedForwardTarget(forward.address, forwardDomains)) {
-    throw new SieveGenerateError('Transfert interdit vers ce domaine.')
+    throw new SieveGenerateError({ key: 'sieve.forwardDomainRefused' })
   }
-  if (forward.keepCopy) e.require('copy', 'transfert avec copie conservée')
+  if (forward.keepCopy) e.require('copy', 'forwardKeepCopy')
   const action = forward.keepCopy ? `redirect :copy ${quote(forward.address)};` : `redirect ${quote(forward.address)};`
   return `# rule:colombe-transfert\nif true {\n    ${action}\n}`
 }

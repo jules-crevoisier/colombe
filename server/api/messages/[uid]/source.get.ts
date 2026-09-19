@@ -69,6 +69,6 @@ export default defineEventHandler(async (event): Promise<MessageSource> => {
 
     return { headers, source }
   } catch (err: unknown) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

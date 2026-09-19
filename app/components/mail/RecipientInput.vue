@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { watchDebounced } from '@vueuse/core'
 import { X, Users, Building2 } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import type { Contact, DirectoryEntry } from '#shared/types/mail'
 
 /**
@@ -14,6 +15,7 @@ import type { Contact, DirectoryEntry } from '#shared/types/mail'
 const props = defineProps<{ label: string; id: string; autofocus?: boolean }>()
 const model = defineModel<string[]>({ required: true })
 const emit = defineEmits<{ change: [] }>()
+const { t } = useI18n()
 
 type Suggestion =
   | { kind: 'contact', contact: Contact }
@@ -183,8 +185,8 @@ onMounted(() => {
       :class="validateEmailAddress(addr) ? 'border-border bg-secondary' : 'border-destructive bg-destructive/10 text-destructive'"
     >
       <span class="truncate">{{ addr }}</span>
-      <span v-if="!validateEmailAddress(addr)" class="sr-only">(adresse invalide)</span>
-      <button type="button" class="grid size-6 shrink-0 place-items-center rounded-sm hover:bg-foreground/10" :aria-label="`Retirer ${addr}`" @click.stop="remove(i)">
+      <span v-if="!validateEmailAddress(addr)" class="sr-only">{{ t('compose.recipients.invalidAddress') }}</span>
+      <button type="button" class="grid size-6 shrink-0 place-items-center rounded-sm hover:bg-foreground/10" :aria-label="t('compose.recipients.remove', { addr })" @click.stop="remove(i)">
         <X class="size-3.5" aria-hidden="true" />
       </button>
     </span>
@@ -210,7 +212,7 @@ onMounted(() => {
       v-show="open"
       :id="listId"
       role="listbox"
-      :aria-label="`Suggestions pour ${label}`"
+      :aria-label="t('compose.recipients.suggestionsFor', { label })"
       class="absolute top-full left-0 z-50 mt-1 w-full max-w-md overflow-hidden rounded-lg border border-border bg-popover p-1 shadow-float"
     >
       <li
@@ -229,7 +231,7 @@ onMounted(() => {
             <Users class="size-4" />
           </span>
           <span class="flex min-w-0 flex-col">
-            <span class="truncate text-sm font-medium">{{ s.name }} ({{ s.emails.length }} membre{{ s.emails.length > 1 ? 's' : '' }})</span>
+            <span class="truncate text-sm font-medium">{{ t('compose.recipients.groupMembers', { name: s.name, n: s.emails.length }, s.emails.length) }}</span>
           </span>
         </template>
         <template v-else-if="s.kind === 'directory'">
@@ -239,7 +241,7 @@ onMounted(() => {
           <span class="flex min-w-0 flex-col">
             <span class="flex items-center gap-1.5">
               <span class="truncate text-sm font-medium">{{ s.entry.name }}</span>
-              <span class="shrink-0 rounded-sm bg-secondary px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-secondary-foreground uppercase">Annuaire</span>
+              <span class="shrink-0 rounded-sm bg-secondary px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-secondary-foreground uppercase">{{ t('compose.recipients.directory') }}</span>
             </span>
             <span class="truncate text-xs text-muted-foreground">{{ s.entry.email }}{{ s.entry.department ? ` · ${s.entry.department}` : '' }}</span>
           </span>

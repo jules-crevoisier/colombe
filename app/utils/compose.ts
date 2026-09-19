@@ -1,4 +1,5 @@
 import type { MessageDetail, Address } from '#shared/types/mail'
+import { i18n, intlLocale } from '~/lib/i18n'
 
 /**
  * Build a reply subject by adding "Re: " prefix if not already present.
@@ -11,14 +12,14 @@ export function buildReplySubject(subject: string): string {
 }
 
 /**
- * Build a forward subject by adding "Tr: " (French) or "Fwd: " prefix.
+ * Build a forward subject by adding "Tr: " (French) or "Fwd: " (English) prefix.
  */
 export function buildForwardSubject(subject: string): string {
   const trimmed = subject.trim()
   if (trimmed.toLowerCase().startsWith('tr:') || trimmed.toLowerCase().startsWith('fwd:')) {
     return trimmed
   }
-  return `Tr: ${trimmed}`
+  return `${i18n.global.t('compose.quote.forwardPrefix')} ${trimmed}`
 }
 
 /**
@@ -31,7 +32,7 @@ export function buildReplyBody(message: MessageDetail): string {
 
   // Format date as "18 septembre 2026 à 10:30"
   const date = new Date(message.date)
-  const dateStr = date.toLocaleString('fr-FR', {
+  const dateStr = date.toLocaleString(intlLocale(), {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -47,7 +48,8 @@ export function buildReplyBody(message: MessageDetail): string {
     .map(line => (line ? `> ${line}` : '>'))
     .join('\n')
 
-  return `Le ${dateStr}, ${senderName} <${senderAddr}> a écrit :\n\n${quotedLines}`
+  const header = i18n.global.t('compose.quote.replyHeader', { date: dateStr, who: `${senderName} <${senderAddr}>` })
+  return `${header}\n\n${quotedLines}`
 }
 
 /**
@@ -62,7 +64,7 @@ export function buildForwardBody(message: MessageDetail): string {
     ? message.cc.map(addr => `${addr.name ? addr.name + ' ' : ''}<${addr.address}>`).join(', ')
     : ''
 
-  const date = new Date(message.date).toLocaleString('fr-FR', {
+  const date = new Date(message.date).toLocaleString(intlLocale(), {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -72,13 +74,14 @@ export function buildForwardBody(message: MessageDetail): string {
     hour12: false,
   })
 
-  let envelope = '---------- Message transféré ---------\n'
-  envelope += `De: ${senderName} <${senderAddr}>\n`
-  envelope += `Date: ${date}\n`
-  envelope += `Objet: ${message.subject}\n`
-  envelope += `À: ${toList}\n`
+  const { t } = i18n.global
+  let envelope = `${t('compose.quote.forwardEnvelopeMarker')}\n`
+  envelope += `${t('compose.quote.forwardEnvelopeFrom', { sender: `${senderName} <${senderAddr}>` })}\n`
+  envelope += `${t('compose.quote.forwardEnvelopeDate', { date })}\n`
+  envelope += `${t('compose.quote.forwardEnvelopeSubject', { subject: message.subject })}\n`
+  envelope += `${t('compose.quote.forwardEnvelopeTo', { to: toList })}\n`
   if (ccList) {
-    envelope += `Cc: ${ccList}\n`
+    envelope += `${t('compose.quote.forwardEnvelopeCc', { cc: ccList })}\n`
   }
   envelope += '\n'
 

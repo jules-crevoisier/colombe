@@ -1,4 +1,5 @@
 import DOMPurify from 'isomorphic-dompurify'
+import type { LocalizedMessage } from '../i18n'
 
 /**
  * Assainissement du HTML SORTANT (éditeur riche, signatures, réponses types).
@@ -25,9 +26,11 @@ export const MAX_SIGNATURE_IMAGES = 3
 /** Image `data:` refusée : mauvais format, trop volumineuse, ou trop nombreuses (signature). */
 export class OutgoingImageError extends Error {
   readonly statusCode = 400
-  constructor(message: string) {
+  readonly i18n: LocalizedMessage | undefined
+  constructor(message: string, i18n?: LocalizedMessage) {
     super(message)
     this.name = 'OutgoingImageError'
+    this.i18n = i18n
   }
 }
 
@@ -113,8 +116,8 @@ export function sanitizeOutgoingHtml(html: string, opts: SanitizeOutgoingOptions
   const { oversized, tooMany } = imgCtx
   imgCtx = { maxImages: undefined, count: 0, oversized: false, tooMany: false }
 
-  if (oversized) throw new OutgoingImageError('Image trop volumineuse (200 Ko max. par image).')
-  if (tooMany) throw new OutgoingImageError(`Trop d'images (${opts.maxImages} max.).`)
+  if (oversized) throw new OutgoingImageError('Image trop volumineuse (200 Ko max. par image).', { key: 'images.tooLarge' })
+  if (tooMany) throw new OutgoingImageError(`Trop d'images (${opts.maxImages} max.).`, { key: 'images.tooMany', params: { max: opts.maxImages ?? 0 } })
 
   // Liens : ouverture sûre chez le destinataire.
   return clean.replace(/<a href=/g, '<a rel="noopener noreferrer" href=')

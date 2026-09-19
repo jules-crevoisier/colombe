@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
 import { Plus, X } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import type { FilterAction, FilterCondition, FilterField, FilterRule } from '#shared/types/mail'
 
+const { t } = useI18n()
 const filtersStore = useFiltersStore()
 const sieveStore = useSieveStore()
 const mail = useMailStore()
@@ -18,27 +20,30 @@ const capabilities = ref<string[]>([])
 
 const isEditing = computed(() => filtersStore.editingRule !== null)
 const folders = computed(() => mail.folders)
-const folderName = (path: string): string => mail.byPath(path)?.name ?? path
+const folderName = (path: string): string => {
+  const folder = mail.byPath(path)
+  return folder ? folderLabel(folder) : path
+}
 const archivePath = computed(() => mail.special('archive')?.path ?? 'Archives')
 
-const ACTION_TYPES: { value: FilterAction['type']; label: string }[] = [
-  { value: 'move', label: 'Déplacer vers' },
-  { value: 'copy', label: 'Copier vers' },
-  { value: 'mark-read', label: 'Marquer comme lu' },
-  { value: 'flag', label: 'Suivre' },
-  { value: 'add-flag', label: 'Ajouter le mot-clé' },
-  { value: 'redirect', label: 'Rediriger vers' },
-  { value: 'reject', label: 'Rejeter avec le message' },
-  { value: 'add-header', label: "Ajouter l'en-tête" },
-  { value: 'notify', label: "M'avertir à" },
-  { value: 'delete', label: 'Supprimer' },
-  { value: 'stop', label: 'Arrêter les filtres suivants' },
+const ACTION_TYPE_KEYS: { value: FilterAction['type']; labelKey: string }[] = [
+  { value: 'move', labelKey: 'filters.actionTypes.move' },
+  { value: 'copy', labelKey: 'filters.actionTypes.copy' },
+  { value: 'mark-read', labelKey: 'filters.actionTypes.markRead' },
+  { value: 'flag', labelKey: 'filters.actionTypes.flag' },
+  { value: 'add-flag', labelKey: 'filters.actionTypes.addFlag' },
+  { value: 'redirect', labelKey: 'filters.actionTypes.redirect' },
+  { value: 'reject', labelKey: 'filters.actionTypes.reject' },
+  { value: 'add-header', labelKey: 'filters.actionTypes.addHeader' },
+  { value: 'notify', labelKey: 'filters.actionTypes.notify' },
+  { value: 'delete', labelKey: 'filters.actionTypes.delete' },
+  { value: 'stop', labelKey: 'filters.actionTypes.stop' },
 ]
 
 const FIELD_ORDER: FilterField[] = ['from', 'to-cc', 'subject', 'size', 'header', 'body', 'date', 'spam']
 
 const availableFields = computed(() => FIELD_ORDER.filter(f => isSupported(capabilities.value, fieldCapabilities(f))))
-const availableActionTypes = computed(() => ACTION_TYPES.filter(a => isSupported(capabilities.value, actionCapabilities(a.value))))
+const availableActionTypes = computed(() => ACTION_TYPE_KEYS.filter(a => isSupported(capabilities.value, actionCapabilities(a.value))).map(a => ({ value: a.value, label: t(a.labelKey) })))
 
 // ─── Chargement à l'ouverture ───
 
@@ -231,7 +236,7 @@ function close(): void {
 
 async function save(): Promise<void> {
   if (draft.actions.length === 0) {
-    toast.error('Ajoutez au moins une action.')
+    toast.error(t('filters.dialog.errors.noAction'))
     return
   }
   if (!draft.name.trim()) draft.name = describeRule(draft, folderName).slice(0, 200)
@@ -240,7 +245,7 @@ async function save(): Promise<void> {
   try {
     const status = await sieveStore.loadStatus()
     if (!status.available) {
-      toast.error('Les filtres ne sont pas disponibles sur ce serveur.')
+      toast.error(t('filters.unavailable'))
       return
     }
     const activeSummary = status.sets.find(s => s.active)
@@ -270,18 +275,18 @@ async function save(): Promise<void> {
     await confirmDialog.value!.withConfirmation(confirm => api.saveSetRules(name, rules, confirm))
     sieveStore.invalidateStatus()
 
-    toast.success(isEditing.value ? 'Filtre enregistré.' : 'Filtre créé.')
+    toast.success(isEditing.value ? t('filters.dialog.savedEdit') : t('filters.dialog.savedCreate'))
     filtersStore.notifySaved()
 
     if (applyToExisting.value) {
       const result = await api.apply(plain)
-      toast.success(`Filtre appliqué à ${result.applied} message(s)`)
+      toast.success(t('filters.dialog.appliedResult', { n: result.applied }))
     }
     close()
   }
   catch (err) {
     if (!(err instanceof Error && err.name === 'ConfirmCancelled')) {
-      toast.error(errorText(err, "Impossible d'enregistrer le filtre."))
+      toast.error(errorText(err, t('filters.dialog.errors.saveFailed')))
     }
   }
   finally {
@@ -294,13 +299,13 @@ async function save(): Promise<void> {
   <Dialog :open="filtersStore.dialogOpen" @update:open="(v: boolean) => { if (!v) close() }">
     <DialogContent class="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 sm:max-w-lg">
       <DialogHeader class="border-b border-border px-6 py-4">
-        <DialogTitle>{{ isEditing ? 'Modifier le filtre' : 'Nouveau filtre' }}</DialogTitle>
-        <DialogDescription class="sr-only">Critères des messages concernés et actions à leur appliquer.</DialogDescription>
+        <DialogTitle>{{ isEditing ? t('filters.dialog.editTitle') : t('filters.dialog.createTitle') }}</DialogTitle>
+        <DialogDescription class="sr-only">{{ t('filters.dialog.description') }}</DialogDescription>
       </DialogHeader>
 
       <div class="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-4">
         <label class="flex min-h-11 cursor-pointer items-center justify-between gap-3">
-          <span class="text-sm font-medium">Mode avancé</span>
+          <span class="text-sm font-medium">{{ t('filters.advancedMode') }}</span>
           <Switch :model-value="advancedMode" @update:model-value="(v: boolean) => (advancedMode = v)" />
         </label>
 
@@ -308,61 +313,61 @@ async function save(): Promise<void> {
         <template v-if="!advancedMode">
           <div class="space-y-4">
             <div class="space-y-2">
-              <Label for="filter-from">De</Label>
-              <Input id="filter-from" v-model="simpleFrom" class="h-11 text-base" placeholder="expediteur@exemple.fr" />
+              <Label for="filter-from">{{ t(FIELD_LABELS.from) }}</Label>
+              <Input id="filter-from" v-model="simpleFrom" class="h-11 text-base" :placeholder="t('filters.dialog.simple.fromPlaceholder')" />
             </div>
             <div class="space-y-2">
-              <Label for="filter-to">À</Label>
+              <Label for="filter-to">{{ t('filters.dialog.simple.to') }}</Label>
               <Input id="filter-to" v-model="simpleTo" class="h-11 text-base" :placeholder="addressExample" />
             </div>
             <div class="space-y-2">
-              <Label for="filter-subject">Objet</Label>
+              <Label for="filter-subject">{{ t(FIELD_LABELS.subject) }}</Label>
               <Input id="filter-subject" v-model="simpleSubject" class="h-11 text-base" />
             </div>
             <div class="space-y-2">
-              <Label for="filter-contains">Contient les mots</Label>
+              <Label for="filter-contains">{{ t('filters.dialog.simple.contains') }}</Label>
               <Input id="filter-contains" v-model="simpleContains" class="h-11 text-base" />
             </div>
             <div class="space-y-2">
-              <Label for="filter-not-contains">Ne contient pas</Label>
+              <Label for="filter-not-contains">{{ t('filters.dialog.simple.notContains') }}</Label>
               <Input id="filter-not-contains" v-model="simpleNotContains" class="h-11 text-base" />
             </div>
           </div>
 
           <div class="space-y-3 border-t border-border pt-4">
-            <p class="text-sm font-medium">Actions</p>
+            <p class="text-sm font-medium">{{ t('filters.dialog.actionsTitle') }}</p>
             <label class="flex min-h-11 cursor-pointer items-center gap-3">
               <Checkbox :model-value="archiveChecked" @update:model-value="(v) => (archiveChecked = v === true)" />
-              Ignorer la boîte de réception (archiver)
+              {{ t('filters.dialog.simple.archive') }}
             </label>
             <label class="flex min-h-11 cursor-pointer items-center gap-3">
               <Checkbox :model-value="markReadChecked" @update:model-value="(v) => (markReadChecked = v === true)" />
-              Marquer comme lu
+              {{ t('filters.actionTypes.markRead') }}
             </label>
             <label class="flex min-h-11 cursor-pointer items-center gap-3">
               <Checkbox :model-value="flagChecked" @update:model-value="(v) => (flagChecked = v === true)" />
-              Suivre
+              {{ t('filters.actionTypes.flag') }}
             </label>
             <label class="flex min-h-11 cursor-pointer items-center gap-3">
               <Checkbox :model-value="classifyChecked" @update:model-value="(v) => (classifyChecked = v === true)" />
-              Classer dans le dossier
+              {{ t('filters.dialog.simple.classify') }}
             </label>
             <Select v-if="classifyChecked" :model-value="classifyFolder || undefined" @update:model-value="(v) => (classifyFolder = String(v))">
-              <SelectTrigger id="filter-classify" aria-label="Dossier de destination" class="h-11 w-full text-base">
-                <SelectValue placeholder="Choisir un dossier" />
+              <SelectTrigger id="filter-classify" :aria-label="t('filters.dialog.simple.destinationFolder')" class="h-11 w-full text-base">
+                <SelectValue :placeholder="t('filters.dialog.simple.chooseFolder')" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem v-for="folder in folders" :key="folder.path" :value="folder.path">{{ folder.name }}</SelectItem>
+                <SelectItem v-for="folder in folders" :key="folder.path" :value="folder.path">{{ folderLabel(folder) }}</SelectItem>
               </SelectContent>
             </Select>
             <label class="flex min-h-11 cursor-pointer items-center gap-3">
               <Checkbox :model-value="redirectChecked" @update:model-value="(v) => (redirectChecked = v === true)" />
-              Transférer à
+              {{ t('filters.dialog.simple.forwardTo') }}
             </label>
-            <Input v-if="redirectChecked" v-model="redirectAddress" type="email" class="h-11 text-base" :placeholder="addressExample" aria-label="Transférer à" />
+            <Input v-if="redirectChecked" v-model="redirectAddress" type="email" class="h-11 text-base" :placeholder="addressExample" :aria-label="t('filters.dialog.simple.forwardTo')" />
             <label class="flex min-h-11 cursor-pointer items-center gap-3">
               <Checkbox :model-value="deleteChecked" @update:model-value="(v) => (deleteChecked = v === true)" />
-              Supprimer
+              {{ t('common.delete') }}
             </label>
           </div>
         </template>
@@ -370,23 +375,23 @@ async function save(): Promise<void> {
         <!-- ─── Mode avancé ─── -->
         <template v-else>
           <div class="space-y-2">
-            <Label for="filter-name">Nom du filtre</Label>
+            <Label for="filter-name">{{ t('filters.dialog.advanced.nameLabel') }}</Label>
             <Input id="filter-name" v-model="draft.name" class="h-11 text-base" />
           </div>
 
           <fieldset class="space-y-2">
-            <legend class="mb-1 text-sm font-medium">Pour les messages qui correspondent à</legend>
+            <legend class="mb-1 text-sm font-medium">{{ t('filters.dialog.advanced.matchLegend') }}</legend>
             <label class="flex min-h-11 cursor-pointer items-center gap-3">
               <input v-model="matchMode" type="radio" name="filter-match" value="all" class="size-5 shrink-0 accent-[var(--primary)]">
-              Toutes les règles suivantes
+              {{ t('filters.dialog.advanced.matchAll') }}
             </label>
             <label class="flex min-h-11 cursor-pointer items-center gap-3">
               <input v-model="matchMode" type="radio" name="filter-match" value="any" class="size-5 shrink-0 accent-[var(--primary)]">
-              Au moins une des règles suivantes
+              {{ t('filters.dialog.advanced.matchAny') }}
             </label>
             <label class="flex min-h-11 cursor-pointer items-center gap-3">
               <input v-model="matchMode" type="radio" name="filter-match" value="everything" class="size-5 shrink-0 accent-[var(--primary)]">
-              Tous les messages
+              {{ t('filters.common.allMessages') }}
             </label>
           </fieldset>
 
@@ -398,29 +403,29 @@ async function save(): Promise<void> {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem v-for="f in availableFields" :key="f" :value="f">{{ FIELD_LABELS[f] }}</SelectItem>
+                    <SelectItem v-for="f in availableFields" :key="f" :value="f">{{ t(FIELD_LABELS[f]) }}</SelectItem>
                   </SelectContent>
                 </Select>
-                <MailIconButton :icon="X" label="Retirer la condition" class="shrink-0" @click="removeConditionAt(index)" />
+                <MailIconButton :icon="X" :label="t('filters.dialog.advanced.removeCondition')" class="shrink-0" @click="removeConditionAt(index)" />
               </div>
-              <Input v-if="condition.field === 'header'" v-model="condition.header" class="h-11 text-base" placeholder="Nom de l'en-tête" aria-label="Nom de l'en-tête" />
+              <Input v-if="condition.field === 'header'" v-model="condition.header" class="h-11 text-base" :placeholder="t('filters.dialog.advanced.headerNamePlaceholder')" :aria-label="t('filters.dialog.advanced.headerNamePlaceholder')" />
               <Select :model-value="condition.op" @update:model-value="(v) => (condition.op = v as FilterCondition['op'])">
                 <SelectTrigger class="h-11 w-full text-base">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem v-for="op in OPS_BY_FIELD[condition.field]" :key="op" :value="op">{{ OP_LABELS[op] }}</SelectItem>
+                  <SelectItem v-for="op in OPS_BY_FIELD[condition.field]" :key="op" :value="op">{{ t(OP_LABELS[op]) }}</SelectItem>
                 </SelectContent>
               </Select>
-              <Input v-model="condition.value" class="h-11 text-base" :type="condition.field === 'date' ? 'date' : condition.field === 'size' ? 'number' : 'text'" aria-label="Valeur" />
+              <Input v-model="condition.value" class="h-11 text-base" :type="condition.field === 'date' ? 'date' : condition.field === 'size' ? 'number' : 'text'" :aria-label="t('filters.dialog.advanced.valueLabel')" />
             </div>
             <Button type="button" variant="outline" class="h-11 rounded-lg" @click="addCondition">
-              <Plus class="size-4" aria-hidden="true" /> Ajouter une condition
+              <Plus class="size-4" aria-hidden="true" /> {{ t('filters.dialog.advanced.addCondition') }}
             </Button>
           </div>
 
           <div class="space-y-3 border-t border-border pt-4">
-            <p class="text-sm font-medium">Actions</p>
+            <p class="text-sm font-medium">{{ t('filters.dialog.actionsTitle') }}</p>
             <div v-for="(action, index) in draft.actions" :key="index" class="flex flex-col gap-2 rounded-lg border border-border p-3">
               <div class="flex items-center gap-2">
                 <Select :model-value="action.type" @update:model-value="(v) => onActionTypeChange(index, v as FilterAction['type'])">
@@ -428,10 +433,10 @@ async function save(): Promise<void> {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem v-for="t in availableActionTypes" :key="t.value" :value="t.value">{{ t.label }}</SelectItem>
+                    <SelectItem v-for="actionType in availableActionTypes" :key="actionType.value" :value="actionType.value">{{ actionType.label }}</SelectItem>
                   </SelectContent>
                 </Select>
-                <MailIconButton :icon="X" label="Retirer l'action" class="shrink-0" @click="removeActionAt(index)" />
+                <MailIconButton :icon="X" :label="t('filters.dialog.advanced.removeAction')" class="shrink-0" @click="removeActionAt(index)" />
               </div>
 
               <template v-if="action.type === 'move' || action.type === 'copy'">
@@ -440,44 +445,44 @@ async function save(): Promise<void> {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem v-for="folder in folders" :key="folder.path" :value="folder.path">{{ folder.name }}</SelectItem>
+                    <SelectItem v-for="folder in folders" :key="folder.path" :value="folder.path">{{ folderLabel(folder) }}</SelectItem>
                   </SelectContent>
                 </Select>
               </template>
-              <Input v-else-if="action.type === 'add-flag'" v-model="action.flag" class="h-11 text-base" placeholder="Mot-clé" aria-label="Mot-clé" />
+              <Input v-else-if="action.type === 'add-flag'" v-model="action.flag" class="h-11 text-base" :placeholder="t('filters.dialog.advanced.keywordLabel')" :aria-label="t('filters.dialog.advanced.keywordLabel')" />
               <template v-else-if="action.type === 'redirect'">
-                <Input v-model="action.address" type="email" class="h-11 text-base" :placeholder="addressExample" aria-label="Adresse de redirection" />
+                <Input v-model="action.address" type="email" class="h-11 text-base" :placeholder="addressExample" :aria-label="t('filters.dialog.advanced.redirectAddressLabel')" />
                 <label class="flex min-h-11 cursor-pointer items-center gap-3">
                   <Checkbox :model-value="action.keepCopy" @update:model-value="(v) => (action.keepCopy = v === true)" />
-                  Garder une copie
+                  {{ t('filters.dialog.advanced.keepCopy') }}
                 </label>
               </template>
-              <Textarea v-else-if="action.type === 'reject'" v-model="action.message" maxlength="500" class="text-base" placeholder="Message de rejet" aria-label="Message de rejet" />
+              <Textarea v-else-if="action.type === 'reject'" v-model="action.message" maxlength="500" class="text-base" :placeholder="t('filters.dialog.advanced.rejectMessagePlaceholder')" :aria-label="t('filters.dialog.advanced.rejectMessagePlaceholder')" />
               <template v-else-if="action.type === 'add-header'">
-                <Input v-model="action.name" class="h-11 text-base" placeholder="Nom de l'en-tête" aria-label="Nom de l'en-tête" />
-                <Input v-model="action.value" class="h-11 text-base" placeholder="Valeur" aria-label="Valeur de l'en-tête" />
+                <Input v-model="action.name" class="h-11 text-base" :placeholder="t('filters.dialog.advanced.headerNamePlaceholder')" :aria-label="t('filters.dialog.advanced.headerNamePlaceholder')" />
+                <Input v-model="action.value" class="h-11 text-base" :placeholder="t('filters.dialog.advanced.valueLabel')" :aria-label="t('filters.dialog.advanced.headerValueLabel')" />
               </template>
               <template v-else-if="action.type === 'notify'">
-                <Input v-model="action.address" type="email" class="h-11 text-base" :placeholder="addressExample" aria-label="Adresse à avertir" />
-                <Textarea v-model="action.message" class="text-base" placeholder="Message" aria-label="Message d'avertissement" />
+                <Input v-model="action.address" type="email" class="h-11 text-base" :placeholder="addressExample" :aria-label="t('filters.dialog.advanced.notifyAddressLabel')" />
+                <Textarea v-model="action.message" class="text-base" :placeholder="t('filters.dialog.advanced.messagePlaceholder')" :aria-label="t('filters.dialog.advanced.notifyMessageLabel')" />
               </template>
             </div>
             <Button type="button" variant="outline" class="h-11 rounded-lg" @click="addAction">
-              <Plus class="size-4" aria-hidden="true" /> Ajouter une action
+              <Plus class="size-4" aria-hidden="true" /> {{ t('filters.dialog.advanced.addAction') }}
             </Button>
           </div>
         </template>
 
         <label class="flex min-h-11 cursor-pointer items-center gap-3 border-t border-border pt-4">
           <Checkbox :model-value="applyToExisting" @update:model-value="(v) => (applyToExisting = v === true)" />
-          Appliquer aussi aux messages existants
+          {{ t('filters.dialog.applyToExisting') }}
         </label>
       </div>
 
       <DialogFooter class="gap-2 border-t border-border px-6 py-4 sm:justify-end">
-        <Button type="button" variant="outline" class="h-11 rounded-lg px-6" @click="close">Annuler</Button>
+        <Button type="button" variant="outline" class="h-11 rounded-lg px-6" @click="close">{{ t('common.cancel') }}</Button>
         <Button type="button" class="h-11 rounded-lg px-6" :disabled="saving" @click="save">
-          {{ saving ? 'Enregistrement…' : (isEditing ? 'Enregistrer' : 'Créer le filtre') }}
+          {{ saving ? t('common.saving') : (isEditing ? t('common.save') : t('filters.dialog.createSubmit')) }}
         </Button>
       </DialogFooter>
     </DialogContent>

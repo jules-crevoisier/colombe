@@ -11,6 +11,7 @@ import type {
   QuotaInfo,
   FolderSize,
 } from '#shared/types/mail'
+import { currentLocale, i18n } from '~/lib/i18n'
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE'
 
@@ -99,7 +100,7 @@ export function useMailApi() {
     rawUrl: (folder: string, uid: number) =>
       apiUrl(`/api/messages/${uid}/raw?folder=${encodeURIComponent(folder)}`),
     printUrl: (folder: string, uid: number) =>
-      apiUrl(`/api/messages/${uid}/print?folder=${encodeURIComponent(folder)}`),
+      apiUrl(`/api/messages/${uid}/print?folder=${encodeURIComponent(folder)}&lang=${currentLocale()}`),
     attachmentsZipUrl: (folder: string, uid: number) =>
       apiUrl(`/api/messages/${uid}/attachments.zip?folder=${encodeURIComponent(folder)}`),
     redirect: (folder: string, uid: number, to: string[]) =>
@@ -130,10 +131,10 @@ export function useMailApi() {
 }
 
 /** Message d'erreur lisible pour un toast. */
-export function errorText(err: unknown, fallback = 'Une erreur est survenue.'): string {
+export function errorText(err: unknown, fallback = i18n.global.t('common.genericError')): string {
   const status = statusOf(err)
-  if (status === 429) return 'Trop de requêtes. Réessayez dans quelques minutes.'
-  if (status === 503) return 'Le serveur de messagerie est indisponible.'
+  if (status === 429) return i18n.global.t('errors.tooManyRequests')
+  if (status === 503) return i18n.global.t('errors.mailUnavailable')
   const data = (err as { data?: { message?: unknown } } | null)?.data
   return typeof data?.message === 'string' && data.message ? data.message : fallback
 }

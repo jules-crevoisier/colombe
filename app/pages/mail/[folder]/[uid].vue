@@ -3,9 +3,13 @@ import { toast } from 'vue-sonner'
 import { onKeyStroke, useMediaQuery } from '@vueuse/core'
 import { Archive, ArrowLeft, ChevronDown, CircleAlert, Download, Eye, FileText, Image as ImageIcon, FolderInput, ImageOff, Mail, Paperclip, Reply, ReplyAll, Forward, Star, Trash2, AlertCircle, CheckCircle2, EllipsisVertical, Share2, UserPlus, ListTree, IdCard } from '@lucide/vue'
 import type { Address, MessageDetail, MessageSummary } from '#shared/types/mail'
+import { useI18n } from 'vue-i18n'
+import { displaySubject } from '~/utils/subject'
+import { intlLocale } from '~/lib/i18n'
 
 definePageMeta({ layout: 'mail' })
 
+const { t } = useI18n()
 const route = useRoute()
 const api = useMailApi()
 const contactsApi = useContactsApi()
@@ -139,7 +143,9 @@ async function loadThread() {
 const earlier = computed(() => thread.value.filter(m => msg.value && m.date <= msg.value.date))
 const later = computed(() => thread.value.filter(m => msg.value && m.date > msg.value.date))
 function threadFolderName(m: MessageSummary): string | null {
-  return m.folder === folderPath.value ? null : (mail.byPath(m.folder)?.name ?? m.folder)
+  if (m.folder === folderPath.value) return null
+  const f = mail.byPath(m.folder)
+  return f ? folderLabel(f) : m.folder
 }
 
 // ─── Raccourcis : r répondre, a répondre à tous, f transférer, e archiver, # supprimer, u retour ───
@@ -171,16 +177,11 @@ function formatAddress(a: Address): string {
 }
 function shortList(list: Address[]): string {
   const me = user.value?.email.toLowerCase()
-  return list.map(a => (a.address.toLowerCase() === me ? 'moi' : (a.name || a.address))).join(', ')
-}
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} o`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`
-  return `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} Mo`
+  return list.map(a => (a.address.toLowerCase() === me ? t('mail.reader.me') : (a.name || a.address))).join(', ')
 }
 
 const dateOpts = computed(() => ({ timeZone: prefsStore.prefs.timeZone, dateFormat: prefsStore.prefs.dateFormat, timeFormat: prefsStore.prefs.timeFormat }))
-const fullDate = computed(() => (msg.value ? formatFullDate(msg.value.date, 'fr-FR', dateOpts.value) : ''))
+const fullDate = computed(() => (msg.value ? formatFullDate(msg.value.date, intlLocale(), dateOpts.value) : ''))
 const html = computed(() => (prefsStore.prefs.preferHtml ? msg.value?.html ?? null : null))
 
 async function act(action: () => Promise<unknown>, done: string, onSuccess?: () => void) {
@@ -198,7 +199,7 @@ async function act(action: () => Promise<unknown>, done: string, onSuccess?: () 
 
 const doArchive = () => archive.value && act(
   () => api.move(folderPath.value, [uid.value], archive.value!.path),
-  'Message archivé',
+  t('mail.reader.toasts.archived'),
   () => {
     cacheStore.removeMessages(folderPath.value, [uid.value])
     cacheStore.invalidateFolderLists(archive.value!.path)
@@ -206,7 +207,7 @@ const doArchive = () => archive.value && act(
 )
 const doDelete = () => act(
   () => api.remove(folderPath.value, [uid.value]),
-  folder.value?.specialUse === 'trash' ? 'Message supprimé définitivement' : 'Message placé dans la corbeille',
+  folder.value?.specialUse === 'trash' ? t('mail.reader.toasts.deletedPermanently') : t('mail.reader.toasts.trashed'),
   () => {
     cacheStore.removeMessages(folderPath.value, [uid.value])
     const trash = mail.special('trash')
@@ -227,7 +228,7 @@ async function copyTo(path: string, name: string) {
   try {
     await api.copy(folderPath.value, [uid.value], path)
     cacheStore.invalidateFolderLists(path)
-    toast(`Message copié vers « ${name} »`)
+    toast(t('mail.reader.toasts.copied', { name }))
     void mail.loadFolders()
   }
   catch (err) {
@@ -236,7 +237,7 @@ async function copyTo(path: string, name: string) {
 }
 const doMove = (path: string, name: string) => act(
   () => api.move(folderPath.value, [uid.value], path),
-  `Message déplacé vers « ${name} »`,
+  t('mail.reader.toasts.moved', { name }),
   () => {
     cacheStore.removeMessages(folderPath.value, [uid.value])
     cacheStore.invalidateFolderLists(path)
@@ -244,7 +245,7 @@ const doMove = (path: string, name: string) => act(
 )
 const doUnread = () => act(
   () => api.setFlags(folderPath.value, [uid.value], { seen: false }),
-  'Marqué comme non lu',
+  t('mail.reader.toasts.markedUnread'),
   () => cacheStore.patchFlags(folderPath.value, [uid.value], { seen: false }),
 )
 
@@ -271,7 +272,7 @@ async function loadSource() {
     sourceData.value = await api.source(folderPath.value, uid.value)
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de charger la source.'))
+    toast.error(errorText(err, t('mail.reader.errors.loadSourceFailed')))
   }
 }
 
@@ -280,11 +281,11 @@ async function sendMdn() {
     await api.sendMdn(folderPath.value, uid.value)
     // readReceiptTo/$MDNSent changent côté serveur : le détail en cache doit être refait, pas seulement patché.
     cacheStore.invalidateMessage(folderPath.value, uid.value)
-    toast('Accusé de lecture envoyé')
+    toast(t('mail.reader.toasts.mdnSent'))
     await load()
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible d\'envoyer l\'accusé.'))
+    toast.error(errorText(err, t('mail.reader.errors.mdnFailed')))
   }
 }
 
@@ -297,12 +298,12 @@ async function redirect() {
   if (!redirectTo.value.length) return
   try {
     await api.redirect(folderPath.value, uid.value, redirectTo.value)
-    toast('Message redirigé')
+    toast(t('mail.reader.toasts.redirected'))
     redirectDialogOpen.value = false
     await navigateTo(backLink.value)
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de rediriger.'))
+    toast.error(errorText(err, t('mail.reader.errors.redirectFailed')))
   }
 }
 
@@ -338,7 +339,7 @@ async function previewAttachmentFile(a: { id: string; filename: string; contentT
     }
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de charger l\'aperçu.'))
+    toast.error(errorText(err, t('mail.reader.errors.previewFailed')))
   }
 }
 
@@ -366,10 +367,10 @@ async function addSenderToContacts() {
     await contactsApi.quickAdd(msg.value.from.address, msg.value.from.name)
     msg.value.senderInContacts = true
     cacheStore.patchMessage(folderPath.value, uid.value, { senderInContacts: true })
-    toast.success('Contact ajouté')
+    toast.success(t('mail.reader.toasts.contactAdded'))
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible d\'ajouter le contact.'))
+    toast.error(errorText(err, t('mail.reader.errors.addContactFailed')))
   }
   finally {
     addingContact.value = false
@@ -386,10 +387,10 @@ async function importVcardAttachment(a: { id: string, filename: string, contentT
     const url = api.attachmentUrl(folderPath.value, uid.value, a.id)
     const blob = await $fetch<Blob>(url, { responseType: 'blob' })
     const result = await contactsApi.importFile(blob, a.filename)
-    toast.success(result.imported > 0 ? 'Contact importé' : 'Aucun contact importé')
+    toast.success(result.imported > 0 ? t('mail.reader.toasts.vcardImported') : t('mail.reader.toasts.vcardNoneImported'))
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible d\'importer ce contact.'))
+    toast.error(errorText(err, t('mail.reader.errors.importVcardFailed')))
   }
 }
 
@@ -399,7 +400,7 @@ async function junkSelected() {
     cacheStore.removeMessages(folderPath.value, [uid.value])
     const junk = mail.special('junk')
     if (junk) cacheStore.invalidateFolderLists(junk.path)
-    toast('Message signalé comme spam')
+    toast(t('mail.reader.toasts.reportedSpam'))
     await navigateTo(backLink.value)
   }
   catch (err) {
@@ -407,7 +408,7 @@ async function junkSelected() {
   }
 }
 
-useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
+useHead({ title: computed(() => (msg.value ? displaySubject(msg.value.subject) : t('mail.reader.pageTitle.fallback'))) })
 </script>
 
 <template>
@@ -416,43 +417,43 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
       <MailMessageList />
     </div>
     <article class="flex min-h-0 min-w-0 flex-1 flex-col" aria-labelledby="sujet">
-    <div class="sticky top-16 z-20 flex h-14 shrink-0 items-center gap-0.5 border-b border-border bg-surface-panel px-2 lg:static lg:h-12 lg:px-3" role="toolbar" aria-label="Actions sur le message">
+    <div class="sticky top-16 z-20 flex h-14 shrink-0 items-center gap-0.5 border-b border-border bg-surface-panel px-2 lg:static lg:h-12 lg:px-3" role="toolbar" :aria-label="t('mail.reader.toolbar.ariaLabel')">
       <Tooltip>
         <TooltipTrigger as-child>
-          <NuxtLink :to="backLink" class="grid size-11 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:size-10" aria-label="Retour à la liste">
+          <NuxtLink :to="backLink" class="grid size-11 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:size-10" :aria-label="t('mail.reader.toolbar.backToList')">
             <ArrowLeft class="size-5" aria-hidden="true" />
           </NuxtLink>
         </TooltipTrigger>
-        <TooltipContent>Retour à la liste</TooltipContent>
+        <TooltipContent>{{ t('mail.reader.toolbar.backToList') }}</TooltipContent>
       </Tooltip>
       <template v-if="msg">
-        <MailIconButton v-if="archive && folderPath !== archive.path" :icon="Archive" label="Archiver" @click="doArchive" />
-        <MailIconButton :icon="Trash2" :label="folder?.specialUse === 'trash' ? 'Supprimer définitivement' : 'Supprimer'" @click="deleteClicked" />
-        <MailIconButton :icon="Mail" label="Marquer comme non lu" @click="doUnread" />
+        <MailIconButton v-if="archive && folderPath !== archive.path" :icon="Archive" :label="t('mail.reader.actions.archive')" @click="doArchive" />
+        <MailIconButton :icon="Trash2" :label="folder?.specialUse === 'trash' ? t('mail.reader.actions.deletePermanently') : t('mail.reader.actions.delete')" @click="deleteClicked" />
+        <MailIconButton :icon="Mail" :label="t('mail.reader.actions.markUnread')" @click="doUnread" />
         <!-- Plus d'actions menu -->
         <DropdownMenu>
-          <MailMenuButton :icon="EllipsisVertical" label="Plus d'actions" />
+          <MailMenuButton :icon="EllipsisVertical" :label="t('mail.reader.actions.more')" />
           <DropdownMenuContent align="start" class="w-56">
             <DropdownMenuItem @select="print">
-              Imprimer
+              {{ t('mail.reader.actions.print') }}
             </DropdownMenuItem>
             <DropdownMenuItem @select="showSource = true; loadSource()">
-              Afficher la source
+              {{ t('mail.reader.actions.viewSource') }}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem @select="showAllHeaders = !showAllHeaders">
-              {{ showAllHeaders ? 'Masquer' : 'Afficher' }} tous les en-têtes
+              {{ showAllHeaders ? t('mail.reader.actions.hideAllHeaders') : t('mail.reader.actions.showAllHeaders') }}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <!-- Copier vers -->
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <FolderInput class="size-4" aria-hidden="true" />
-                Copier vers…
+                {{ t('mail.reader.actions.copyTo') }}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent class="w-48">
-                <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="copyTo(f.path, f.name)">
-                  {{ f.name }}
+                <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="copyTo(f.path, folderLabel(f))">
+                  {{ folderLabel(f) }}
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
@@ -460,43 +461,43 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
             <DropdownMenuSub>
               <DropdownMenuSubTrigger class="sm:hidden">
                 <FolderInput class="size-4" aria-hidden="true" />
-                Déplacer vers…
+                {{ t('mail.reader.actions.moveToEllipsis') }}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent class="w-48">
-                <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="doMove(f.path, f.name)">
-                  {{ f.name }}
+                <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="doMove(f.path, folderLabel(f))">
+                  {{ folderLabel(f) }}
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             <DropdownMenuSeparator />
             <DropdownMenuItem @select="redirectDialogOpen = true">
               <Share2 class="size-4" aria-hidden="true" />
-              Rediriger…
+              {{ t('mail.reader.actions.redirect') }}
             </DropdownMenuItem>
             <DropdownMenuItem @select="forwardAsAttachment">
-              Transférer en pièce jointe
+              {{ t('mail.reader.actions.forwardAsAttachment') }}
             </DropdownMenuItem>
             <DropdownMenuItem @select="junkSelected">
-              Signaler comme spam
+              {{ t('mail.reader.actions.reportSpam') }}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem @select="createFilterFromMessage">
-              Créer un filtre…
+              {{ t('mail.reader.actions.createFilter') }}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <DropdownMenu>
-          <MailMenuButton :icon="FolderInput" label="Déplacer vers" class="max-sm:hidden" />
+          <MailMenuButton :icon="FolderInput" :label="t('mail.reader.actions.moveTo')" class="max-sm:hidden" />
           <DropdownMenuContent align="start" class="w-56">
-            <DropdownMenuLabel>Déplacer vers</DropdownMenuLabel>
-            <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="doMove(f.path, f.name)">{{ f.name }}</DropdownMenuItem>
+            <DropdownMenuLabel>{{ t('mail.reader.actions.moveTo') }}</DropdownMenuLabel>
+            <DropdownMenuItem v-for="f in moveTargets" :key="f.path" @select="doMove(f.path, folderLabel(f))">{{ folderLabel(f) }}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </template>
     </div>
 
     <div class="min-h-0 flex-1 overflow-y-auto">
-      <div v-if="loading" class="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 pt-6 lg:px-8 lg:pt-8" aria-busy="true" aria-label="Chargement du message">
+      <div v-if="loading" class="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 pt-6 lg:px-8 lg:pt-8" aria-busy="true" :aria-label="t('mail.reader.loading.ariaLabel')">
         <Skeleton class="h-4 w-24" />
         <Skeleton class="h-8 w-2/3" />
         <div class="flex items-center gap-3">
@@ -508,17 +509,17 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
 
       <div v-else-if="notFound || failed" class="flex flex-col items-center gap-3 px-6 py-16 text-center" role="alert">
         <BrandDove class="mb-2 w-36 opacity-80" :trail="false" />
-        <p class="max-w-sm font-heading text-xl leading-snug font-medium">{{ notFound ? 'Ce message n’existe plus. Il a peut-être été déplacé ou supprimé.' : 'Impossible d’afficher ce message.' }}</p>
+        <p class="max-w-sm font-heading text-xl leading-snug font-medium">{{ notFound ? t('mail.reader.error.notFound') : t('mail.reader.error.failed') }}</p>
         <div class="flex gap-2">
-          <Button v-if="failed" variant="outline" class="h-11 rounded-lg px-6" @click="load">Réessayer</Button>
-          <Button as-child variant="outline" class="h-11 rounded-lg px-6"><NuxtLink :to="backLink">Retour à la liste</NuxtLink></Button>
+          <Button v-if="failed" variant="outline" class="h-11 rounded-lg px-6" @click="load">{{ t('common.retry') }}</Button>
+          <Button as-child variant="outline" class="h-11 rounded-lg px-6"><NuxtLink :to="backLink">{{ t('mail.reader.toolbar.backToList') }}</NuxtLink></Button>
         </div>
       </div>
 
       <div v-else-if="msg" class="mx-auto flex w-full max-w-4xl animate-settle flex-col gap-5 px-4 pt-5 pb-4 lg:px-8 lg:pt-8">
         <div class="flex flex-col gap-2">
-          <span v-if="folder" class="stamp self-start">{{ folder.name }}</span>
-          <h1 id="sujet" class="min-w-0 font-heading text-[26px] leading-[1.15] font-medium tracking-[-0.015em] text-balance break-words lg:text-[32px]">{{ msg.subject }}</h1>
+          <span v-if="folder" class="stamp self-start">{{ folderLabel(folder) }}</span>
+          <h1 id="sujet" class="min-w-0 font-heading text-[26px] leading-[1.15] font-medium tracking-[-0.015em] text-balance break-words lg:text-[32px]">{{ displaySubject(msg.subject) }}</h1>
         </div>
 
         <div class="flex items-start gap-3 border-b border-border pb-4">
@@ -527,7 +528,7 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
           </span>
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <span class="font-semibold">{{ msg.from?.name || msg.from?.address || '(expéditeur inconnu)' }}</span>
+              <span class="font-semibold">{{ msg.from?.name || msg.from?.address || t('mail.reader.unknownSender') }}</span>
               <span v-if="msg.from?.name" class="truncate text-[13px] text-muted-foreground">&lt;{{ msg.from.address }}&gt;</span>
               <button
                 v-if="msg.from && !msg.senderInContacts"
@@ -536,31 +537,31 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
                 :disabled="addingContact"
                 @click="addSenderToContacts"
               >
-                <UserPlus class="size-3.5" aria-hidden="true" /> Ajouter aux contacts
+                <UserPlus class="size-3.5" aria-hidden="true" /> {{ t('mail.reader.actions.addToContacts') }}
               </button>
             </div>
             <button type="button" class="-mx-1 inline-flex max-w-full items-center gap-1 rounded-md px-1 text-left text-[13px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" :aria-expanded="showDetails" @click="showDetails = !showDetails">
-              <span class="truncate">à {{ shortList([...msg.to, ...msg.cc]) || '(aucun destinataire)' }}</span>
+              <span class="truncate">{{ t('mail.reader.toPrefix') }} {{ shortList([...msg.to, ...msg.cc]) || t('mail.reader.noRecipients') }}</span>
               <ChevronDown class="size-3.5 shrink-0 transition-transform" :class="{ 'rotate-180': showDetails }" aria-hidden="true" />
-              <span class="sr-only">{{ showDetails ? 'Masquer' : 'Afficher' }} les détails</span>
+              <span class="sr-only">{{ showDetails ? t('mail.reader.actions.hideDetails') : t('mail.reader.actions.showDetails') }}</span>
             </button>
             <!-- Mobile : la date passe sous les destinataires (à droite à partir de 640 px). -->
             <time class="block text-xs text-muted-foreground sm:hidden" :datetime="msg.date">{{ fullDate }}</time>
             <dl v-if="showDetails" class="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-lg border border-border bg-surface-app/60 p-3 text-xs">
-              <dt class="text-muted-foreground">De</dt><dd class="break-all">{{ msg.from ? formatAddress(msg.from) : '—' }}</dd>
-              <template v-if="msg.replyTo.length"><dt class="text-muted-foreground">Répondre à</dt><dd class="break-all">{{ msg.replyTo.map(formatAddress).join(', ') }}</dd></template>
-              <dt class="text-muted-foreground">À</dt><dd class="break-all">{{ msg.to.map(formatAddress).join(', ') || '—' }}</dd>
-              <template v-if="msg.cc.length"><dt class="text-muted-foreground">Cc</dt><dd class="break-all">{{ msg.cc.map(formatAddress).join(', ') }}</dd></template>
-              <template v-if="msg.bcc.length"><dt class="text-muted-foreground">Cci</dt><dd class="break-all">{{ msg.bcc.map(formatAddress).join(', ') }}</dd></template>
-              <dt class="text-muted-foreground">Date</dt><dd>{{ fullDate }}</dd>
+              <dt class="text-muted-foreground">{{ t('mail.reader.headers.from') }}</dt><dd class="break-all">{{ msg.from ? formatAddress(msg.from) : '—' }}</dd>
+              <template v-if="msg.replyTo.length"><dt class="text-muted-foreground">{{ t('mail.reader.headers.replyTo') }}</dt><dd class="break-all">{{ msg.replyTo.map(formatAddress).join(', ') }}</dd></template>
+              <dt class="text-muted-foreground">{{ t('mail.reader.headers.to') }}</dt><dd class="break-all">{{ msg.to.map(formatAddress).join(', ') || '—' }}</dd>
+              <template v-if="msg.cc.length"><dt class="text-muted-foreground">{{ t('mail.reader.headers.cc') }}</dt><dd class="break-all">{{ msg.cc.map(formatAddress).join(', ') }}</dd></template>
+              <template v-if="msg.bcc.length"><dt class="text-muted-foreground">{{ t('mail.reader.headers.bcc') }}</dt><dd class="break-all">{{ msg.bcc.map(formatAddress).join(', ') }}</dd></template>
+              <dt class="text-muted-foreground">{{ t('mail.reader.headers.date') }}</dt><dd>{{ fullDate }}</dd>
             </dl>
           </div>
           <time class="hidden shrink-0 pt-0.5 text-[13px] text-muted-foreground sm:block" :datetime="msg.date">{{ fullDate }}</time>
-          <MailIconButton :icon="Star" :label="msg.flagged ? 'Retirer l’étoile' : 'Ajouter une étoile'" :pressed="msg.flagged" class="-mt-2 -mr-2" :class="msg.flagged ? '[&_svg]:fill-beak [&_svg]:text-beak-strong' : ''" @click="toggleStar" />
+          <MailIconButton :icon="Star" :label="msg.flagged ? t('mail.reader.actions.removeStar') : t('mail.reader.actions.addStar')" :pressed="msg.flagged" class="-mt-2 -mr-2" :class="msg.flagged ? '[&_svg]:fill-beak [&_svg]:text-beak-strong' : ''" @click="toggleStar" />
         </div>
 
-        <p v-if="thread.length" class="-mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">{{ thread.length + 1 }} messages dans cette conversation</p>
-        <section v-if="earlier.length" aria-label="Messages précédents de la conversation">
+        <p v-if="thread.length" class="-mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">{{ t('mail.reader.thread.count', { n: thread.length + 1 }, thread.length + 1) }}</p>
+        <section v-if="earlier.length" :aria-label="t('mail.reader.thread.earlierAriaLabel')">
           <ul class="flex flex-col">
             <MailThreadItem v-for="m in earlier" :key="`${m.folder}:${m.uid}`" :item="m" :folder-name="threadFolderName(m)" />
           </ul>
@@ -568,17 +569,17 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
 
         <div v-if="msg.remoteImages > 0 && !showRemote" class="flex flex-col gap-3 rounded-lg border border-dashed border-line-strong bg-surface-app/60 px-4 py-3 text-sm sm:flex-row sm:items-center" role="status">
           <ImageOff class="hidden size-5 shrink-0 text-muted-foreground sm:block" aria-hidden="true" />
-          <p class="flex-1">Les images distantes sont masquées pour protéger votre vie privée.</p>
-          <Button variant="outline" class="h-11 self-start px-4 sm:h-9 sm:self-auto" @click="showRemote = true">Afficher les images</Button>
+          <p class="flex-1">{{ t('mail.reader.remoteImages.banner') }}</p>
+          <Button variant="outline" class="h-11 self-start px-4 sm:h-9 sm:self-auto" @click="showRemote = true">{{ t('mail.reader.remoteImages.show') }}</Button>
         </div>
 
         <!-- Read receipt banner -->
         <div v-if="showReadReceiptBanner" class="flex flex-col gap-3 rounded-lg border border-dashed border-line-strong bg-surface-app/60 px-4 py-3 text-sm sm:flex-row sm:items-center">
           <AlertCircle class="hidden size-5 shrink-0 text-muted-foreground sm:block" aria-hidden="true" />
-          <p class="flex-1">L'expéditeur demande un accusé de lecture.</p>
+          <p class="flex-1">{{ t('mail.reader.readReceipt.banner') }}</p>
           <div class="flex gap-2">
-            <Button variant="outline" class="h-11 px-4 sm:h-9" @click="sendMdn">Envoyer l'accusé</Button>
-            <Button variant="ghost" class="h-11 px-4 sm:h-9" @click="receiptDismissed = true">Ignorer</Button>
+            <Button variant="outline" class="h-11 px-4 sm:h-9" @click="sendMdn">{{ t('mail.reader.readReceipt.send') }}</Button>
+            <Button variant="ghost" class="h-11 px-4 sm:h-9" @click="receiptDismissed = true">{{ t('mail.reader.readReceipt.dismiss') }}</Button>
           </div>
         </div>
 
@@ -591,7 +592,7 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
           <div class="flex items-center justify-between gap-3">
             <h2 id="pj-titre" class="flex items-center gap-2 text-sm font-semibold">
               <Paperclip class="size-4 text-muted-foreground" aria-hidden="true" />
-              {{ msg.attachments.length }} pièce{{ msg.attachments.length > 1 ? 's' : '' }} jointe{{ msg.attachments.length > 1 ? 's' : '' }}
+              {{ t('mail.reader.attachments.count', { n: msg.attachments.length }, msg.attachments.length) }}
             </h2>
             <template v-if="msg.attachments.length >= 2">
               <a
@@ -599,7 +600,7 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
                 :download="`${msg.subject.slice(0, 50)}-attachments.zip`"
                 class="inline-flex min-h-11 items-center rounded-md px-2 text-xs font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring lg:min-h-8"
               >
-                Tout télécharger (.zip)
+                {{ t('mail.reader.attachments.downloadAllZip') }}
               </a>
             </template>
           </div>
@@ -610,7 +611,7 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
                 v-if="isPreviewable(a.contentType)"
                 type="button"
                 class="flex h-14 max-w-72 min-w-0 items-center gap-3 rounded-lg border border-border bg-surface-panel px-3 transition-colors hover:border-line-strong hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-ring"
-                :aria-label="`Aperçu de ${a.filename} (${formatSize(a.size)})`"
+                :aria-label="t('mail.reader.attachments.previewAriaLabel', { filename: a.filename, size: formatFileSize(a.size) })"
                 @click="previewAttachmentFile(a)"
               >
                 <span class="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
@@ -618,7 +619,7 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
                 </span>
                 <span class="flex min-w-0 flex-col text-left">
                   <span class="truncate text-sm font-medium">{{ a.filename }}</span>
-                  <span class="text-xs text-muted-foreground">{{ formatSize(a.size) }}</span>
+                  <span class="text-xs text-muted-foreground">{{ formatFileSize(a.size) }}</span>
                 </span>
                 <Eye class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               </button>
@@ -633,19 +634,19 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
                 </span>
                 <span class="flex min-w-0 flex-col">
                   <span class="truncate text-sm font-medium">{{ a.filename }}</span>
-                  <span class="text-xs text-muted-foreground">{{ formatSize(a.size) }}</span>
+                  <span class="text-xs text-muted-foreground">{{ formatFileSize(a.size) }}</span>
                 </span>
                 <Download class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <span class="sr-only">Télécharger</span>
+                <span class="sr-only">{{ t('common.download') }}</span>
               </a>
               <Button v-if="isVcard(a)" variant="outline" class="h-11 shrink-0 px-3 text-xs lg:h-10" @click="importVcardAttachment(a)">
-                <IdCard class="size-4" aria-hidden="true" /> Importer ce contact
+                <IdCard class="size-4" aria-hidden="true" /> {{ t('mail.reader.attachments.importContact') }}
               </Button>
             </li>
           </ul>
         </section>
 
-        <section v-if="later.length" aria-label="Réponses suivantes de la conversation">
+        <section v-if="later.length" :aria-label="t('mail.reader.thread.laterAriaLabel')">
           <ul class="flex flex-col">
             <MailThreadItem v-for="m in later" :key="`${m.folder}:${m.uid}`" :item="m" :folder-name="threadFolderName(m)" />
           </ul>
@@ -653,16 +654,16 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
 
         <div class="flex flex-wrap gap-2 pt-1 pb-24 lg:pb-6">
           <Button class="h-11 px-5" @click="compose.openReply(msg, me, 'reply')">
-            <Reply class="size-4" aria-hidden="true" /> Répondre
+            <Reply class="size-4" aria-hidden="true" /> {{ t('mail.reader.actions.reply') }}
           </Button>
           <Button v-if="canReplyAll" variant="outline" class="h-11 rounded-lg px-5" @click="compose.openReply(msg, me, 'replyAll')">
-            <ReplyAll class="size-4" aria-hidden="true" /> Répondre à tous
+            <ReplyAll class="size-4" aria-hidden="true" /> {{ t('mail.reader.actions.replyAll') }}
           </Button>
           <Button variant="outline" class="h-11 rounded-lg px-5" @click="compose.openForward(msg)">
-            <Forward class="size-4" aria-hidden="true" /> Transférer
+            <Forward class="size-4" aria-hidden="true" /> {{ t('mail.reader.actions.forward') }}
           </Button>
           <Button v-if="msg.listPost" variant="outline" class="h-11 rounded-lg px-5" @click="compose.openReply(msg, me, 'list')">
-            <ListTree class="size-4" aria-hidden="true" /> Répondre à la liste
+            <ListTree class="size-4" aria-hidden="true" /> {{ t('mail.reader.actions.replyList') }}
           </Button>
         </div>
       </div>
@@ -672,19 +673,19 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
     <Dialog v-model:open="showSource" @update:open="open => { if (!open) { sourceData = null } }">
       <DialogContent class="flex max-h-[80dvh] flex-col gap-0">
         <DialogHeader class="border-b px-6 py-4">
-          <DialogTitle>Source du message</DialogTitle>
+          <DialogTitle>{{ t('mail.reader.source.title') }}</DialogTitle>
         </DialogHeader>
         <div class="min-h-0 flex-1 overflow-y-auto px-6 py-4">
           <pre v-if="sourceData" class="whitespace-pre-wrap break-words text-xs font-mono">{{ sourceData.source }}</pre>
         </div>
         <DialogFooter class="border-t px-6 py-4">
           <Button variant="outline" @click="downloadAttachment('', msg?.messageId || 'message'); " disabled>
-            <span>Vous ne pouvez pas télécharger depuis la source</span>
+            <span>{{ t('mail.reader.source.cannotDownload') }}</span>
           </Button>
           <a v-if="msg" :href="api.rawUrl(folderPath, uid)" :download="`${msg.subject.slice(0, 50)}.eml`" hidden />
           <Button as-child>
             <a :href="api.rawUrl(folderPath, uid)" :download="`${msg?.subject.slice(0, 50) || 'message'}.eml`">
-              Télécharger (.eml)
+              {{ t('mail.reader.source.downloadEml') }}
             </a>
           </Button>
         </DialogFooter>
@@ -695,12 +696,12 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
     <AlertDialog :open="permanentDeleteConfirm" @update:open="(v: boolean) => { if (!v) permanentDeleteConfirm = false }">
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Supprimer définitivement ?</AlertDialogTitle>
-          <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
+          <AlertDialogTitle>{{ t('mail.reader.permanentDelete.title') }}</AlertDialogTitle>
+          <AlertDialogDescription>{{ t('mail.reader.permanentDelete.description') }}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel class="h-11 rounded-lg">Annuler</AlertDialogCancel>
-          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmPermanentDelete">Supprimer</AlertDialogAction>
+          <AlertDialogCancel class="h-11 rounded-lg">{{ t('common.cancel') }}</AlertDialogCancel>
+          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmPermanentDelete">{{ t('common.delete') }}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -709,16 +710,16 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
     <Dialog v-model:open="redirectDialogOpen">
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Rediriger le message</DialogTitle>
+          <DialogTitle>{{ t('mail.reader.redirectDialog.title') }}</DialogTitle>
         </DialogHeader>
         <div class="flex flex-col gap-4">
           <div class="rounded-lg border px-3">
-            <MailRecipientInput id="redirect-to" v-model="redirectTo" label="À" />
+            <MailRecipientInput id="redirect-to" v-model="redirectTo" :label="t('mail.reader.headers.to')" />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="redirectDialogOpen = false">Annuler</Button>
-          <Button @click="redirect">Rediriger</Button>
+          <Button variant="outline" @click="redirectDialogOpen = false">{{ t('common.cancel') }}</Button>
+          <Button @click="redirect">{{ t('mail.reader.redirectDialog.submit') }}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -727,7 +728,7 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
     <Dialog :open="previewAttachment !== null" @update:open="(v: boolean) => { if (!v) previewAttachment = null }">
       <DialogContent class="flex max-h-[80dvh] flex-col gap-0">
         <DialogHeader class="border-b px-6 py-4">
-          <DialogTitle>Aperçu : {{ previewAttachment?.filename }}</DialogTitle>
+          <DialogTitle>{{ t('mail.reader.preview.title', { filename: previewAttachment?.filename ?? '' }) }}</DialogTitle>
         </DialogHeader>
         <div class="min-h-0 flex-1 overflow-auto px-6 py-4">
           <template v-if="previewContent?.type === 'image'">
@@ -738,10 +739,10 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
           </template>
         </div>
         <DialogFooter class="border-t px-6 py-4">
-          <Button variant="outline" @click="closePreview">Fermer</Button>
+          <Button variant="outline" @click="closePreview">{{ t('common.close') }}</Button>
           <Button v-if="previewAttachment" @click="downloadAttachment(previewAttachment.id, previewAttachment.filename)">
             <Download class="size-4" aria-hidden="true" />
-            Télécharger
+            {{ t('common.download') }}
           </Button>
         </DialogFooter>
       </DialogContent>

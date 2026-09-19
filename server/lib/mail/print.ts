@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { MessageDetail } from '#shared/types/mail'
+import type { AppLocale } from '#shared/types/i18n'
+import { translate } from '../i18n'
 
 function escapeHtml(text: string): string {
   return text
@@ -10,10 +12,10 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#39;')
 }
 
-function formatDate(iso: string): string {
+function formatDate(iso: string, locale: AppLocale): string {
   try {
     const date = new Date(iso)
-    return new Intl.DateTimeFormat('fr-FR', {
+    return new Intl.DateTimeFormat(locale === 'fr' ? 'fr-FR' : 'en-GB', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -36,12 +38,14 @@ function formatAddresses(addrs: Array<{ name: string; address: string }>): strin
   return addrs.map(formatAddress).join('; ')
 }
 
-export function buildPrintHtml(msg: MessageDetail): Buffer {
+/** Page d'impression ; `locale` : langue active de l'interface (paramètre ?lang=), défaut français. */
+export function buildPrintHtml(msg: MessageDetail, locale: AppLocale = 'fr'): Buffer {
+  const t = (key: Parameters<typeof translate>[1]): string => translate(locale, key)
   const printScript = 'window.print();'
   const scriptHash = createHash('sha256').update(printScript).digest('base64')
 
   const html = `<!DOCTYPE html>
-<html lang="fr">
+<html lang="${locale}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -100,27 +104,27 @@ export function buildPrintHtml(msg: MessageDetail): Buffer {
 <body>
 <div class="header">
   <div class="header-row">
-    <div class="header-label">De :</div>
+    <div class="header-label">${t('print.from')}</div>
     <div class="header-value">${formatAddress(msg.from)}</div>
   </div>
   ${msg.to.length > 0 ? `<div class="header-row">
-    <div class="header-label">À :</div>
+    <div class="header-label">${t('print.to')}</div>
     <div class="header-value">${formatAddresses(msg.to)}</div>
   </div>` : ''}
   ${msg.cc.length > 0 ? `<div class="header-row">
-    <div class="header-label">Cc :</div>
+    <div class="header-label">${t('print.cc')}</div>
     <div class="header-value">${formatAddresses(msg.cc)}</div>
   </div>` : ''}
   <div class="header-row">
-    <div class="header-label">Objet :</div>
+    <div class="header-label">${t('print.subject')}</div>
     <div class="header-value">${escapeHtml(msg.subject)}</div>
   </div>
   <div class="header-row">
-    <div class="header-label">Date :</div>
-    <div class="header-value">${formatDate(msg.date)}</div>
+    <div class="header-label">${t('print.date')}</div>
+    <div class="header-value">${formatDate(msg.date, locale)}</div>
   </div>
 </div>
-${msg.html ? `<div class="body-html">${stripRemoteImageUrls(msg.html)}</div>` : msg.text ? `<div class="body">${escapeHtml(msg.text)}</div>` : '<div class="body"><em>(pas de contenu)</em></div>'}
+${msg.html ? `<div class="body-html">${stripRemoteImageUrls(msg.html)}</div>` : msg.text ? `<div class="body">${escapeHtml(msg.text)}</div>` : `<div class="body"><em>${t('print.noContent')}</em></div>`}
 <script>
 ${printScript}
 </script>

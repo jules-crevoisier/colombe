@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { listUserFolders } from '../lib/mail/user-folders'
 import { MailError } from '../lib/mail/backend'
 import { mailError, requireMail } from '../utils/mail-session'
+import { serverT } from '../lib/i18n'
 
 const bodySchema = z.object({ path: z.string().min(1).max(512) })
 const BATCH = 50
@@ -19,7 +20,7 @@ export default defineEventHandler(async (event) => {
     if (!folder) throw new MailError('NOT_FOUND', 'Dossier introuvable')
     if (folder.specialUse || path.toUpperCase() === 'INBOX') throw new MailError('INVALID', 'Ce dossier ne peut pas être supprimé')
     if (folders.some(f => f.path.startsWith(`${path}${folder.delimiter}`))) {
-      throw createError({ statusCode: 409, statusMessage: 'Sous-dossiers', message: 'Supprimez d’abord les sous-dossiers.' })
+      throw createError({ statusCode: 409, statusMessage: 'Sous-dossiers', message: serverT(event, 'folders.deleteSubfoldersFirst') })
     }
 
     const trash = folders.find(f => f.specialUse === 'trash')
@@ -32,7 +33,7 @@ export default defineEventHandler(async (event) => {
       }
     }
     else if (folder.total > 0) {
-      throw createError({ statusCode: 409, statusMessage: 'Dossier non vide', message: 'Videz ce dossier avant de le supprimer (aucune corbeille disponible).' })
+      throw createError({ statusCode: 409, statusMessage: 'Dossier non vide', message: serverT(event, 'folders.emptyBeforeDelete') })
     }
 
     await backend.deleteFolder(path)
@@ -40,6 +41,6 @@ export default defineEventHandler(async (event) => {
     return null
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

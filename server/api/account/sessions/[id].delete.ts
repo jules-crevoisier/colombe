@@ -3,6 +3,7 @@ import { credentialsStore, hashSessionId } from '../../../lib/session/credential
 import { backendPool } from '../../../lib/session/pool'
 import { sievePool } from '../../../lib/session/sieve-pool'
 import { requireMail } from '../../../utils/mail-session'
+import { serverT } from '../../../lib/i18n'
 
 const paramsSchema = z.object({
   id: z.string().regex(/^[0-9a-f]{8}$/, 'Identifiant de session invalide'),
@@ -15,7 +16,7 @@ export default defineEventHandler(async (event): Promise<null> => {
 
   const target = credentialsStore.listByOwner(email).find(s => hashSessionId(s.sid) === id)
   if (!target) {
-    throw createError({ statusCode: 404, statusMessage: 'Session introuvable', message: 'Session introuvable.' })
+    throw createError({ statusCode: 404, statusMessage: 'Session introuvable', message: serverT(event, 'sessions.notFound') })
   }
 
   credentialsStore.delete(target.sid)

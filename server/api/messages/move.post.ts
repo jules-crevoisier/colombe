@@ -18,6 +18,6 @@ export default defineEventHandler(async (event) => {
 
     setResponseStatus(event, 204)
   } catch (err: unknown) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

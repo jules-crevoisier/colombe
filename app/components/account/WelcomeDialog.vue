@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
+import { useI18n } from 'vue-i18n'
 
 /**
  * Première connexion (docs/dev/PLAN-v3.md R2.1) : demande le nom affiché de
  * l'identité par défaut, tant que prefs.welcomed est faux. Ne se ferme
  * qu'en validant « Continuer ».
  */
+const { t } = useI18n()
 const prefs = usePrefsStore()
 const settingsApi = useSettingsApi()
 
@@ -42,7 +44,7 @@ async function submit() {
     open.value = false
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible d\'enregistrer votre nom.'))
+    toast.error(errorText(err, t('account.welcome.saveFailed')))
   }
   finally {
     saving.value = false
@@ -57,17 +59,17 @@ onMounted(check)
     <DialogContent class="sm:max-w-md" :show-close-button="false" @escape-key-down.prevent @pointer-down-outside.prevent>
       <DialogHeader>
         <BrandDove class="mb-1 w-28" :trail="false" />
-        <DialogTitle class="text-2xl">Bienvenue</DialogTitle>
-        <DialogDescription>Comment souhaitez-vous apparaître auprès de vos destinataires ?</DialogDescription>
+        <DialogTitle class="text-2xl">{{ t('account.welcome.title') }}</DialogTitle>
+        <DialogDescription>{{ t('account.welcome.description') }}</DialogDescription>
       </DialogHeader>
       <form class="flex flex-col gap-4" @submit.prevent="submit">
         <div class="space-y-2">
-          <Label for="welcome-name">Nom affiché</Label>
+          <Label for="welcome-name">{{ t('account.welcome.nameLabel') }}</Label>
           <Input id="welcome-name" v-model="name" class="h-11 text-base" autofocus required />
         </div>
         <DialogFooter>
           <Button type="submit" class="h-11 rounded-lg px-6" :disabled="!name.trim() || saving">
-            {{ saving ? 'Enregistrement…' : 'Continuer' }}
+            {{ saving ? t('common.saving') : t('account.welcome.continue') }}
           </Button>
         </DialogFooter>
       </form>

@@ -105,6 +105,6 @@ export default defineEventHandler(async (event): Promise<FilterApplyResult> => {
 
     return { applied: matched.length }
   } catch (err: unknown) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

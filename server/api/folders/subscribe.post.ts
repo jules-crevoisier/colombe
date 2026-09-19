@@ -13,6 +13,6 @@ export default defineEventHandler(async (event): Promise<null> => {
     return null
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

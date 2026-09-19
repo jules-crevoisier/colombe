@@ -6,6 +6,6 @@ export default defineEventHandler(async (event) => {
     const { email, sid } = await requireMail(event)
     return await getForward({ event, email, sid })
   } catch (err) {
-    throw sieveError(err)
+    throw sieveError(err, event)
   }
 })

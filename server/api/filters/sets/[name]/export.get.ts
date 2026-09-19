@@ -16,6 +16,6 @@ export default defineEventHandler(async (event) => {
     setHeader(event, 'X-Content-Type-Options', 'nosniff')
     return content
   } catch (err) {
-    throw sieveError(err)
+    throw sieveError(err, event)
   }
 })

@@ -6,6 +6,7 @@ import { draftSchema, toPayload } from '../lib/session/compose-schema'
 import { mailError, requireMail } from '../utils/mail-session'
 import { useDb } from '../lib/store/db'
 import { findIdentity, getDefaultIdentity } from '../lib/store/identities'
+import { serverT } from '../lib/i18n'
 
 export default defineEventHandler(async (event): Promise<DraftSaveResult> => {
   try {
@@ -16,7 +17,7 @@ export default defineEventHandler(async (event): Promise<DraftSaveResult> => {
     // Identité d'envoi (R2.1), pour que le brouillon reflète le « De » choisi.
     const identity = payload.identityId != null ? findIdentity(db, email, payload.identityId) : getDefaultIdentity(db, email)
     if (!identity) {
-      throw createError({ statusCode: 400, statusMessage: 'Identité invalide', message: 'Cette identité n\'existe pas.' })
+      throw createError({ statusCode: 400, statusMessage: 'Identité invalide', message: serverT(event, 'identities.invalid') })
     }
 
     const drafts = (await listUserFolders(backend, email)).find(f => f.specialUse === 'drafts')
@@ -35,6 +36,6 @@ export default defineEventHandler(async (event): Promise<DraftSaveResult> => {
     return { uid }
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

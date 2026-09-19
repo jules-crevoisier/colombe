@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { deleteResponse, ResponseNotFoundError } from '../../lib/store/responses'
 import { requireMail } from '../../utils/mail-session'
 import { useDb } from '../../lib/store/db'
+import { localizedErrorMessage } from '../../lib/i18n'
 
 const paramsSchema = z.object({
   id: z.coerce.number().int().positive(),
@@ -17,7 +18,7 @@ export default defineEventHandler(async (event): Promise<null> => {
     return null
   }
   catch (err) {
-    if (err instanceof ResponseNotFoundError) throw createError({ statusCode: 404, statusMessage: 'Réponse type introuvable', message: err.message })
+    if (err instanceof ResponseNotFoundError) throw createError({ statusCode: 404, statusMessage: 'Réponse type introuvable', message: localizedErrorMessage(event, err) })
     throw err
   }
 })

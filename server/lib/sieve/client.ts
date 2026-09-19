@@ -9,6 +9,7 @@
 import { connect as netConnect, Socket as NetSocket } from 'node:net'
 import { connect as tlsConnectRaw, TLSSocket } from 'node:tls'
 import { OAUTHBEARER_ABORT, oauthbearerToken, plainToken, xoauth2Token } from '../mail/sasl'
+import type { LocalizedMessage } from '../i18n'
 
 const COMMAND_TIMEOUT_MS = 10_000
 const CONNECT_TIMEOUT_MS = 10_000
@@ -20,7 +21,9 @@ export class SieveError extends Error {
   constructor(
     public readonly code: SieveErrorCode,
     message: string,
-    public readonly serverMessage?: string
+    public readonly serverMessage?: string,
+    /** Message traduisible montré à l'utilisateur (sinon `message`, ou le message du serveur). */
+    public readonly i18n?: LocalizedMessage
   ) {
     super(message)
     this.name = 'SieveError'
@@ -513,7 +516,7 @@ export class SieveClient {
 
   async getScript(name: string): Promise<string> {
     const resp = await this.command('GETSCRIPT', [name])
-    if (resp.status === 'NO') throw new SieveError('NOT_FOUND', `Jeu de filtres introuvable : ${name}`, resp.message ?? undefined)
+    if (resp.status === 'NO') throw new SieveError('NOT_FOUND', `Jeu de filtres introuvable : ${name}`, resp.message ?? undefined, { key: 'sieve.setNotFoundNamed', params: { name } })
     if (resp.status !== 'OK') throw new SieveError('UNAVAILABLE', resp.message ?? 'Lecture du script impossible', resp.message ?? undefined)
     const line = resp.data[0]
     const tok = line?.tokens[0]

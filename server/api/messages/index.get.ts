@@ -3,6 +3,7 @@ import type { MessagePage, SearchField, SortKey, MessageSummary } from '#shared/
 import type { ListOptions } from '../../lib/mail/backend'
 import { requireMail, mailError } from '../../utils/mail-session'
 import { withServerTiming } from '../../utils/server-timing'
+import { serverT } from '../../lib/i18n'
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/
 
@@ -59,7 +60,7 @@ export default defineEventHandler(async (event): Promise<MessagePage> => {
 
       if (query.scope === 'folder') {
         if (!query.folder) {
-          throw createError({ statusCode: 400, statusMessage: 'Dossier requis', message: 'Dossier requis pour cette recherche' })
+          throw createError({ statusCode: 400, statusMessage: 'Dossier requis', message: serverT(event, 'messages.folderRequiredForSearch') })
         }
         // Un seul appel : le backend pagine, trie et filtre lui-même (jamais 5000 messages en mémoire).
         const result = await backend.listMessages(query.folder, {
@@ -115,7 +116,7 @@ export default defineEventHandler(async (event): Promise<MessagePage> => {
         pageSize: query.pageSize,
       }
     } catch (err: unknown) {
-      throw mailError(err)
+      throw mailError(err, event)
     }
   })
 })

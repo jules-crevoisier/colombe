@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
+import { useI18n } from 'vue-i18n'
 import type { FiltersStatus, ForwardSettings } from '#shared/types/mail'
 
+const { t } = useI18n()
 const api = useFiltersApi()
 const devicesApi = useDevicesApi()
 const sieveStore = useSieveStore()
@@ -36,7 +38,7 @@ async function load(): Promise<void> {
     }
   }
   catch (err) {
-    toast.error(errorText(err, 'Impossible de charger le transfert.'))
+    toast.error(errorText(err, t('forwarding.loadFailed')))
   }
   finally {
     loading.value = false
@@ -54,11 +56,11 @@ async function save(): Promise<void> {
     Object.assign(form, saved)
     sieveStore.invalidateForward()
     sieveStore.invalidateStatus()
-    toast.success('Transfert enregistré.')
+    toast.success(t('forwarding.saved'))
   }
   catch (err) {
     if (!(err instanceof Error && err.name === 'ConfirmCancelled')) {
-      toast.error(errorText(err, "Impossible d'enregistrer le transfert."))
+      toast.error(errorText(err, t('forwarding.saveFailed')))
     }
   }
   finally {
@@ -74,12 +76,12 @@ async function save(): Promise<void> {
     </div>
 
     <p v-else-if="!status?.available" class="text-sm text-muted-foreground">
-      Les filtres ne sont pas disponibles sur ce serveur.
+      {{ t('forwarding.unavailable') }}
     </p>
 
     <form v-else class="flex flex-col gap-6" @submit.prevent="save">
       <div class="space-y-2">
-        <Label for="forward-address">Transférer tous mes messages à</Label>
+        <Label for="forward-address">{{ t('forwarding.addressLabel') }}</Label>
         <Input
           id="forward-address"
           v-model="form.address"
@@ -89,7 +91,7 @@ async function save(): Promise<void> {
           :aria-describedby="forwardDomains.length ? 'forward-domains' : undefined"
         />
         <p v-if="forwardDomains.length" id="forward-domains" class="text-sm text-muted-foreground">
-          Transfert possible uniquement vers :
+          {{ t('forwarding.allowedDomainsPrefix') }}
           <template v-for="(d, i) in domainLabels" :key="d">
             <span class="whitespace-nowrap">{{ d }}</span><template v-if="i < domainLabels.length - 1">, </template>
           </template>
@@ -98,12 +100,12 @@ async function save(): Promise<void> {
 
       <label class="flex min-h-11 cursor-pointer items-center gap-3">
         <Checkbox :model-value="form.keepCopy" @update:model-value="(v) => (form.keepCopy = v === true)" />
-        Garder une copie
+        {{ t('forwarding.keepCopy') }}
       </label>
 
       <div class="flex justify-end">
         <Button type="submit" class="h-11 rounded-lg px-6" :disabled="saving">
-          {{ saving ? 'Enregistrement…' : 'Enregistrer' }}
+          {{ saving ? t('common.saving') : t('common.save') }}
         </Button>
       </div>
     </form>

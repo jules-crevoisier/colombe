@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { zipSync } from 'fflate'
 import { mailError, requireMail } from '../../utils/mail-session'
+import { serverT } from '../../lib/i18n'
 
 const querySchema = z.object({
   folder: z.string().min(1).max(512),
@@ -28,7 +29,7 @@ export default defineEventHandler(async (event) => {
       totalSize += raw.length
 
       if (totalSize > maxSize) {
-        throw createError({ statusCode: 400, statusMessage: 'Trop volumineux', message: 'Archive dépasse 100 Mo' })
+        throw createError({ statusCode: 400, statusMessage: 'Trop volumineux', message: serverT(event, 'messages.zipTooLarge') })
       }
 
       let subject = 'message'
@@ -58,6 +59,6 @@ export default defineEventHandler(async (event) => {
     setHeader(event, 'Content-Disposition', 'attachment; filename="colombe-messages.zip"')
     return Buffer.from(zip)
   } catch (err: unknown) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })

@@ -8,6 +8,6 @@ export default defineEventHandler(async (event): Promise<QuotaInfo> => {
     return await backend.getQuota()
   }
   catch (err) {
-    throw mailError(err)
+    throw mailError(err, event)
   }
 })
