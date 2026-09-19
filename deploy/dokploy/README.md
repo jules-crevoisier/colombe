@@ -1,6 +1,6 @@
 # Démo publique de Colombe — déploiement Dokploy
 
-Ce dossier déploie deux choses sur un VPS séparé de la production de l'IUT,
+Ce dossier déploie deux choses sur un VPS séparé de votre serveur de production,
 via [Dokploy](https://dokploy.com) (PaaS auto-hébergé : Traefik + domaines +
 HTTPS gérés dans son interface) :
 
@@ -21,14 +21,19 @@ fichier documente uniquement la configuration côté interface Dokploy.
   un pour le site vitrine, un pour la démo elle-même (deux sous-domaines
   distincts, par exemple `colombe.exemple.org` et `demo.colombe.exemple.org`).
 - La branche `demo` de ce dépôt (voir §Mise à jour) poussée sur GitHub.
+- **Mémoire** : Dokploy construit les images sur le serveur ; le build de l'application
+  (Nuxt) demande environ 2 Go de RAM. Sur un VPS de 2 Go ou moins, ajoutez de la swap
+  (`fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile`).
 
 ## 1. Créer le service Compose
 
 Dans le projet Dokploy :
 
 1. **Create Service → Compose**.
-2. **Source → Git Provider** : GitHub, dépôt `jules-crevoisier/colombe`,
-   branche `demo`.
+2. **Source** : le dépôt est public, le fournisseur **Git** suffit (aucune connexion
+   GitHub nécessaire) : URL `https://github.com/jules-crevoisier/colombe.git`, branche
+   `demo`. Avec le fournisseur **GitHub** (application Dokploy installée sur votre compte),
+   le redéploiement automatique à chaque push est plus simple à activer.
 3. **Compose Path** : `deploy/dokploy/docker-compose.yml`.
 4. Laisser **Compose Type** sur `docker-compose` (pas `stack`).
 
@@ -108,12 +113,3 @@ Avec **Auto Deploy** activé, Dokploy redéploie seul. Sinon, cliquer sur
 - Le mode démo garde tout en mémoire (pas de volume `/data` pour `colombe`
   dans ce compose) : un redémarrage du conteneur efface les comptes de
   démonstration en cours — c'est le comportement voulu.
-- Le contrat du mode démo (`COLOMBE_DEMO`, `COLOMBE_DEMO_TTL_HOURS`,
-  `COLOMBE_DEMO_MAX_ACCOUNTS`) est documenté et implémenté ailleurs
-  (`server/lib/config`, en cours d'écriture au moment de ce commit) : si les
-  noms de variables changent, mettre à jour `docker-compose.yml` en
-  conséquence.
-- Le script `pnpm docs:build` (site VitePress, `docs/`) est lui aussi en
-  cours d'écriture ailleurs au moment de ce commit : `site.Dockerfile` y
-  échouera tant qu'il n'existe pas. Voir `docs/.vitepress/dist/index.html`
-  comme critère de succès (vérifié explicitement dans `site.Dockerfile`).
