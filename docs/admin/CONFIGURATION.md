@@ -114,6 +114,17 @@ Si aucun nom public n'est connu (Colombe configuré sur `localhost` sans
 | `COLOMBE_PASSWORD_RESET_URL` | — | Lien « Mot de passe oublié ? » vers l'outil de votre établissement. |
 | `COLOMBE_SUPPORT_URL`, `COLOMBE_SUPPORT_EMAIL` | — | Lien « Besoin d'aide ? ». |
 
+## Limites
+
+Compteurs sur 15 minutes glissantes, par processus.
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `COLOMBE_SEND_LIMIT` | `20` | Messages envoyés par compte. Alignez-la sur la politique de Postfix : un compte volé ne doit pas devenir un relais de spam par le webmail. |
+| `COLOMBE_LOGIN_LIMIT_ACCOUNT` | `5` | Échecs de connexion par adresse avant blocage temporaire. |
+| `COLOMBE_LOGIN_LIMIT_IP` | `30` | Échecs par IP. Volontairement plus large : un établissement entier sort souvent par une seule IP (NAT). |
+| `COLOMBE_MAX_ATTACHMENTS_MB` | `10` | Total des pièces jointes d'un message. Restez sous `message_size_limit` de Postfix (le codage des pièces jointes ajoute environ 35 %) et ajustez `client_max_body_size` de Nginx (au moins le double). |
+
 ## Données, sessions, réseau
 
 | Variable | Défaut | Rôle |
