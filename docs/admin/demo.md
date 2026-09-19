@@ -39,7 +39,7 @@ auto-hébergé ; Traefik gère les domaines et le HTTPS). Les fichiers vivent da
   - `colombe` : construit depuis le `Dockerfile` principal à la racine du dépôt, avec les
     variables d'environnement du mode démonstration ;
   - `site` : construit depuis `deploy/dokploy/site.Dockerfile`, qui compile le site de
-    documentation VitePress et le sert en statique sur le port 80.
+    documentation VitePress et le sert en statique sur le port 8080.
 - `deploy/dokploy/README.md` — le pas-à-pas complet de configuration Dokploy.
 
 ### Mise en place dans Dokploy
@@ -49,10 +49,12 @@ auto-hébergé ; Traefik gère les domaines et le HTTPS). Les fichiers vivent da
    `deploy/dokploy/docker-compose.yml`.
 2. Renseigner les variables d'environnement : `NUXT_SESSION_PASSWORD`, `WEBMAIL_DATA_KEY`
    (générées avec `openssl rand -base64 32`, différentes l'une de l'autre),
-   `COLOMBE_PROJECT_URL`, et facultativement `COLOMBE_DEMO_TTL_HOURS` /
+   `COLOMBE_PROJECT_URL` (adresse du site), `COLOMBE_DEMO_URL` (adresse de la démo, pour le
+   bouton « Essayer la démo » du site) et `COLOMBE_SITE_URL` (adresse du site, pour l’image de
+   partage et le plan du site), et facultativement `COLOMBE_DEMO_TTL_HOURS` /
    `COLOMBE_DEMO_MAX_ACCOUNTS` pour changer leurs valeurs par défaut.
 3. Domaines, dans l'interface Dokploy :
-   - domaine du site vitrine → service `site`, port `80` ;
+   - domaine du site vitrine → service `site`, port `8080` ;
    - domaine de la démonstration → service `colombe`, port `3000` ;
    - HTTPS activé sur les deux (Traefik gère les certificats automatiquement).
 

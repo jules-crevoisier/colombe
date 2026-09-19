@@ -74,6 +74,10 @@ services:
     build:
       context: ../..
       dockerfile: deploy/dokploy/site.Dockerfile
+      # Figées dans le site au build : bouton « Essayer la démo », image de partage, sitemap.
+      args:
+        COLOMBE_DEMO_URL: ${COLOMBE_DEMO_URL:?COLOMBE_DEMO_URL est obligatoire (ex. https://demo.colombe.exemple.org)}
+        COLOMBE_SITE_URL: ${COLOMBE_SITE_URL:-}
     restart: unless-stopped
     expose:
       - "8080"

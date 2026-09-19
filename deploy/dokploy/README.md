@@ -41,6 +41,9 @@ Onglet **Environment** du service Compose, une variable par ligne
 NUXT_SESSION_PASSWORD=<généré ci-dessous>
 WEBMAIL_DATA_KEY=<généré ci-dessous, DIFFÉRENT du précédent>
 COLOMBE_PROJECT_URL=https://colombe.exemple.org
+# Utilisées au build du site (bouton « Essayer la démo », image de partage, sitemap) :
+COLOMBE_DEMO_URL=https://demo.colombe.exemple.org
+COLOMBE_SITE_URL=https://colombe.exemple.org
 # Optionnelles (valeurs par défaut du contrat démo sinon) :
 # COLOMBE_DEMO_TTL_HOURS=4
 # COLOMBE_DEMO_MAX_ACCOUNTS=200

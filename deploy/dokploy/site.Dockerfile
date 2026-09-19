@@ -35,7 +35,14 @@ COPY . .
 RUN --mount=type=cache,id=colombe-site-pnpm-store,target=/pnpm-store \
     pnpm install --frozen-lockfile --offline
 
-# Aucun secret/variable d'exécution nécessaire pour un site statique.
+# Adresses lues au build par docs/.vitepress/config.mts (bouton « Essayer la démo »,
+# liens vers le dépôt, image de partage et sitemap). Aucun secret.
+ARG COLOMBE_DEMO_URL
+ARG COLOMBE_SITE_URL
+ARG COLOMBE_REPO_URL=https://github.com/jules-crevoisier/colombe
+ENV COLOMBE_DEMO_URL=${COLOMBE_DEMO_URL} \
+    COLOMBE_SITE_URL=${COLOMBE_SITE_URL} \
+    COLOMBE_REPO_URL=${COLOMBE_REPO_URL}
 RUN pnpm docs:build
 RUN test -f docs/.vitepress/dist/index.html || \
     (echo "docs/.vitepress/dist/index.html introuvable après 'pnpm docs:build'" >&2 && exit 1)
