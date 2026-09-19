@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev", "--port", "3000"],
       "port": 3000
+    },
+    {
+      "name": "docs-site",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "vitepress", "preview", "docs", "--port", "4180"],
+      "port": 4180
     }
   ]
 }
