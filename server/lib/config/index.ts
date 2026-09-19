@@ -58,6 +58,14 @@ export interface ColombeConfig {
     /** Chemin absolu d'un logo SVG/PNG/JPEG/WebP, ou null. */
     logoFile: string | null
   }
+  /** Limites (fenêtre de 15 minutes pour les compteurs). */
+  limits: {
+    sendPer15Min: number
+    loginPerAccount: number
+    loginPerIp: number
+    /** Total des pièces jointes d'un message, en octets (vérifié dans le navigateur). */
+    attachmentsBytes: number
+  }
   dataDir: string
 }
 
@@ -215,6 +223,22 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
   const sieveEnabled = bool(['MAIL_SIEVE_ENABLED'], true)
   const sievePort = port(['MAIL_SIEVE_PORT', 'NUXT_MAIL_SIEVE_PORT'], 4190)
   const trustProxy = bool(['MAIL_TRUST_PROXY', 'NUXT_MAIL_TRUST_PROXY'], false)
+  const count = (name: string, fallback: number, max: number): number => {
+    const raw = pick(env, name)
+    if (raw === undefined) return fallback
+    const n = Number(raw)
+    if (!Number.isInteger(n) || n < 1 || n > max) {
+      problems.push(`${name} doit être un entier entre 1 et ${max} (reçu « ${raw} »).`)
+      return fallback
+    }
+    return n
+  }
+  const limits = {
+    sendPer15Min: count('COLOMBE_SEND_LIMIT', 20, 10_000),
+    loginPerAccount: count('COLOMBE_LOGIN_LIMIT_ACCOUNT', 5, 1000),
+    loginPerIp: count('COLOMBE_LOGIN_LIMIT_IP', 30, 100_000),
+    attachmentsBytes: count('COLOMBE_MAX_ATTACHMENTS_MB', 10, 100) * 1024 * 1024,
+  }
   const supportUrl = url('COLOMBE_SUPPORT_URL')
   const passwordResetUrl = url('COLOMBE_PASSWORD_RESET_URL')
 
@@ -250,6 +274,7 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
       passwordResetUrl,
       logoFile,
     },
+    limits,
     dataDir: resolve(cwd, pick(env, 'WEBMAIL_DATA_DIR') ?? '.data'),
   }
 }
@@ -278,7 +303,7 @@ export function normalizeLoginEmail(input: string, config: Pick<ColombeConfig, '
     if (!config.login.defaultDomain) return null
     value = `${value}@${config.login.defaultDomain}`
   }
-  if (!EMAIL_RE.test(value) || /[\s<>()"]/.test(value)) return null
+  if (!EMAIL_RE.test(value) || /[\s<>()"\\\x00-\x1f\x7f]/.test(value)) return null
   const domain = value.slice(value.lastIndexOf('@') + 1)
   if (config.login.domains.length && !config.login.domains.includes(domain)) return null
   return value
@@ -301,5 +326,6 @@ export function publicConfig(config: ColombeConfig): PublicConfig {
     passwordResetUrl: b.passwordResetUrl,
     hasLogo: b.logoFile !== null,
     login: { domains: config.login.domains, defaultDomain: config.login.defaultDomain },
+    limits: { attachmentsBytes: config.limits.attachmentsBytes },
   }
 }

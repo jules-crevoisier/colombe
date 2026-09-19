@@ -24,6 +24,10 @@ export interface PublicConfig {
     /** Domaine ajouté quand l'utilisateur ne saisit que son identifiant (sans @), ou null. */
     defaultDomain: string | null
   }
+  limits: {
+    /** Total des pièces jointes d'un message, en octets (COLOMBE_MAX_ATTACHMENTS_MB). */
+    attachmentsBytes: number
+  }
 }
 
 /** Sécurité d'une connexion côté client de messagerie. */

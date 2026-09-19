@@ -1,8 +1,15 @@
 import { z } from 'zod'
 import type { ComposePayload } from '#shared/types/mail'
+import { getConfig } from '../config'
 
 export const MAX_RECIPIENTS = 100
-export const MAX_ATTACHMENTS_BYTES = 15 * 1024 * 1024
+/**
+ * Plafond côté serveur : la limite annoncée au navigateur (COLOMBE_MAX_ATTACHMENTS_MB,
+ * défaut 10 Mo) + 50 % de marge (images intégrées, brouillons repris).
+ */
+export function maxAttachmentsBytes(): number {
+  return Math.ceil(getConfig().limits.attachmentsBytes * 1.5)
+}
 
 const noNewline = (s: string) => !/[\r\n]/.test(s)
 
@@ -49,7 +56,8 @@ function checkTotals(data: z.infer<typeof baseSchema>, ctx: z.RefinementCtx, req
   if (requireRecipient && count === 0) ctx.addIssue({ code: 'custom', message: 'Au moins un destinataire est requis', path: ['to'] })
   if (count > MAX_RECIPIENTS) ctx.addIssue({ code: 'custom', message: `${MAX_RECIPIENTS} destinataires au maximum`, path: ['to'] })
   const bytes = (data.attachments ?? []).reduce((sum, a) => sum + base64Bytes(a.content), 0)
-  if (bytes > MAX_ATTACHMENTS_BYTES) ctx.addIssue({ code: 'custom', message: 'Pièces jointes trop volumineuses (15 Mo max.)', path: ['attachments'] })
+  const max = maxAttachmentsBytes()
+  if (bytes > max) ctx.addIssue({ code: 'custom', message: `Pièces jointes trop volumineuses (${Math.round(max / 1024 / 1024)} Mo max.)`, path: ['attachments'] })
 }
 
 /** Envoi : au moins un destinataire. */

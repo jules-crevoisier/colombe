@@ -9,6 +9,7 @@ const FALLBACK: PublicConfig = {
   passwordResetUrl: null,
   hasLogo: false,
   login: { domains: [], defaultDomain: null },
+  limits: { attachmentsBytes: 10 * 1024 * 1024 },
 }
 
 /**

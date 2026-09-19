@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { toast } from 'vue-sonner'
 import type { ComposeAttachment, ComposePayload, Identity, MessageDetail, Priority, MessageRef } from '#shared/types/mail'
 
+/** Défaut si la configuration du serveur n'est pas encore chargée (COLOMBE_MAX_ATTACHMENTS_MB). */
 export const MAX_ATTACHMENTS_BYTES = 10 * 1024 * 1024
 const AUTOSAVE_MS = 3000
 
@@ -440,9 +441,10 @@ export const useComposeStore = defineStore('compose', {
     },
 
     async addFiles(files: FileList | File[]) {
+      const limit = useSiteConfig().config.value.limits.attachmentsBytes ?? MAX_ATTACHMENTS_BYTES
       for (const file of Array.from(files)) {
-        if (this.attachmentsBytes + file.size > MAX_ATTACHMENTS_BYTES) {
-          toast.error(`« ${file.name} » dépasse la limite de 10 Mo de pièces jointes.`)
+        if (this.attachmentsBytes + file.size > limit) {
+          toast.error(`« ${file.name} » dépasse la limite de ${Math.round(limit / 1024 / 1024)} Mo de pièces jointes.`)
           continue
         }
         this.attachments.push({

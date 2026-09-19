@@ -121,6 +121,8 @@ describe('normalizeLoginEmail', () => {
     expect(normalizeLoginEmail('a b@univ-exemple.fr', one)).toBeNull()
     expect(normalizeLoginEmail('<x>@univ-exemple.fr', one)).toBeNull()
     expect(normalizeLoginEmail('', one)).toBeNull()
+    expect(normalizeLoginEmail(`a${String.fromCharCode(0)}b@univ-exemple.fr`, one)).toBeNull()
+    expect(normalizeLoginEmail('a\\b@univ-exemple.fr', one)).toBeNull()
     expect(normalizeLoginEmail('x@b.fr', multi)).toBe('x@b.fr')
   })
 })
@@ -138,5 +140,16 @@ describe('authUsername / publicConfig', () => {
     expect(json).not.toContain('imap.interne')
     expect(json).not.toContain('mail.univ-exemple.fr')
     expect(json).not.toContain(secrets.WEBMAIL_DATA_KEY)
+  })
+})
+
+describe('limites', () => {
+  it('défauts et surcharge', () => {
+    expect(loadConfig(base).limits).toEqual({ sendPer15Min: 20, loginPerAccount: 5, loginPerIp: 30, attachmentsBytes: 10 * 1024 * 1024 })
+    const c = loadConfig({ ...base, COLOMBE_SEND_LIMIT: '50', COLOMBE_LOGIN_LIMIT_IP: '300', COLOMBE_MAX_ATTACHMENTS_MB: '25' })
+    expect(c.limits).toMatchObject({ sendPer15Min: 50, loginPerIp: 300, attachmentsBytes: 25 * 1024 * 1024 })
+    expect(publicConfig(c).limits).toEqual({ attachmentsBytes: 25 * 1024 * 1024 })
+    expect(problems({ ...base, COLOMBE_SEND_LIMIT: '0' })).toHaveLength(1)
+    expect(problems({ ...base, COLOMBE_MAX_ATTACHMENTS_MB: '1.5' })).toHaveLength(1)
   })
 })

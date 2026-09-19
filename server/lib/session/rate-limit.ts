@@ -1,23 +1,31 @@
+import { getConfig } from '../config'
+
 interface Clock {
   now: () => number
 }
 
 interface RateLimiterOptions {
-  maxHits: number
+  /** Nombre ou fonction (lue à chaque appel : limite venant de la configuration). */
+  maxHits: number | (() => number)
   windowMs: number
   clock?: Clock
 }
 
 export class RateLimiter {
   private hits = new Map<string, number[]>() // key -> array of timestamps
-  private readonly maxHits: number
+  private readonly limit: () => number
   private readonly windowMs: number
   private readonly clock: Clock
 
   constructor(options: RateLimiterOptions) {
-    this.maxHits = options.maxHits
+    const { maxHits } = options
+    this.limit = typeof maxHits === 'function' ? maxHits : () => maxHits
     this.windowMs = options.windowMs
     this.clock = options.clock || { now: () => Date.now() }
+  }
+
+  private get maxHits(): number {
+    return this.limit()
   }
 
   isLimited(key: string): boolean {
@@ -63,15 +71,16 @@ export class RateLimiter {
 
 const FIFTEEN_MINUTES = 15 * 60 * 1000
 
-/** Échecs de connexion par adresse : 5 / 15 min. */
-export const loginLimiter = new RateLimiter({ maxHits: 5, windowMs: FIFTEEN_MINUTES })
+/** Échecs de connexion par adresse : COLOMBE_LOGIN_LIMIT_ACCOUNT (défaut 5) / 15 min. */
+export const loginLimiter = new RateLimiter({ maxHits: () => getConfig().limits.loginPerAccount, windowMs: FIFTEEN_MINUTES })
 
 /**
- * Échecs de connexion par IP : 30 / 15 min. Plus large que par adresse car
- * tout l'IUT sort par la même IP (NAT) — un étudiant qui se trompe ne doit pas
- * bloquer toute l'école, mais un robot de credential stuffing reste freiné.
+ * Échecs de connexion par IP : COLOMBE_LOGIN_LIMIT_IP (défaut 30) / 15 min. Plus large
+ * que par adresse car tout un établissement sort souvent par la même IP (NAT) : un
+ * étudiant qui se trompe ne doit pas bloquer toute l'école, mais un robot de
+ * credential stuffing reste freiné.
  */
-export const ipLoginLimiter = new RateLimiter({ maxHits: 30, windowMs: FIFTEEN_MINUTES })
+export const ipLoginLimiter = new RateLimiter({ maxHits: () => getConfig().limits.loginPerIp, windowMs: FIFTEEN_MINUTES })
 
-/** Envois par compte : 20 / 15 min, comme la limite Postfix. */
-export const sendLimiter = new RateLimiter({ maxHits: 20, windowMs: FIFTEEN_MINUTES })
+/** Envois par compte : COLOMBE_SEND_LIMIT (défaut 20) / 15 min, à aligner sur la limite Postfix. */
+export const sendLimiter = new RateLimiter({ maxHits: () => getConfig().limits.sendPer15Min, windowMs: FIFTEEN_MINUTES })

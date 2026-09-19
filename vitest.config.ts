@@ -19,6 +19,8 @@ export default defineConfig({
           name: 'unit',
           include: ['tests/unit/**/*.test.ts'],
           environment: 'node',
+          // getConfig() (limites, domaines) sans serveur de messagerie réel.
+          env: { MAIL_BACKEND: 'mock' },
         },
       },
       {
