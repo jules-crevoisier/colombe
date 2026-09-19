@@ -50,5 +50,6 @@ watch(isAuthedArea, (active) => {
   <template v-if="isAuthedArea">
     <AccountWelcomeDialog />
     <AccountIdleDialog />
+    <FiltersFilterDialog />
   </template>
 </template>

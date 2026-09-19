@@ -264,6 +264,13 @@ async function forwardAsAttachment() {
   await compose.openForwardAsAttachment(msg.value)
 }
 
+/** « Créer un filtre… » (docs/PLAN-v4.md F « Interface ») : De = expéditeur, Objet = objet. */
+function createFilterFromMessage() {
+  if (!msg.value) return
+  const filters = useFiltersStore()
+  filters.openCreate({ from: msg.value.from?.address ?? '', subject: msg.value.subject })
+}
+
 const PREVIEWABLE_IMAGES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 function isPreviewable(contentType: string): boolean {
   return PREVIEWABLE_IMAGES.includes(contentType) || contentType === 'text/plain'
@@ -420,6 +427,10 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
             </DropdownMenuItem>
             <DropdownMenuItem @select="junkSelected">
               Signaler comme spam
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem @select="createFilterFromMessage">
+              Créer un filtre…
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

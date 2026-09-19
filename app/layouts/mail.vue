@@ -85,6 +85,22 @@ function resetSearchOptions() {
   clearSearch()
 }
 
+/** « Créer un filtre » (docs/PLAN-v4.md F.2) : prérempli depuis les critères de recherche saisis. */
+function createFilterFromSearch() {
+  const filters = useFiltersStore()
+  const q = search.value.trim()
+  const fields = searchOptions.fields
+  const prefill: { from?: string; to?: string; subject?: string; containsWords?: string } = {}
+  if (q) {
+    if (fields.includes('from')) prefill.from = q
+    if (fields.includes('to')) prefill.to = q
+    if (fields.includes('subject')) prefill.subject = q
+    if (fields.includes('body') || fields.length === 0) prefill.containsWords = q
+  }
+  searchOptionsOpen.value = false
+  filters.openCreate(prefill)
+}
+
 // Raccourcis globaux : « c » nouveau message, « / » recherche, « ? » aide (ignorés pendant la saisie).
 const isTyping = isTypingTarget
 const shortcutsOpen = ref(false)
@@ -194,6 +210,7 @@ useHead({
                   <Button type="button" variant="outline" class="h-11 flex-1 rounded-full" @click="resetSearchOptions">Réinitialiser</Button>
                   <Button type="submit" class="h-11 flex-1 rounded-full">Rechercher</Button>
                 </div>
+                <Button type="button" variant="outline" class="h-11 w-full rounded-full" @click="createFilterFromSearch">Créer un filtre</Button>
               </form>
             </PopoverContent>
           </Popover>
