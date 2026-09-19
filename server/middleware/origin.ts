@@ -13,8 +13,15 @@ function hostOf(value: string): string | null {
   }
 }
 
+/** Chemin sans le préfixe de déploiement (app.baseURL, ex. « /colombe/ »). */
+function pathWithoutBase(path: string, baseURL: string): string {
+  const base = baseURL.replace(/\/+$/, '')
+  return base && path.startsWith(`${base}/`) ? path.slice(base.length) : path
+}
+
 export default defineEventHandler((event) => {
-  if (!event.path.startsWith('/api/') || SAFE_METHODS.has(event.method)) return
+  const path = pathWithoutBase(event.path, useRuntimeConfig(event).app.baseURL)
+  if (!path.startsWith('/api/') || SAFE_METHODS.has(event.method)) return
 
   const source = getHeader(event, 'origin') ?? getHeader(event, 'referer')
   const sourceHost = source ? hostOf(source) : null
