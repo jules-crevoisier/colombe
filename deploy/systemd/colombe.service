@@ -1,0 +1,65 @@
+# Service systemd pour une installation bare-metal (release tarball) derrière
+# Apache ou Nginx. Voir docs/DEPLOIEMENT.md (étape 6) pour le déploiement de
+# référence, et ../apache/colombe.conf ou ../nginx/colombe.conf pour le proxy.
+#
+# Installation :
+#   sudo cp colombe.service /etc/systemd/system/
+#   sudo mkdir -p /etc/colombe && sudo cp colombe.env.example /etc/colombe/colombe.env
+#   # remplir /etc/colombe/colombe.env (HOST, PORT, secrets, etc.)
+#   sudo systemctl daemon-reload && sudo systemctl enable --now colombe
+
+[Unit]
+Description=Colombe (webmail)
+Documentation=https://github.com/jules-crevoisier/colombe
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=colombe
+Group=colombe
+EnvironmentFile=/etc/colombe/colombe.env
+WorkingDirectory=/opt/colombe
+
+# Sur ce serveur, Debian 12 ne fournit que Node 18 (trop ancien pour
+# node:sqlite) : Node 24 est installé à part dans /opt/node. Si /usr/bin/env
+# node résout une version trop ancienne, utiliser le chemin explicite :
+#   ExecStart=/opt/node/bin/node /opt/colombe/server/index.mjs
+ExecStart=/usr/bin/env node /opt/colombe/server/index.mjs
+
+Restart=on-failure
+RestartSec=5
+
+# HOST et PORT sont définis dans /etc/colombe/colombe.env (référence :
+# HOST=127.0.0.1, PORT=3100 — jamais exposé directement, toujours derrière le
+# reverse proxy).
+
+# --- Durcissement ---
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/colombe
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RemoveIPC=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# Mémoire maximale du processus (décommenter et ajuster si besoin) :
+# MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

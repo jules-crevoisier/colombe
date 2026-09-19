@@ -1,0 +1,39 @@
+node_modules
+.output
+.nuxt
+.data
+.env
+.env.*
+!.env.example
+
+tests
+test-results
+playwright-report
+
+# docs/ : uniquement la doc admin/guide (le reste est interne, voir
+# scripts/build-release.mjs qui applique la même exclusion à la release tarball).
+# Docker ne permet pas de ré-inclure un enfant d'un dossier ignoré : on exclut
+# donc les fichiers un par un plutôt que tout "docs/" + négation.
+docs/AUDIT*
+docs/PLAN*
+docs/ROADMAP.md
+docs/SERVEUR.md
+docs/DEPLOIEMENT.md
+docs/incident*
+
+.orchestrator
+.deploy
+.claude
+.git
+.gitattributes
+.github
+
+*.log
+.DS_Store
+.build.lock
+
+release
+deploy
+Dockerfile
+.dockerignore
+docker-compose.yml
