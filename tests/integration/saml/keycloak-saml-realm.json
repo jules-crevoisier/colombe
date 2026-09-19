@@ -1,0 +1,106 @@
+{
+  "realm": "colombe",
+  "enabled": true,
+  "sslRequired": "none",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "clients": [
+    {
+      "clientId": "colombe",
+      "name": "Colombe (webmail)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "colombe-saml-test-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:39323/api/auth/oidc/callback"],
+      "webOrigins": [],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:39323/login",
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "dovecot",
+      "name": "Dovecot (introspection des jetons)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "dovecot-saml-introspection-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false
+    }
+  ],
+  "identityProviders": [
+    {
+      "alias": "saml-idp",
+      "displayName": "Fédération SAML (banc d'essai)",
+      "providerId": "saml",
+      "enabled": true,
+      "updateProfileFirstLoginMode": "off",
+      "trustEmail": true,
+      "storeToken": false,
+      "addReadTokenRoleOnCreate": false,
+      "authenticateByDefault": false,
+      "linkOnly": false,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "syncMode": "FORCE",
+        "nameIDPolicyFormat": "urn:oasis:names:tc:SAML:2.0:nameid-format:unspecified",
+        "principalType": "ATTRIBUTE",
+        "principalAttribute": "email",
+        "signatureAlgorithm": "RSA_SHA256",
+        "postBindingResponse": "true",
+        "postBindingAuthnRequest": "true",
+        "postBindingLogout": "true",
+        "wantAuthnRequestsSigned": "false",
+        "wantAssertionsSigned": "false",
+        "wantAssertionsEncrypted": "false",
+        "validateSignature": "false",
+        "singleSignOnServiceUrl": "http://localhost:8081/simplesaml/saml2/idp/SSOService.php",
+        "singleLogoutServiceUrl": "http://localhost:8081/simplesaml/saml2/idp/SingleLogoutService.php",
+        "idpEntityId": "http://localhost:8081/simplesaml/saml2/idp/metadata.php"
+      }
+    }
+  ],
+  "identityProviderMappers": [
+    {
+      "name": "email",
+      "identityProviderAlias": "saml-idp",
+      "identityProviderMapper": "saml-user-attribute-idp-mapper",
+      "config": {
+        "attribute.name": "email",
+        "user.attribute": "email",
+        "syncMode": "FORCE"
+      }
+    },
+    {
+      "name": "uid-username",
+      "identityProviderAlias": "saml-idp",
+      "identityProviderMapper": "saml-username-idp-mapper",
+      "config": {
+        "template": "saml-${ATTRIBUTE.uid}",
+        "target": "LOCAL"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "dev-local",
+      "email": "dev-local@universite.example",
+      "emailVerified": true,
+      "realmRoles": ["default-roles-colombe"],
+      "enabled": true,
+      "firstName": "Dev",
+      "lastName": "Local",
+      "credentials": [{ "type": "password", "value": "dev-local-password", "temporary": false }]
+    }
+  ]
+}

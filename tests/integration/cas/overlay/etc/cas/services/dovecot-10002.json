@@ -1,0 +1,13 @@
+{
+  "@class": "org.apereo.cas.services.OidcRegisteredService",
+  "clientId": "dovecot",
+  "clientSecret": "dovecot-cas-introspection-secret",
+  "serviceId": "^https://dovecot\\.colombe\\.invalid/introspection$",
+  "name": "Dovecot (introspection des jetons)",
+  "id": 10002,
+  "description": "Client OIDC confidentiel séparé, utilisé uniquement pour authentifier les appels d'introspection /oidc/introspect de Dovecot — jamais de flux standard.",
+  "evaluationOrder": 20,
+  "scopes": ["java.util.HashSet", ["openid"]],
+  "supportedGrantTypes": ["java.util.HashSet", []],
+  "supportedResponseTypes": ["java.util.HashSet", []]
+}

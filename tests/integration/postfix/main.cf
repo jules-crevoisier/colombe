@@ -1,0 +1,40 @@
+# Postfix (soumission SMTP) : authentification déléguée à Dovecot 2.4 (SASL par socket TCP,
+# service auth { inet_listener { port = 12345 } } côté Dovecot — voir dovecot-postfix.conf),
+# relais de tout le courrier vers Mailpit (banc d'essai, aucune livraison réelle).
+
+myhostname = colombe-test.example
+mydomain = colombe-test.example
+myorigin = $mydomain
+# Vide : aucune livraison locale, tout part vers $relayhost.
+mydestination =
+mynetworks = 127.0.0.0/8, [::1]/128
+inet_interfaces = all
+inet_protocols = ipv4
+
+# Relais unique : Mailpit (banc d'essai), qui garde les messages pour vérification.
+relayhost = [mailpit]:1025
+smtp_tls_security_level = none
+
+# --- SASL délégué à Dovecot (RFC 4422 XOAUTH2/OAUTHBEARER via le bloc oauth2 { } de Dovecot) ---
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = inet:dovecot-postfix:12345
+smtpd_sasl_auth_enable = yes
+smtpd_sasl_security_options = noanonymous
+smtpd_relay_restrictions = permit_sasl_authenticated, reject
+smtpd_recipient_restrictions = permit_sasl_authenticated, reject
+
+# --- TLS (STARTTLS, certificat auto-signé de test) ---
+smtpd_tls_cert_file = /etc/postfix/postfix.crt
+smtpd_tls_key_file = /etc/postfix/postfix.key
+smtpd_tls_security_level = may
+
+# Ligne de commande SMTP la plus longue acceptée (AUTH XOAUTH2/OAUTHBEARER envoie le jeton
+# après le défi 334, jamais sur la ligne AUTH elle-même — voir server/lib/mail/sasl.ts et
+# docs/admin/connexion-unique.md, §Longueur de ligne SMTP et jetons OIDC). Valeur par défaut
+# de Postfix, gardée explicite ici pour documenter ce qui a été testé.
+line_length_limit = 2048
+
+compatibility_level = 3
+
+# Journal sur stdout (pas de démon syslog dans ce conteneur minimal) : Postfix 3.4+.
+maillog_file = /dev/stdout

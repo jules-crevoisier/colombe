@@ -1,0 +1,56 @@
+# Banc d'essai « Postfix en frontal de soumission SMTP » : Postfix authentifie via Dovecot
+# 2.4 (smtpd_sasl_type = dovecot, socket TCP service auth { inet_listener { } }, conteneurs
+# séparés), Dovecot validant les jetons OIDC par introspection Keycloak (même royaume que
+# docker-compose.sso.yml). Contrairement aux autres bancs, la soumission SMTP testée ici
+# passe RÉELLEMENT par Postfix (les autres bancs relaient directement via la soumission
+# Dovecot) — voir docs/admin/connexion-unique.md, §Postfix (soumission SMTP).
+#
+# Usage : docker compose -f docker-compose.postfix.yml up -d --wait --build
+#         pnpm test:postfix
+#         docker compose -f docker-compose.postfix.yml down
+#
+# Comptes Keycloak (royaume « colombe », identique au banc SSO direct) : dev / dev-sso-password.
+name: colombe-sso-postfix
+
+services:
+  keycloak-postfix:
+    image: quay.io/keycloak/keycloak:26.3.3
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://localhost:8380
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./tests/integration/postfix/keycloak-realm.json:/opt/keycloak/data/import/colombe.json:ro
+    ports:
+      - "127.0.0.1:8380:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "127.0.0.1:18028:8025"   # API/interface web (lecture des messages relayés)
+
+  dovecot-postfix:
+    image: dovecot/dovecot:2.4.1
+    depends_on:
+      keycloak-postfix:
+        condition: service_healthy
+    environment:
+      USER_PASSWORD: dovecot-postfix-unused-password
+    volumes:
+      - ./tests/integration/postfix/dovecot-postfix.conf:/etc/dovecot/conf.d/auth.conf:ro
+
+  postfix:
+    build: ./tests/integration/postfix
+    depends_on:
+      - dovecot-postfix
+      - mailpit
+    ports:
+      - "127.0.0.1:3590:587"   # Soumission SMTP (STARTTLS), authentifiée via Dovecot
