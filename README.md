@@ -25,7 +25,7 @@ Roundcube's configuration and user data. The interface is in French for now.*
 - **Autres applications** : réglages et pas-à-pas pour Gmail, iPhone/iPad (profil de
   configuration), Outlook, Thunderbird, configuration automatique
 - Double authentification TOTP, sessions actives, journal des connexions
-- Mode sombre, accessibilité WCAG 2.2 AA vérifiée
+- Interface en français ou en anglais, mode sombre, accessibilité WCAG 2.2 AA vérifiée
 
 ## Sécurité
 

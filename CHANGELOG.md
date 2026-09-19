@@ -3,6 +3,24 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Colombe suit un schéma de version proche de [SemVer](https://semver.org/lang/fr/).
 
+## [1.0.0-rc.5] — 2026-09-19
+
+### Ajouté
+
+- **Interface en anglais**, à côté du français : réglage « Langue » dans Paramètres →
+  Général (automatique selon le navigateur, français, anglais), sélecteur FR | EN sur la
+  page de connexion, langue par défaut de l'établissement (`COLOMBE_DEFAULT_LANGUAGE`).
+  Messages du serveur, dates, tailles et e-mails envoyés par Colombe suivent la langue
+  choisie. Deux tests empêchent toute traduction manquante ou tout texte français oublié.
+- **Bancs d'essai de connexion unique sur de vrais serveurs** : Apereo CAS 7.1 (OpenID
+  Connect), passerelle SAML (SimpleSAMLphp → Keycloak) pour les fédérations type RENATER,
+  et Postfix en soumission SMTP par jeton. La page « Connexion unique » donne les
+  configurations exactes vérifiées (`pnpm test:cas`, `test:saml`, `test:postfix`).
+
+### Corrigé
+
+- Deux fautes de français dans des messages (« Seuls les dossiers… », « du dossier Spam »).
+
 ## [1.0.0-rc.4] — 2026-09-19
 
 ### Ajouté
@@ -145,6 +163,7 @@ d'environnement. En production dans un institut universitaire depuis le
 - Intégration continue (tests et vérification des types à chaque changement,
   publication de la release en brouillon sur les tags de version)
 
+[1.0.0-rc.5]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.5
 [1.0.0-rc.4]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.4
 [1.0.0-rc.3]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.3
 [1.0.0-rc.2]: https://github.com/jules-crevoisier/colombe/releases/tag/v1.0.0-rc.2
