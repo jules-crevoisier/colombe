@@ -92,7 +92,7 @@ async function handleNotificationsChange(enabled: boolean) {
     <div class="space-y-2">
       <Label for="setting-language" class="text-base font-medium">{{ t('language.label') }}</Label>
       <Select :model-value="prefs.prefs.language" @update:model-value="(v: string) => void prefs.save({ language: v as LanguagePref })">
-        <SelectTrigger id="setting-language" class="h-11 w-full text-base sm:w-64">
+        <SelectTrigger id="setting-language" class="h-11 w-full text-base sm:w-80">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

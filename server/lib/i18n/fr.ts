@@ -30,7 +30,7 @@ const fr = {
   'server.error': 'Erreur serveur',
   'upload.multipartRequired': 'Données multipart/form-data requises',
   // Dossiers et messages
-  'folders.emptyOnlyTrashSpam': 'Seules les dossiers Corbeille et Spam peuvent être vidés',
+  'folders.emptyOnlyTrashSpam': 'Seuls les dossiers Corbeille et Spam peuvent être vidés',
   'folders.deleteSubfoldersFirst': 'Supprimez d’abord les sous-dossiers.',
   'folders.emptyBeforeDelete': 'Videz ce dossier avant de le supprimer (aucune corbeille disponible).',
   'folders.existsHere': 'Un dossier porte déjà ce nom à cet emplacement.',

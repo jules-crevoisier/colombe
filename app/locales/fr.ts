@@ -167,7 +167,7 @@ const fr = {
         trashAction: 'Vider la corbeille',
         junkAction: 'Vider le spam',
         trashDescription: 'Cette action supprimera définitivement tous les messages de la corbeille.',
-        junkDescription: 'Cette action supprimera définitivement tous les messages de le dossier spam.',
+        junkDescription: 'Cette action supprimera définitivement tous les messages du dossier Spam.',
         confirm: 'Vider',
       },
       pagination: {
