@@ -8,6 +8,7 @@ const sieveStore = useSieveStore()
 const mail = useMailStore()
 const api = useFiltersApi()
 const confirmDialog = useTemplateRef('confirmDialog')
+const { addressExample } = useSiteConfig()
 
 const draft = reactive<FilterRule>(emptyRule())
 const advancedMode = ref(false)
@@ -312,7 +313,7 @@ async function save(): Promise<void> {
             </div>
             <div class="space-y-2">
               <Label for="filter-to">À</Label>
-              <Input id="filter-to" v-model="simpleTo" class="h-11 text-base" placeholder="moi@mmi-troyes.fr" />
+              <Input id="filter-to" v-model="simpleTo" class="h-11 text-base" :placeholder="addressExample" />
             </div>
             <div class="space-y-2">
               <Label for="filter-subject">Objet</Label>
@@ -358,7 +359,7 @@ async function save(): Promise<void> {
               <Checkbox :model-value="redirectChecked" @update:model-value="(v) => (redirectChecked = v === true)" />
               Transférer à
             </label>
-            <Input v-if="redirectChecked" v-model="redirectAddress" type="email" class="h-11 text-base" placeholder="destinataire@mmi-troyes.fr" aria-label="Transférer à" />
+            <Input v-if="redirectChecked" v-model="redirectAddress" type="email" class="h-11 text-base" :placeholder="addressExample" aria-label="Transférer à" />
             <label class="flex min-h-11 cursor-pointer items-center gap-3">
               <Checkbox :model-value="deleteChecked" @update:model-value="(v) => (deleteChecked = v === true)" />
               Supprimer
@@ -445,7 +446,7 @@ async function save(): Promise<void> {
               </template>
               <Input v-else-if="action.type === 'add-flag'" v-model="action.flag" class="h-11 text-base" placeholder="Mot-clé" aria-label="Mot-clé" />
               <template v-else-if="action.type === 'redirect'">
-                <Input v-model="action.address" type="email" class="h-11 text-base" placeholder="destinataire@mmi-troyes.fr" aria-label="Adresse de redirection" />
+                <Input v-model="action.address" type="email" class="h-11 text-base" :placeholder="addressExample" aria-label="Adresse de redirection" />
                 <label class="flex min-h-11 cursor-pointer items-center gap-3">
                   <Checkbox :model-value="action.keepCopy" @update:model-value="(v) => (action.keepCopy = v === true)" />
                   Garder une copie
@@ -457,7 +458,7 @@ async function save(): Promise<void> {
                 <Input v-model="action.value" class="h-11 text-base" placeholder="Valeur" aria-label="Valeur de l'en-tête" />
               </template>
               <template v-else-if="action.type === 'notify'">
-                <Input v-model="action.address" type="email" class="h-11 text-base" placeholder="destinataire@mmi-troyes.fr" aria-label="Adresse à avertir" />
+                <Input v-model="action.address" type="email" class="h-11 text-base" :placeholder="addressExample" aria-label="Adresse à avertir" />
                 <Textarea v-model="action.message" class="text-base" placeholder="Message" aria-label="Message d'avertissement" />
               </template>
             </div>

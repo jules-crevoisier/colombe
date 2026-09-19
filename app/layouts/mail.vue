@@ -9,6 +9,7 @@ const compose = useComposeStore()
 const api = useMailApi()
 const route = useRoute()
 const { user } = useUserSession()
+const { config: siteConfig } = useSiteConfig()
 
 const email = computed(() => user.value?.email ?? '')
 const mode = useColorMode({ storageKey: 'wm-color-mode' })
@@ -133,7 +134,7 @@ onMounted(() => {
 useLiveUpdates()
 
 useHead({
-  title: computed(() => (mail.inboxUnread ? `(${mail.inboxUnread}) Colombe` : 'Colombe')),
+  title: computed(() => (mail.inboxUnread ? `(${mail.inboxUnread}) ${siteConfig.value.productName}` : siteConfig.value.productName)),
 })
 </script>
 

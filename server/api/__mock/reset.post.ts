@@ -1,3 +1,4 @@
+import { getConfig } from '../../lib/config'
 import { resetMockStore } from '../../lib/mail/mock'
 import { ipLoginLimiter, loginLimiter, sendLimiter } from '../../lib/session/rate-limit'
 import { resetSieveMock } from '../../lib/sieve/mock'
@@ -8,7 +9,7 @@ import { useDb } from '../../lib/store/db'
  * backend lui-même interdit en production (plugin startup-guard).
  */
 export default defineEventHandler((event) => {
-  if (useRuntimeConfig(event).mail.backend !== 'mock') {
+  if (getConfig().backend !== 'mock') {
     throw createError({ statusCode: 404, statusMessage: 'Not found' })
   }
   resetMockStore()

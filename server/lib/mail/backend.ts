@@ -126,11 +126,30 @@ export class MailError extends Error {
 }
 
 export interface MailServerConfig {
-  host: string
+  imapHost: string
   imapPort: number
   imapSecure: boolean
+  /** Nom vérifié dans le certificat TLS IMAP (SNI + vérification), défaut : imapHost. */
+  imapServername: string
+  smtpHost: string
   smtpPort: number
+  /** true : TLS implicite (465). false : STARTTLS (587). */
+  smtpSecure: boolean
   smtpRequireTls: boolean
+  /** Nom vérifié dans le certificat TLS SMTP, défaut : smtpHost. */
+  smtpServername: string
   /** false uniquement en dev/tests contre un certificat auto-signé (interdit en production). */
   tlsRejectUnauthorized?: boolean
+  /** Identifiant présenté au serveur : l'adresse complète ou la partie avant @ (voir ColombeConfig.login.username). */
+  loginUsername: 'email' | 'localpart'
+}
+
+/**
+ * Identifiant présenté au serveur IMAP/SMTP pour une adresse — miroir de
+ * `authUsername` (server/lib/config), réimplémenté ici pour que ce module
+ * reste indépendant de server/lib/config (testable seul, sans variables
+ * d'environnement).
+ */
+export function mailUsername(email: string, config: Pick<MailServerConfig, 'loginUsername'>): string {
+  return config.loginUsername === 'localpart' ? email.slice(0, email.lastIndexOf('@')) : email
 }

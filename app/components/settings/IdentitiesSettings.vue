@@ -172,7 +172,7 @@ onMounted(load)
         <div class="space-y-2">
           <Label for="identity-signature">Signature</Label>
           <div class="flex min-h-56 flex-col overflow-hidden rounded-xl border border-border bg-surface-panel focus-within:ring-2 focus-within:ring-ring">
-            <MailRichEditor id="identity-signature" v-model:html="form.signatureHtml" label="Signature" :max-images="MAX_SIGNATURE_IMAGES" placeholder="Prénom Nom — fonction, département MMI, téléphone…" />
+            <MailRichEditor id="identity-signature" v-model:html="form.signatureHtml" label="Signature" :max-images="MAX_SIGNATURE_IMAGES" placeholder="Prénom Nom — fonction, service, téléphone…" />
           </div>
         </div>
 

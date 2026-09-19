@@ -6,7 +6,7 @@ import { credentialsStore } from '../../lib/session/credentials'
 import { loginLimiter } from '../../lib/session/rate-limit'
 import { useDb } from '../../lib/store/db'
 import { recordLoginEvent } from '../../lib/store/activity'
-import { clientIp } from '../../utils/mail-session'
+import { clientIp, logSafe } from '../../utils/mail-session'
 
 const bodySchema = z.object({ code: z.string().trim().min(6).max(32) })
 
@@ -34,6 +34,8 @@ export default defineEventHandler(async (event): Promise<LoginResult> => {
     // Authentification définitivement échouée : c'est ici, pas à /api/auth/login, que la
     // double authentification tranche succès/échec (voir ROADMAP R2.6).
     recordLoginEvent(useDb(), pending.email, ip, userAgent, false)
+    // Une ligne par échec, pour fail2ban (voir docs/admin/CONFIGURATION.md).
+    console.warn(`[colombe] auth-failure ip=${logSafe(ip)} user=${logSafe(pending.email)}`)
     if (failPending(pendingId)) {
       await clearUserSession(event)
       throw createError({ statusCode: 401, statusMessage: 'Code refusé', message: 'Trop de codes incorrects. Reconnectez-vous.' })

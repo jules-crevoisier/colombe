@@ -1,21 +1,22 @@
+import { ConfigError, getConfig } from '../lib/config'
+
 /**
- * Garde-fous au démarrage : une mauvaise configuration ne doit jamais ouvrir
- * le webmail avec les comptes de test du backend mémoire.
+ * Garde-fous au démarrage : une configuration invalide ne doit jamais laisser
+ * démarrer le webmail à moitié configuré (ex. avec les comptes de test du
+ * backend mémoire). Toute la validation (secrets de production, TLS, backend
+ * mock…) vit dans server/lib/config (loadConfig) ; ce greffon se contente de
+ * charger la configuration une fois, au démarrage, et d'arrêter le processus
+ * si elle est invalide plutôt que de laisser un serveur mal configuré répondre.
  */
 export default defineNitroPlugin(() => {
-  const { mail, session } = useRuntimeConfig()
-  const production = process.env.NODE_ENV === 'production'
-
-  if (production && String((mail as { tlsRejectUnauthorized?: unknown }).tlsRejectUnauthorized) === 'false' && process.env.WEBMAIL_ALLOW_INSECURE_TLS !== '1') {
-    throw new Error('[webmail] MAIL_TLS_REJECT_UNAUTHORIZED=false est interdit en production.')
+  try {
+    getConfig()
   }
-  if (production && mail.backend === 'mock' && process.env.WEBMAIL_ALLOW_MOCK !== '1') {
-    throw new Error('[webmail] MAIL_BACKEND=mock est interdit en production.')
-  }
-  if (production && String(process.env.WEBMAIL_DATA_KEY ?? '').length < 32) {
-    throw new Error('[webmail] WEBMAIL_DATA_KEY doit contenir au moins 32 caractères.')
-  }
-  if (production && String(session.password ?? '').length < 32) {
-    throw new Error('[webmail] NUXT_SESSION_PASSWORD doit contenir au moins 32 caractères.')
+  catch (err) {
+    if (err instanceof ConfigError) {
+      console.error(err.message)
+      process.exit(1)
+    }
+    throw err
   }
 })
