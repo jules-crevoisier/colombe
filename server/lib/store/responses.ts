@@ -39,7 +39,8 @@ interface ResponseRow {
 }
 
 function rowToResponse(row: ResponseRow): CannedResponse {
-  return { id: row.id, name: row.name, html: row.html }
+  // Assaini aussi à la lecture (import direct en base, voir scripts/import-roundcube.mjs).
+  return { id: row.id, name: row.name, html: row.html ? sanitizeOutgoingHtml(row.html) : '' }
 }
 
 export function listResponses(db: DatabaseSync, owner: string): CannedResponse[] {

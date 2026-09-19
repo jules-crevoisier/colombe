@@ -80,7 +80,9 @@ function rowToIdentity(row: IdentityRow, email: string): Identity {
     replyTo: row.reply_to,
     bcc: row.bcc,
     organization: row.organization,
-    signatureHtml: row.signature_html,
+    // Assaini aussi à la lecture : des lignes peuvent venir d'un import direct en base
+    // (scripts/import-roundcube.mjs), sans passer par l'API.
+    signatureHtml: sanitizeSignature(row.signature_html),
     isDefault: row.is_default === 1,
   }
 }
