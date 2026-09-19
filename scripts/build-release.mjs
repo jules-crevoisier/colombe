@@ -117,6 +117,7 @@ for (const dir of ['admin', 'guide']) {
 cpSync(cd('.env.example'), join(releaseDir, '.env.example'))
 cpSync(cd('README.md'), join(releaseDir, 'README.md'))
 if (existsSync(cd('CHANGELOG.md'))) cpSync(cd('CHANGELOG.md'), join(releaseDir, 'CHANGELOG.md'))
+if (existsSync(cd('SECURITY.md'))) cpSync(cd('SECURITY.md'), join(releaseDir, 'SECURITY.md'))
 for (const entry of readdirSync(root)) {
   if (/^LICEN[CS]E/i.test(entry)) cpSync(cd(entry), join(releaseDir, entry))
 }
