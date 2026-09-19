@@ -18,11 +18,18 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
-const files = ['app', 'server', 'shared', 'docs'].flatMap(sourceFiles)
+// Ce fichier contient lui-même les séquences recherchées : exclu.
+const files = ['app', 'server', 'shared', 'docs', 'scripts', 'tests'].flatMap(sourceFiles).filter(f => !f.endsWith('encoding.test.ts'))
 
 describe('politique : encodage des sources', () => {
   it('should not contain double-encoded UTF-8', () => {
     const offenders = files.filter(f => MOJIBAKE.test(readFileSync(f, 'utf8')))
+    expect(offenders).toEqual([])
+  })
+
+  it('should not contain raw control characters (write \u0000 escapes instead)', () => {
+    // Un NUL littéral fait passer le fichier pour binaire (git, grep, revue de code).
+    const offenders = files.filter(f => /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(readFileSync(f, 'utf8')))
     expect(offenders).toEqual([])
   })
 

@@ -153,3 +153,12 @@ describe('limites', () => {
     expect(problems({ ...base, COLOMBE_MAX_ATTACHMENTS_MB: '1.5' })).toHaveLength(1)
   })
 })
+
+describe('chemin de publication', () => {
+  it('NUXT_APP_BASE_URL validé', () => {
+    expect(problems({ ...base, NUXT_APP_BASE_URL: '/colombe/' })).toEqual([])
+    expect(problems({ ...base, NUXT_APP_BASE_URL: '/' })).toEqual([])
+    expect(problems({ ...base, NUXT_APP_BASE_URL: '/colombe' })).toHaveLength(1)
+    expect(problems({ ...base, NUXT_APP_BASE_URL: '/C:/Program Files/Git/webmail/' })).toHaveLength(1)
+  })
+})

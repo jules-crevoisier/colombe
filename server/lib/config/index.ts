@@ -70,9 +70,14 @@ export interface ColombeConfig {
 }
 
 export class ConfigError extends Error {
-  constructor(public readonly problems: string[]) {
+  // Pas de « propriété de paramètre » TypeScript : ce fichier doit rester exécutable
+  // tel quel par Node (type stripping) pour les scripts d'administration.
+  readonly problems: string[]
+
+  constructor(problems: string[]) {
     super(`Configuration invalide :\n${problems.map(p => `  - ${p}`).join('\n')}\nVoir docs/admin/CONFIGURATION.md.`)
     this.name = 'ConfigError'
+    this.problems = problems
   }
 }
 
@@ -238,6 +243,10 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
     loginPerAccount: count('COLOMBE_LOGIN_LIMIT_ACCOUNT', 5, 1000),
     loginPerIp: count('COLOMBE_LOGIN_LIMIT_IP', 30, 100_000),
     attachmentsBytes: count('COLOMBE_MAX_ATTACHMENTS_MB', 10, 100) * 1024 * 1024,
+  }
+  const baseUrl = env.NUXT_APP_BASE_URL?.trim()
+  if (baseUrl && !/^\/(?:[\w.~-]+\/)*$/.test(baseUrl)) {
+    problems.push(`NUXT_APP_BASE_URL doit commencer et finir par « / », sans espace (ex. /colombe/), reçu « ${baseUrl} ».`)
   }
   const supportUrl = url('COLOMBE_SUPPORT_URL')
   const passwordResetUrl = url('COLOMBE_PASSWORD_RESET_URL')

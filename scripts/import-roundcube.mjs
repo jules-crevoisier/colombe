@@ -11,8 +11,7 @@
  *
  * Zéro dépendance npm (Node 24 built-ins uniquement).
  */
-import { ensureTypeScriptSupport, isMainModule } from './lib/self-exec.mjs'
-if (isMainModule(import.meta.url)) ensureTypeScriptSupport()
+import { isMainModule } from './lib/self-exec.mjs'
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { resolve as resolvePath, join } from 'node:path'

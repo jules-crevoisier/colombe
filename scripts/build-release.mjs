@@ -16,7 +16,7 @@ import {
   rmSync, statSync, writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, join, relative } from 'node:path'
+import { basename, dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -96,13 +96,12 @@ if (existsSync(scriptsSrc)) {
 // Les scripts d'administration importent la configuration runtime directement
 // en TypeScript (Node 24 l'exécute nativement, sans étape de compilation) :
 // le fichier source doit être présent au même chemin relatif.
-const configSrc = cd('server', 'lib', 'config', 'index.ts')
-if (existsSync(configSrc)) {
-  mkdirSync(join(releaseDir, 'server', 'lib', 'config'), { recursive: true })
-  cpSync(configSrc, join(releaseDir, 'server', 'lib', 'config', 'index.ts'))
-}
-else {
-  fail('server/lib/config/index.ts est introuvable.')
+// (import-roundcube utilise aussi le schéma de la base et le lecteur vCard.)
+for (const rel of ['server/lib/config/index.ts', 'server/lib/store/db.ts', 'server/lib/contacts/vcard.ts']) {
+  const src = cd(...rel.split('/'))
+  if (!existsSync(src)) fail(`${rel} est introuvable.`)
+  mkdirSync(join(releaseDir, dirname(rel)), { recursive: true })
+  cpSync(src, join(releaseDir, rel))
 }
 
 // Déploiement (Docker, systemd, Apache, Nginx, fail2ban).

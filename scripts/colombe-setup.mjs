@@ -8,8 +8,7 @@
  * sans pnpm ni node_modules. Voir scripts/lib/self-exec.mjs pour le détail du flag
  * --experimental-transform-types nécessaire à l'import de server/lib/config/index.ts.
  */
-import { ensureTypeScriptSupport, isMainModule } from './lib/self-exec.mjs'
-if (isMainModule(import.meta.url)) ensureTypeScriptSupport()
+import { isMainModule } from './lib/self-exec.mjs'
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { platform } from 'node:os'

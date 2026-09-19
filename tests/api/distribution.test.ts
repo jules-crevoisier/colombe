@@ -78,7 +78,7 @@ describe('config publique', () => {
       expect(raw).not.toContain(secret)
     }
     const body = JSON.parse(raw) as Record<string, unknown>
-    expect(Object.keys(body).sort()).toEqual(['hasLogo', 'login', 'loginMessage', 'orgName', 'passwordResetUrl', 'productName', 'supportEmail', 'supportUrl'].sort())
+    expect(Object.keys(body).sort()).toEqual(['hasLogo', 'limits', 'login', 'loginMessage', 'orgName', 'passwordResetUrl', 'productName', 'supportEmail', 'supportUrl'].sort())
     expect(body).toMatchObject({
       productName: 'Colombe',
       orgName: 'Université Exemple',
@@ -87,6 +87,7 @@ describe('config publique', () => {
       hasLogo: false,
     })
     expect(body.login).toEqual({ domains: ['mmi-troyes.fr'], defaultDomain: 'mmi-troyes.fr' })
+    expect(body.limits).toEqual({ attachmentsBytes: 10 * 1024 * 1024 })
   })
 })
 

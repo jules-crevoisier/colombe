@@ -47,6 +47,8 @@ RUN rm -f ./scripts/with-build-lock.mjs ./scripts/deploy.sh ./scripts/check-depl
 # (TypeScript exécuté nativement par Node 24, sans étape de compilation) : le
 # fichier source doit exister au même chemin relatif que dans le dépôt.
 COPY --from=build /app/server/lib/config/index.ts ./server/lib/config/index.ts
+COPY --from=build /app/server/lib/store/db.ts ./server/lib/store/db.ts
+COPY --from=build /app/server/lib/contacts/vcard.ts ./server/lib/contacts/vcard.ts
 
 # Utilisateur système dédié, sans privilèges, uid/gid fixes (portable entre hôtes).
 RUN groupadd --gid 10001 colombe \
