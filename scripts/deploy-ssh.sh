@@ -33,7 +33,7 @@ unset NUXT_SESSION_PASSWORD WEBMAIL_DATA_KEY WEBMAIL_DATA_DIR NUXT_APP_BASE_URL 
 
 mkdir -p .deploy && : > .deploy/.empty.env
 if [ "${SKIP_BUILD:-0}" != "1" ]; then
-  pnpm exec node scripts/with-build-lock.mjs "nuxt build --dotenv .deploy/.empty.env && node -e \"require('fs').rmSync('.deploy/colombe',{recursive:true,force:true});require('fs').cpSync('.output','.deploy/colombe',{recursive:true})\""
+  pnpm exec node scripts/with-build-lock.mjs "nuxt build --dotenv .deploy/.empty.env && node -e \"require('fs').rmSync('.deploy/colombe',{recursive:true,force:true});require('fs').cpSync('.output','.deploy/colombe',{recursive:true,verbatimSymlinks:true})\""
 fi
 node scripts/check-deploy-secrets.mjs
 

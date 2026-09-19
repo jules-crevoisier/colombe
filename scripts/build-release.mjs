@@ -12,11 +12,11 @@
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import {
-  cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync,
+  cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync,
   rmSync, statSync, writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, dirname, join, relative } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
@@ -77,7 +77,10 @@ mkdirSync(releaseDir, { recursive: true })
 
 // Sortie Nuxt : server/, public/, nitro.json… directement à la racine de la
 // release (comme dans l'image Docker : CMD ["node", "server/index.mjs"]).
-cpSync(cd('.output'), releaseDir, { recursive: true })
+// verbatimSymlinks : Nitro relie certaines versions de dépendances par des liens RELATIFS
+// (node_modules/.nitro/…) ; sans cette option, cpSync les réécrit en chemins absolus de la
+// machine de build, introuvables une fois l'archive installée sur un serveur.
+cpSync(cd('.output'), releaseDir, { recursive: true, verbatimSymlinks: true })
 
 // Scripts d'administration : copie tolérante (certains sont écrits par
 // ailleurs et peuvent ne pas encore exister), en excluant les outils réservés
@@ -125,6 +128,28 @@ writeFileSync(join(releaseDir, 'VERSION'), `${version}\n`)
 
 // --- 3. Vérifications de sécurité avant de packager ---
 log('Vérification : aucun secret ni fichier interdit dans la release…')
+
+// 3.0 Liens symboliques : relatifs et internes à l'archive uniquement. Un lien absolu
+// pointerait vers la machine de build et casserait l'installation sur un serveur.
+function checkSymlinks(dir) {
+  let bad = 0
+  for (const entry of readdirSync(dir)) {
+    const p = join(dir, entry)
+    const st = lstatSync(p)
+    if (st.isSymbolicLink()) {
+      const target = readlinkSync(p)
+      const resolved = resolve(dirname(p), target)
+      if (isAbsolute(target) || !resolved.startsWith(releaseDir) || !existsSync(resolved)) {
+        console.error(`  lien invalide : ${relative(releaseDir, p)} -> ${target}`)
+        bad++
+      }
+    }
+    else if (st.isDirectory()) bad += checkSymlinks(p)
+  }
+  return bad
+}
+const badLinks = checkSymlinks(releaseDir)
+if (badLinks) fail(`${badLinks} lien(s) symbolique(s) absolu(s) ou cassé(s) dans la release.`)
 
 function walk(dir) {
   const out = []
