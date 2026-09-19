@@ -47,7 +47,12 @@ export const usePrefsStore = defineStore('prefs', {
       }
     },
 
-    async save(patch: Partial<Prefs>) {
+    /**
+     * `silent` : pas de toast (succès ou échec) — synchronisation en tâche de fond
+     * (ex. la langue choisie à la connexion, recopiée comme préférence du compte),
+     * plutôt qu'un changement explicitement demandé depuis Paramètres.
+     */
+    async save(patch: Partial<Prefs>, options: { silent?: boolean } = {}) {
       const previous = { ...this.prefs }
       const updated = { ...this.prefs, ...patch }
 
@@ -64,7 +69,7 @@ export const usePrefsStore = defineStore('prefs', {
           body: patch,
         })
         this.prefs = result
-        toast.success(i18n.global.t('common.prefsSaved'))
+        if (!options.silent) toast.success(i18n.global.t('common.prefsSaved'))
       }
       catch (err) {
         // Revert on error
@@ -74,7 +79,7 @@ export const usePrefsStore = defineStore('prefs', {
           await session.clear()
           await navigateTo('/login')
         }
-        else {
+        else if (!options.silent) {
           toast.error(errorText(err, i18n.global.t('common.prefsSaveFailed')))
         }
       }

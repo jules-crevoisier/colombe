@@ -1,4 +1,4 @@
-import { applyLocale, browserLanguages, currentLocale, i18n, readStoredLanguage, resolveLocale } from '~/lib/i18n'
+import { applyLocale, browserLanguages, currentLocale, i18n, readStoredLanguage, resolveAppLocale } from '~/lib/i18n'
 
 /**
  * Langue de l'interface (vue-i18n, API de composition).
@@ -21,7 +21,7 @@ export default defineNuxtPlugin({
   name: 'colombe-i18n',
   enforce: 'pre',
   setup(nuxtApp) {
-    applyLocale(resolveLocale(readStoredLanguage() ?? 'auto', browserLanguages(), 'fr'))
+    applyLocale(resolveAppLocale('auto', readStoredLanguage(), browserLanguages(), 'fr'))
     nuxtApp.vueApp.use(i18n)
 
     const nativeFetch = globalThis.fetch.bind(globalThis)

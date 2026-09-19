@@ -5,12 +5,23 @@ import type { LanguagePref } from '#shared/types/i18n'
 
 const prefs = usePrefsStore()
 const { t } = useI18n()
+const { choose: chooseStoredLanguage, clear: clearStoredLanguage } = useStoredLanguageChoice()
 
 const languageOptions = computed(() => [
   { value: 'auto' as const, label: t('language.auto') },
   { value: 'fr' as const, label: t('language.fr') },
   { value: 'en' as const, label: t('language.en') },
 ])
+
+/**
+ * « Automatique » efface le choix mémorisé dans ce navigateur (retour à la détection du
+ * navigateur) ; Français/English l'y écrit — jamais l'inverse (voir useLanguage).
+ */
+function setLanguage(language: LanguagePref): void {
+  if (language === 'auto') clearStoredLanguage()
+  else chooseStoredLanguage(language)
+  void prefs.save({ language })
+}
 
 const pageSizeOptions = [
   { value: 25, label: '25' },
@@ -91,7 +102,7 @@ async function handleNotificationsChange(enabled: boolean) {
     <!-- Langue -->
     <div class="space-y-2">
       <Label for="setting-language" class="text-base font-medium">{{ t('language.label') }}</Label>
-      <Select :model-value="prefs.prefs.language" @update:model-value="(v: string) => void prefs.save({ language: v as LanguagePref })">
+      <Select :model-value="prefs.prefs.language" @update:model-value="(v: string) => void setLanguage(v as LanguagePref)">
         <SelectTrigger id="setting-language" class="h-11 w-full text-base sm:w-80">
           <SelectValue />
         </SelectTrigger>

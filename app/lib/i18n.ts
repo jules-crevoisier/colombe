@@ -63,29 +63,89 @@ export function resolveLocale(pref: LanguagePref, languages: readonly string[], 
   return pref === 'auto' ? detectLocale(languages, fallback) : pref
 }
 
-export function browserLanguages(): readonly string[] {
-  if (typeof navigator === 'undefined') return []
-  if (Array.isArray(navigator.languages) && navigator.languages.length) return navigator.languages
-  return navigator.language ? [navigator.language] : []
+/**
+ * Langue active « toutes sources confondues » : la préférence du compte (`auto` quand
+ * personne n'est connecté), sinon le choix explicite fait sur ce navigateur (sélecteur
+ * FR | EN de la page de connexion), sinon la langue du navigateur, sinon celle de
+ * l'établissement.
+ *
+ * Une préférence de compte explicite (fr/en, choisie dans Paramètres) gagne toujours :
+ * le choix mémorisé sur ce navigateur n'est consulté que tant que le compte est « auto ».
+ */
+export function resolveAppLocale(
+  accountPref: LanguagePref,
+  explicitChoice: AppLocale | null,
+  languages: readonly string[],
+  fallback: AppLocale,
+): AppLocale {
+  if (isAppLocale(accountPref)) return accountPref
+  return resolveLocale(explicitChoice ?? 'auto', languages, fallback)
 }
 
-/** Choix mémorisé dans ce navigateur (sélecteur FR | EN de la page de connexion, ou préférence du compte). */
-export function readStoredLanguage(): LanguagePref | null {
+interface NavigatorLike {
+  readonly languages?: readonly string[]
+  readonly language?: string
+}
+
+function defaultNavigator(): NavigatorLike | undefined {
+  return typeof navigator === 'undefined' ? undefined : navigator
+}
+
+/** Langues du navigateur, dans l'ordre de préférence. `nav` est injectable pour les tests. */
+export function browserLanguages(nav: NavigatorLike | undefined = defaultNavigator()): readonly string[] {
+  if (!nav) return []
+  if (Array.isArray(nav.languages) && nav.languages.length) return nav.languages
+  return nav.language ? [nav.language] : []
+}
+
+/** Sous-ensemble de `Storage` utilisé ici (`window.localStorage`, ou un remplaçant de test). */
+export interface StorageLike {
+  getItem(key: string): string | null
+  setItem(key: string, value: string): void
+  removeItem(key: string): void
+}
+
+function defaultStorage(): StorageLike | undefined {
   try {
-    const value = window.localStorage.getItem(LANG_STORAGE_KEY)
-    return isLanguagePref(value) ? value : null
+    return typeof window === 'undefined' ? undefined : window.localStorage
+  }
+  catch {
+    // Navigation privée, stockage bloqué.
+    return undefined
+  }
+}
+
+/**
+ * Choix explicite fait sur ce navigateur (sélecteur FR | EN de la page de connexion, ou
+ * recopié depuis une préférence de compte fr/en). `auto` n'est jamais stocké : son absence
+ * (clé absente) *est* « auto ». `storage` est injectable pour les tests.
+ */
+export function readStoredLanguage(storage: StorageLike | undefined = defaultStorage()): AppLocale | null {
+  try {
+    const value = storage?.getItem(LANG_STORAGE_KEY) ?? null
+    return isAppLocale(value) ? value : null
   }
   catch {
     return null
   }
 }
 
-export function storeLanguage(pref: LanguagePref): void {
+export function storeLanguage(locale: AppLocale, storage: StorageLike | undefined = defaultStorage()): void {
   try {
-    window.localStorage.setItem(LANG_STORAGE_KEY, pref)
+    storage?.setItem(LANG_STORAGE_KEY, locale)
   }
   catch {
     // Navigation privée, stockage bloqué : la langue reste celle de la session en cours.
+  }
+}
+
+/** Efface le choix explicite (retour à « auto », § Paramètres → Général → « Automatique »). */
+export function clearStoredLanguage(storage: StorageLike | undefined = defaultStorage()): void {
+  try {
+    storage?.removeItem(LANG_STORAGE_KEY)
+  }
+  catch {
+    // Navigation privée, stockage bloqué.
   }
 }
 
