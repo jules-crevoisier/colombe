@@ -43,8 +43,13 @@ RUN test -f docs/.vitepress/dist/index.html || \
 
 FROM caddy:2-alpine AS runtime
 # Utilisateur non privilégié, uid/gid fixe 10001 (même convention que le
-# Dockerfile principal). Caddy écoute sur :8080 (port non privilégié) : pas
-# besoin de capacité particulière pour ce choix de port.
+# Dockerfile principal). Caddy écoute sur :8080 (port non privilégié). Le binaire
+# de l'image officielle porte la capability fichier cap_net_bind_service : avec
+# cap_drop ALL et no-new-privileges (docker-compose.yml), le noyau refuse alors de
+# l'exécuter (« operation not permitted »). Elle est inutile ici : on la retire.
+RUN apk add --no-cache libcap \
+ && setcap -r /usr/bin/caddy \
+ && apk del libcap
 RUN addgroup -g 10001 site \
  && adduser -D -u 10001 -G site -h /srv/site -s /sbin/nologin site
 WORKDIR /srv/site
