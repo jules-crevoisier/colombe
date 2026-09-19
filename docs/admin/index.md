@@ -19,8 +19,9 @@ place.
 - Ne délivre, ne fait transiter et ne stocke aucun message : le courrier reste
   intégralement sur le serveur IMAP.
 - Peut déléguer l'authentification à l'annuaire fédéré de l'établissement via
-  **connexion unique OpenID Connect** (Keycloak testé ; CAS, Shibboleth, Entra ID, Google
-  Workspace documentés mais non testés) — voir [Connexion unique](/admin/connexion-unique).
+  **connexion unique OpenID Connect** (Keycloak et Apereo CAS 7.1 testés de bout en bout,
+  ainsi qu'une passerelle SAML ; Shibboleth, Entra ID, Google Workspace documentés mais non
+  testés) — voir [Connexion unique](/admin/connexion-unique).
 - Peut interroger l'**annuaire LDAP** de l'établissement (schéma SupAnn/eduPerson) pour
   proposer les personnes de l'établissement dans les destinataires et dans Contacts —
   recherche seule, jamais d'authentification — voir [Annuaire LDAP](/admin/annuaire).

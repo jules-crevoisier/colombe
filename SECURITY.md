@@ -10,4 +10,4 @@ Versions maintenues : la dernière version publiée. Les correctifs de sécurit�
 l'objet d'une version dédiée, annoncée dans `CHANGELOG.md`.
 
 Modèle de sécurité et recommandations d'exploitation :
-[docs/admin/SECURITE.md](docs/admin/SECURITE.md).
+[docs/admin/securite.md](docs/admin/securite.md).

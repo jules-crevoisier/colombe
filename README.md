@@ -1,8 +1,9 @@
 # Colombe
 
-Webmail moderne pour les établissements qui exploitent leur propre serveur de messagerie
-(Dovecot + Postfix) : universités, écoles, collectivités, entreprises. Conçu pour
-remplacer Roundcube (et RainLoop) sans toucher au serveur de messagerie.
+Webmail moderne et **libre (licence AGPL-3.0)** pour les établissements qui exploitent
+leur propre serveur de messagerie (Dovecot + Postfix) : universités, écoles, collectivités,
+entreprises. Conçu pour remplacer Roundcube (et RainLoop) sans toucher au serveur de
+messagerie.
 
 Interface inspirée de Gmail, pensée d'abord pour le mobile, sécurisée par défaut. En
 production dans un institut universitaire depuis septembre 2026.

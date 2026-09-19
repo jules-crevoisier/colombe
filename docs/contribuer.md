@@ -33,6 +33,10 @@ docker compose up -d greenmail   # docker-compose.yml à la racine
 | `pnpm test:e2e` | Parcours navigateur (Playwright), viewports 320 px et 1440 px | application lancée (`pnpm dev`, backend mock) ou `E2E_BASE_URL` défini |
 | `pnpm test:integration` | Backend IMAP réel | `docker compose up -d greenmail` |
 | `pnpm test:dovecot` | Filtres Sieve contre un vrai Dovecot + Pigeonhole | `docker compose up -d dovecot` ; build automatique |
+| `pnpm test:sso` | Connexion unique OpenID Connect contre Keycloak + Dovecot | `docker-compose.sso.yml` ; build automatique |
+| `pnpm test:cas` | Connexion unique contre Apereo CAS (protocole OIDC) + Dovecot | `docker-compose.cas.yml` ; build automatique |
+| `pnpm test:saml` | Passerelle SAML → OIDC (Keycloak + SimpleSAMLphp) + Dovecot | `docker-compose.saml.yml` ; build automatique |
+| `pnpm test:postfix` | Soumission SMTP par connexion unique à travers Postfix | `docker-compose.postfix.yml` |
 | `pnpm typecheck` | Vérification TypeScript (`nuxt typecheck`) | aucun |
 
 ::: warning E2E : toujours `http://localhost`

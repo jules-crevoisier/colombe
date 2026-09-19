@@ -203,7 +203,7 @@ Compteurs sur une fenêtre de 15 minutes glissante, **par processus** (voir
 | `WEBMAIL_DATA_KEY` | — (obligatoire en production, 32 caractères mini., **différente** de la précédente) | Clé de chiffrement des secrets de double authentification. **Sauvegardez-la à part** : sans elle, les utilisateurs devront reconfigurer leur double authentification. |
 | `WEBMAIL_DATA_DIR` | `.data` | Dossier de la base SQLite locale (préférences, contacts, identités, réponses types, filtres enregistrés, 2FA). Résolu par rapport au dossier de travail si relatif. |
 | `NUXT_APP_BASE_URL` | `/` | Chemin de publication, **avec la barre finale** : `/colombe/`, `/webmail/`. Lu au runtime par Nuxt (pas par `server/lib/config`) : pas de recompilation pour en changer. |
-| `HOST`, `PORT` (ou `NITRO_HOST`, `NITRO_PORT`) | `0.0.0.0`, `3000` | Adresse d'écoute du processus. Derrière un reverse proxy : `127.0.0.1`. |
+| `HOST`, `PORT` (ou `NITRO_HOST`, `NITRO_PORT`) | `0.0.0.0`, `3000` | Adresse d'écoute du processus. Derrière un reverse proxy : `127.0.0.1`. Lu au runtime par Nitro lui-même (pas par `server/lib/config`), comme `NUXT_APP_BASE_URL` ci-dessus. |
 | `MAIL_TRUST_PROXY` | `false` | `true` derrière un reverse proxy de confiance : l'IP du client est lue dans `X-Forwarded-For` (limitation des tentatives, journal, fail2ban). Ne l'activez **que** si Colombe n'est joignable que par ce proxy. |
 | `NODE_ENV` | — | `production` en production : active les cookies `Secure`, les vérifications de secrets, et interdit le backend `mock` et les certificats non vérifiés sauf dérogation explicite. |
 

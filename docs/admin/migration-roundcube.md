@@ -140,5 +140,5 @@ recompilation n'est nécessaire.
 | Plugin `newmail_notifier` | Nouveaux messages en direct, notifications du bureau |
 | Plugin `password` | Pas de changement de mot de passe dans le webmail : lien `COLOMBE_PASSWORD_RESET_URL` vers l'outil de l'établissement |
 | Carnet d'adresses LDAP global | [Annuaire LDAP](/admin/annuaire) (recherche seule, schéma SupAnn/eduPerson) |
-| Plugin CAS / authentification centralisée | [Connexion unique OpenID Connect](/admin/connexion-unique) (Keycloak testé ; CAS 6+ via son point de terminaison OIDC documenté mais non testé) |
+| Plugin CAS / authentification centralisée | [Connexion unique OpenID Connect](/admin/connexion-unique) (Keycloak et Apereo CAS 7.1 testés de bout en bout via leur point de terminaison OIDC) |
 | Plugin `enigma` (PGP) | Non prévu |
