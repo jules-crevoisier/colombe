@@ -83,10 +83,10 @@ function backToPassword() {
 <template>
   <main class="w-full max-w-[448px] rounded-3xl bg-surface-panel px-6 py-10 sm:px-10">
     <div class="mb-8 flex flex-col items-start gap-4">
-      <span class="grid size-12 place-items-center rounded-xl bg-primary text-xl font-bold text-primary-foreground" aria-hidden="true">
-        <ShieldCheck v-if="step === 'code'" class="size-6" />
-        <template v-else>C</template>
+      <span v-if="step === 'code'" class="grid size-12 place-items-center rounded-xl bg-primary text-xl font-bold text-primary-foreground" aria-hidden="true">
+        <ShieldCheck class="size-6" />
       </span>
+      <BrandLogo v-else class="size-12" label="Colombe" />
       <div>
         <h1 class="text-3xl font-normal tracking-tight">{{ step === 'code' ? 'Validation en deux étapes' : 'Connexion' }}</h1>
         <p class="mt-2 text-base text-muted-foreground">
