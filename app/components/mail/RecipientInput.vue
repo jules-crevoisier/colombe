@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { watchDebounced } from '@vueuse/core'
-import { X, Users } from '@lucide/vue'
-import type { Contact } from '#shared/types/mail'
+import { X, Users, Building2 } from '@lucide/vue'
+import type { Contact, DirectoryEntry } from '#shared/types/mail'
 
 /**
  * Champ destinataires en « puces » avec autocomplétion (motif ARIA combobox).
  * Entrée, virgule, point-virgule ou sortie du champ valident une adresse saisie.
  * Les groupes de contacts apparaissent dans la liste (« {nom} ({n} membres) ») ;
  * en choisir un ajoute une puce par membre (docs/dev/PLAN-v3.md R2.3 / R2.8).
+ * Après les contacts, l'annuaire de l'établissement (LDAP) complète la liste quand
+ * `features.directory` est actif — voir server/api/directory/search.get.ts.
  */
 const props = defineProps<{ label: string; id: string; autofocus?: boolean }>()
 const model = defineModel<string[]>({ required: true })
@@ -16,35 +18,77 @@ const emit = defineEmits<{ change: [] }>()
 type Suggestion =
   | { kind: 'contact', contact: Contact }
   | { kind: 'group', id: number, name: string, emails: string[] }
+  | { kind: 'directory', entry: DirectoryEntry }
+
+// Le minimum réel (LDAP_MIN_QUERY) n'est pas exposé côté client (contrat de
+// PublicConfig) : 3 est la valeur par défaut documentée. Un écart éventuel n'est pas
+// grave — une requête trop courte renvoie simplement un tableau vide côté serveur.
+const DIRECTORY_MIN_QUERY = 3
 
 const draft = ref('')
 const input = ref<HTMLInputElement | null>(null)
-const suggestions = ref<Suggestion[]>([])
+const contactSuggestions = ref<Suggestion[]>([])
+const directorySuggestions = ref<Suggestion[]>([])
+const suggestions = computed<Suggestion[]>(() => [...contactSuggestions.value, ...directorySuggestions.value])
 const active = ref(-1)
 const open = computed(() => suggestions.value.length > 0)
 const listId = computed(() => `${props.id}-suggestions`)
 const contactsApi = useContactsApi()
+const directoryApi = useDirectoryApi()
+const { config: siteConfig } = useSiteConfig()
+
+function clearSuggestions() {
+  contactSuggestions.value = []
+  directorySuggestions.value = []
+}
 
 watchDebounced(draft, async (q) => {
   const query = q.trim()
   if (!query || /[,;]/.test(query)) {
-    suggestions.value = []
+    contactSuggestions.value = []
+    active.value = suggestions.value.length ? 0 : -1
     return
   }
   try {
     const result = await contactsApi.searchWithGroups(query, 6)
     const taken = new Set(model.value.map(a => a.toLowerCase()))
-    const contactSuggestions: Suggestion[] = result.contacts
+    const contacts: Suggestion[] = result.contacts
       .filter(c => !taken.has(c.email.toLowerCase()))
       .map(contact => ({ kind: 'contact', contact }))
-    const groupSuggestions: Suggestion[] = result.groups.map(g => ({ kind: 'group', id: g.id, name: g.name, emails: g.emails }))
-    suggestions.value = [...groupSuggestions, ...contactSuggestions]
+    const groups: Suggestion[] = result.groups.map(g => ({ kind: 'group', id: g.id, name: g.name, emails: g.emails }))
+    contactSuggestions.value = [...groups, ...contacts]
     active.value = suggestions.value.length ? 0 : -1
   }
   catch {
-    suggestions.value = []
+    contactSuggestions.value = []
   }
 }, { debounce: 200 })
+
+watchDebounced(draft, async (q) => {
+  const query = q.trim()
+  if (!siteConfig.value.features.directory || query.length < DIRECTORY_MIN_QUERY || /[,;]/.test(query)) {
+    directorySuggestions.value = []
+    return
+  }
+  try {
+    const taken = new Set([
+      ...model.value.map(a => a.toLowerCase()),
+      ...contactSuggestions.value.flatMap((s) => {
+        if (s.kind === 'contact') return [s.contact.email.toLowerCase()]
+        if (s.kind === 'group') return s.emails.map(e => e.toLowerCase())
+        return []
+      }),
+    ])
+    const results = await directoryApi.search(query)
+    directorySuggestions.value = results
+      .filter(entry => !taken.has(entry.email.toLowerCase()))
+      .map(entry => ({ kind: 'directory', entry }))
+    if (active.value < 0 && suggestions.value.length) active.value = 0
+  }
+  catch {
+    directorySuggestions.value = []
+  }
+}, { debounce: 250 })
 
 function add(addresses: string[]) {
   const fresh = addresses.filter(a => !model.value.some(e => e.toLowerCase() === a.toLowerCase()))
@@ -56,14 +100,15 @@ function add(addresses: string[]) {
 function commit() {
   const parsed = parseRecipientString(draft.value)
   draft.value = ''
-  suggestions.value = []
+  clearSuggestions()
   add(parsed)
 }
 
 function pick(suggestion: Suggestion) {
   draft.value = ''
-  suggestions.value = []
-  add(suggestion.kind === 'group' ? suggestion.emails : [suggestion.contact.email])
+  clearSuggestions()
+  const emails = suggestion.kind === 'group' ? suggestion.emails : suggestion.kind === 'directory' ? [suggestion.entry.email] : [suggestion.contact.email]
+  add(emails)
   input.value?.focus()
 }
 
@@ -76,7 +121,7 @@ function onKeydown(e: KeyboardEvent) {
   }
   if (open.value && e.key === 'Escape') {
     e.stopPropagation()
-    suggestions.value = []
+    clearSuggestions()
     return
   }
   if ((e.key === 'Enter' || e.key === 'Tab') && open.value && active.value >= 0) {
@@ -171,7 +216,7 @@ onMounted(() => {
       <li
         v-for="(s, i) in suggestions"
         :id="`${listId}-${i}`"
-        :key="s.kind === 'group' ? `group-${s.id}` : `contact-${s.contact.id}`"
+        :key="s.kind === 'group' ? `group-${s.id}` : s.kind === 'directory' ? `directory-${s.entry.email}` : `contact-${s.contact.id}`"
         role="option"
         :aria-selected="i === active"
         class="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2.5 py-1.5"
@@ -185,6 +230,18 @@ onMounted(() => {
           </span>
           <span class="flex min-w-0 flex-col">
             <span class="truncate text-sm font-medium">{{ s.name }} ({{ s.emails.length }} membre{{ s.emails.length > 1 ? 's' : '' }})</span>
+          </span>
+        </template>
+        <template v-else-if="s.kind === 'directory'">
+          <span class="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground" aria-hidden="true">
+            <Building2 class="size-4" />
+          </span>
+          <span class="flex min-w-0 flex-col">
+            <span class="flex items-center gap-1.5">
+              <span class="truncate text-sm font-medium">{{ s.entry.name }}</span>
+              <span class="shrink-0 rounded-sm bg-secondary px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-secondary-foreground uppercase">Annuaire</span>
+            </span>
+            <span class="truncate text-xs text-muted-foreground">{{ s.entry.email }}{{ s.entry.department ? ` · ${s.entry.department}` : '' }}</span>
           </span>
         </template>
         <template v-else>

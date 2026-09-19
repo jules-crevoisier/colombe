@@ -353,6 +353,20 @@ export interface ContactSearchResult {
   groups: Array<{ id: number; name: string; emails: string[] }>
 }
 
+/**
+ * Une fiche de l'annuaire LDAP de l'établissement (GET /api/directory/search).
+ * Jamais de champ au-delà de ceux-ci : pas de DN, pas d'attribut LDAP brut.
+ */
+export interface DirectoryEntry {
+  name: string
+  email: string
+  phone: string | null
+  title: string | null
+  department: string | null
+  /** Libellé français (« Étudiant », « Personnel », « Enseignant »), ou la valeur brute si inconnue. */
+  affiliation: string | null
+}
+
 export interface ContactImportResult {
   imported: number
   skipped: number

@@ -11,6 +11,7 @@ const FALLBACK: PublicConfig = {
   login: { domains: [], defaultDomain: null },
   limits: { attachmentsBytes: 10 * 1024 * 1024 },
   demo: null,
+  features: { directory: false },
 }
 
 /**

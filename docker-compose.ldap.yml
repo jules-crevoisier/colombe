@@ -1,0 +1,33 @@
+# Annuaire LDAP de test (OpenLDAP), pour la recherche dans l'annuaire de
+# l'établissement (server/lib/ldap, GET /api/directory/search). Jamais exposé hors de
+# la machine. Usage : docker compose -f docker-compose.ldap.yml up -d
+#
+# Base : dc=universite,dc=example (auto-créée par l'image à partir de LDAP_DOMAIN),
+# ~15 personnes chargées depuis docker/ldap/bootstrap.ldif au premier démarrage.
+# ldap:// en clair, sans STARTTLS : autorisé par server/lib/config car l'hôte est
+# 127.0.0.1 (voir loadConfig, LDAP_URL). En production, utiliser ldaps:// ou
+# LDAP_STARTTLS=true contre un vrai certificat.
+#
+# L'image osixia/openldap refuse la lecture anonyme par défaut (ACL de la config
+# initiale) : les tests utilisent donc une liaison authentifiée (compte admin). La
+# liaison anonyme (LDAP_BIND_DN/LDAP_BIND_PASSWORD absents) reste prise en charge par
+# server/lib/ldap/client.ts et couverte par tests/unit/config/ldap.test.ts, mais n'est
+# pas exercée contre ce conteneur précis.
+#
+# LDAP_URL=ldap://127.0.0.1:3389
+# LDAP_BASE_DN=dc=universite,dc=example
+# LDAP_BIND_DN=cn=admin,dc=universite,dc=example
+# LDAP_BIND_PASSWORD=admin-test-password
+services:
+  openldap:
+    image: osixia/openldap:1.5.0
+    command: --copy-service
+    environment:
+      LDAP_ORGANISATION: Université Exemple
+      LDAP_DOMAIN: universite.example
+      LDAP_ADMIN_PASSWORD: admin-test-password
+      LDAP_TLS: "false"
+    volumes:
+      - ./docker/ldap:/container/service/slapd/assets/config/bootstrap/ldif/custom:ro
+    ports:
+      - "127.0.0.1:3389:389"

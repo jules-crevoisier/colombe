@@ -35,6 +35,11 @@ export interface PublicConfig {
     /** Lien « Découvrir le projet », ou null. */
     projectUrl: string | null
   }
+  /** Fonctionnalités activables selon la configuration serveur. */
+  features: {
+    /** Annuaire LDAP de l'établissement (GET /api/directory/search), voir LDAP_URL. */
+    directory: boolean
+  }
 }
 
 /** Sécurité d'une connexion côté client de messagerie. */

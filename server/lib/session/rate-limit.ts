@@ -87,3 +87,6 @@ export const sendLimiter = new RateLimiter({ maxHits: () => getConfig().limits.s
 
 /** Comptes démo créés par IP : 10 / 15 min (POST /api/auth/demo). Fixe, pas de compte à cranter. */
 export const demoLimiter = new RateLimiter({ maxHits: 10, windowMs: FIFTEEN_MINUTES })
+
+/** Recherches annuaire par session : 30 / min (GET /api/directory/search). */
+export const directorySearchLimiter = new RateLimiter({ maxHits: 30, windowMs: 60_000 })
