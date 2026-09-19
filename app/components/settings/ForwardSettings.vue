@@ -3,17 +3,32 @@ import { toast } from 'vue-sonner'
 import type { FiltersStatus, ForwardSettings } from '#shared/types/mail'
 
 const api = useFiltersApi()
+const devicesApi = useDevicesApi()
 const sieveStore = useSieveStore()
 const confirmDialog = useTemplateRef('confirmDialog')
 
 const loading = ref(true)
 const saving = ref(false)
 const status = ref<FiltersStatus | null>(null)
+/** Domaines autorisés comme destination (MAIL_FORWARD_DOMAINS) ; vide tant qu'inconnus. */
+const forwardDomains = ref<string[]>([])
 
 const form = reactive<ForwardSettings>({ enabled: false, address: '', keepCopy: true })
+const placeholder = computed(() => forwardPlaceholder(forwardDomains.value))
+const domainLabels = computed(() => formatDomains(forwardDomains.value))
+
+async function loadDomains(): Promise<void> {
+  try {
+    forwardDomains.value = (await devicesApi.settings()).forwardDomains
+  }
+  catch {
+    // Indication facultative : le serveur refusera de toute façon un domaine non autorisé.
+  }
+}
 
 async function load(): Promise<void> {
   loading.value = true
+  void loadDomains()
   try {
     status.value = await sieveStore.loadStatus()
     if (status.value.available) {
@@ -65,7 +80,20 @@ async function save(): Promise<void> {
     <form v-else class="flex flex-col gap-6" @submit.prevent="save">
       <div class="space-y-2">
         <Label for="forward-address">Transférer tous mes messages à</Label>
-        <Input id="forward-address" v-model="form.address" type="email" class="h-11 text-base" placeholder="destinataire@mmi-troyes.fr" />
+        <Input
+          id="forward-address"
+          v-model="form.address"
+          type="email"
+          class="h-11 text-base"
+          :placeholder="placeholder"
+          :aria-describedby="forwardDomains.length ? 'forward-domains' : undefined"
+        />
+        <p v-if="forwardDomains.length" id="forward-domains" class="text-sm text-muted-foreground">
+          Transfert possible uniquement vers :
+          <template v-for="(d, i) in domainLabels" :key="d">
+            <span class="whitespace-nowrap">{{ d }}</span><template v-if="i < domainLabels.length - 1">, </template>
+          </template>
+        </p>
       </div>
 
       <label class="flex min-h-11 cursor-pointer items-center gap-3">
