@@ -62,7 +62,7 @@ const userFeatures = [
   { title: 'Raccourcis clavier', text: 'Ceux de Gmail. La touche « ? » les affiche.' },
   { title: 'Mode sombre', text: 'Clair, sombre, ou selon le réglage de l’appareil.' },
   { title: 'Accessible', text: 'WCAG 2.2 AA vérifié : clavier, lecteurs d’écran, contrastes.' },
-  { title: 'En français', text: 'Interface, messages d’erreur et documentation, écrits pour être compris.' },
+  { title: 'En français ou en anglais', text: 'Chacun choisit sa langue dans les réglages ; par défaut, celle de son navigateur.' },
 ]
 
 const otherApps = [
@@ -90,6 +90,18 @@ const adminFacts = [
     text: 'Les deux webmails parlent au même serveur. Un groupe pilote d’abord, la bascule quand vous êtes prêt.',
     link: '/admin/',
     label: 'Vue d’ensemble',
+  },
+  {
+    title: 'Connexion unique de l’établissement',
+    text: 'OpenID Connect : CAS, Shibboleth, Keycloak. La messagerie est ouverte par jeton vérifié par Dovecot, aucun mot de passe stocké. Bancs d’essai réels fournis.',
+    link: '/admin/connexion-unique',
+    label: 'Connexion unique',
+  },
+  {
+    title: 'Annuaire de l’établissement',
+    text: 'LDAP en lecture seule (schéma SupAnn) : les adresses de toute l’université se complètent toutes seules, et un onglet Annuaire les cherche.',
+    link: '/admin/annuaire',
+    label: 'Annuaire LDAP',
   },
   {
     title: 'Supervision et diagnostic',
