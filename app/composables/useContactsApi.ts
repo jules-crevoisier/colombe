@@ -72,7 +72,7 @@ export function useContactsApi() {
       call<null>(`/api/contact-groups/${groupId}/members`, { method: 'POST', body: { contactIds } }),
     removeFromGroup: (groupId: number, contactIds: number[]) =>
       call<null>(`/api/contact-groups/${groupId}/members`, { method: 'DELETE', body: { contactIds } }),
-    exportVcfUrl: () => '/api/contacts/export.vcf',
+    exportVcfUrl: () => apiUrl('/api/contacts/export.vcf'),
     async importFile(file: File | Blob, filename = 'contacts.vcf') {
       const formData = new FormData()
       formData.append('file', file, filename)

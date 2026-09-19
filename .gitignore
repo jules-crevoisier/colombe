@@ -12,3 +12,4 @@ playwright-report
 .DS_Store
 .build.lock
 .orchestrator/
+.deploy/

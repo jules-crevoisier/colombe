@@ -146,7 +146,7 @@ useHead({
     <header class="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-1 bg-surface-app px-2 lg:static lg:gap-2 lg:px-4">
       <MailIconButton :icon="Menu" label="Menu principal" @click="toggleMenu" />
       <NuxtLink to="/mail/INBOX" class="hidden items-center gap-2 pr-6 text-lg font-medium tracking-tight md:flex lg:w-[200px]">
-        <span class="grid size-8 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground" aria-hidden="true">C</span>
+        <BrandLogo class="size-8" />
         Colombe
       </NuxtLink>
 

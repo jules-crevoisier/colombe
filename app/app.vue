@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// Favicon (logo « Pli ») : chemin préfixé par app.baseURL pour le déploiement sous /colombe/.
+useHead({ link: [{ rel: 'icon', type: 'image/svg+xml', href: apiUrl('/favicon.svg') }] })
 import { useColorMode } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 

@@ -67,7 +67,7 @@ export function useMailApi() {
     },
     message: (folder: string, uid: number) => call<MessageDetail>(`/api/messages/${uid}`, { query: { folder } }),
     attachmentUrl: (folder: string, uid: number, id: string) =>
-      `/api/messages/${uid}/attachments/${encodeURIComponent(id)}?folder=${encodeURIComponent(folder)}`,
+      apiUrl(`/api/messages/${uid}/attachments/${encodeURIComponent(id)}?folder=${encodeURIComponent(folder)}`),
     setFlags: (folder: string, uids: number[], flags: { seen?: boolean; flagged?: boolean }) =>
       call<null>('/api/messages/flags', { method: 'POST', body: { folder, uids, ...flags } }),
     move: (folder: string, uids: number[], destination: string) =>
@@ -83,7 +83,7 @@ export function useMailApi() {
     emptyFolder: (folder: string) =>
       call<null>('/api/folders/empty', { method: 'POST', body: { folder } }),
     zipUrl: (folder: string, uids: number[]) =>
-      `/api/messages/zip?folder=${encodeURIComponent(folder)}&uids=${uids.join(',')}`,
+      apiUrl(`/api/messages/zip?folder=${encodeURIComponent(folder)}&uids=${uids.join(',')}`),
     async importEml(folder: string, files: File[]) {
       const formData = new FormData()
       formData.append('folder', folder)
@@ -97,11 +97,11 @@ export function useMailApi() {
     },
     source: (folder: string, uid: number) => call<MessageSource>(`/api/messages/${uid}/source`, { query: { folder } }),
     rawUrl: (folder: string, uid: number) =>
-      `/api/messages/${uid}/raw?folder=${encodeURIComponent(folder)}`,
+      apiUrl(`/api/messages/${uid}/raw?folder=${encodeURIComponent(folder)}`),
     printUrl: (folder: string, uid: number) =>
-      `/api/messages/${uid}/print?folder=${encodeURIComponent(folder)}`,
+      apiUrl(`/api/messages/${uid}/print?folder=${encodeURIComponent(folder)}`),
     attachmentsZipUrl: (folder: string, uid: number) =>
-      `/api/messages/${uid}/attachments.zip?folder=${encodeURIComponent(folder)}`,
+      apiUrl(`/api/messages/${uid}/attachments.zip?folder=${encodeURIComponent(folder)}`),
     redirect: (folder: string, uid: number, to: string[]) =>
       call<null>(`/api/messages/${uid}/redirect`, { method: 'POST', body: { folder, to } }),
     sendMdn: (folder: string, uid: number) =>

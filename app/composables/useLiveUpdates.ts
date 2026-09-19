@@ -38,7 +38,7 @@ export function useLiveUpdates() {
 
   onMounted(() => {
     if (!('EventSource' in window)) return
-    source = new EventSource('/api/events')
+    source = new EventSource(apiUrl('/api/events'))
     source.onmessage = (e: MessageEvent<string>) => {
       try {
         const ev = JSON.parse(e.data) as LiveEvent
