@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Colombe</title>
+  <rect width="64" height="64" rx="16" fill="#1f3a8a"/>
+  <!-- Colombe recentrée : boîte englobante (7–62 ; 7–45) ramenée au centre du carré. -->
+  <g transform="translate(-2.5 6)">
+    <polygon points="21,35 14,11 29,31" fill="#9fb6f0"/>
+    <polygon points="21,35 27,7 38,30" fill="#ffffff"/>
+    <polygon points="7,39 21,35 31,45" fill="#dbe5fb"/>
+    <polygon points="21,35 38,30 31,45" fill="#eef3fd"/>
+    <polygon points="31,45 38,30 47,31" fill="#c9d7f7"/>
+    <polygon points="38,30 49,19 47,31" fill="#ffffff"/>
+    <polygon points="49,19 57,22.5 47,31" fill="#dbe5fb"/>
+    <polygon points="57,22.5 62,25 55.5,26" fill="#f59e6b"/>
+  </g>
+</svg>
