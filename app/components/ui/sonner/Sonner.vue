@@ -15,12 +15,15 @@ import { cn } from '@/lib/utils'
 
 // Identité « Pli » : un bordereau imprimé à l'encre (encre sur papier ; papier sur nuit).
 const props = defineProps<ToasterProps>()
-const delegatedProps = reactiveOmit(props, 'class', 'toastOptions')
+const delegatedProps = reactiveOmit(props, 'class', 'toastOptions', 'mobileOffset')
+// Mobile : au-dessus du bouton flottant « Nouveau message », jamais dessus.
+const mobileOffset = computed(() => props.mobileOffset ?? { bottom: 'calc(env(safe-area-inset-bottom) + 88px)', left: '16px', right: '16px' })
 </script>
 
 <template>
   <Sonner
     :class="cn('toaster group', props.class)"
+    :mobile-offset="mobileOffset"
     :style="{
       '--normal-bg': 'var(--foreground)',
       '--normal-text': 'var(--background)',

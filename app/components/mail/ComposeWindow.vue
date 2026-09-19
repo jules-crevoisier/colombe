@@ -132,7 +132,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
     v-if="compose.isOpen"
     role="dialog"
     aria-labelledby="compose-title"
-    class="fixed inset-0 z-40 flex animate-sheet-up flex-col bg-surface-panel lg:inset-auto lg:animate-sheet-right lg:overflow-hidden lg:border-border lg:shadow-float"
+    class="fixed inset-0 z-40 flex animate-sheet-up flex-col bg-popover text-popover-foreground lg:inset-auto lg:animate-sheet-right lg:overflow-hidden lg:border-border lg:shadow-float"
     :class="[
       compose.minimized
         ? 'hidden lg:right-6 lg:bottom-0 lg:flex lg:w-80 lg:rounded-t-lg lg:border lg:border-b-0'

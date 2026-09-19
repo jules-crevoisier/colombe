@@ -2,6 +2,10 @@
 @import "@fontsource-variable/instrument-sans";
 @import "@fontsource-variable/newsreader/opsz.css";
 
+/* Positionnement et animation des notifications (vue-sonner) : sans cette feuille, les
+   toasts s'affichaient sans style, sous le bas de la page. */
+@import "vue-sonner/style.css";
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn-vue/tailwind.css";
