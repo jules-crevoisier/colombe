@@ -45,6 +45,11 @@ export default defineNuxtConfig({
         { name: 'robots', content: 'noindex, nofollow' },
         { name: 'referrer', content: 'no-referrer' },
       ],
+      // Dans le HTML initial (et non ajouté par JavaScript) : préfixé par le chemin de
+      // déploiement, sinon le navigateur demande /favicon.ico à la racine du site principal.
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: `${process.env.NUXT_APP_BASE_URL || '/'}favicon.svg` },
+      ],
     },
   },
   runtimeConfig: {
