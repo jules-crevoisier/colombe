@@ -154,7 +154,7 @@ async function handleNotificationsChange(enabled: boolean) {
     </div>
 
     <div class="border-t border-border pt-8">
-      <h3 class="mb-6 text-lg font-semibold">Lecture</h3>
+      <h3 class="mb-5 font-heading text-xl font-medium">Lecture</h3>
       <div class="space-y-8">
         <!-- Volet de lecture -->
         <div class="space-y-2">
@@ -235,7 +235,7 @@ async function handleNotificationsChange(enabled: boolean) {
     </div>
 
     <div class="border-t border-border pt-8">
-      <h3 class="mb-6 text-lg font-semibold">Compte</h3>
+      <h3 class="mb-5 font-heading text-xl font-medium">Compte</h3>
       <!-- Inactivité (R2.6) : délai avant la boîte « Toujours là ? ». -->
       <div class="space-y-2">
         <Label :for="'pref-idle-minutes'" class="text-base font-medium">Déconnexion pour inactivité</Label>

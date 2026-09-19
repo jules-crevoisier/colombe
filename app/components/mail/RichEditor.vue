@@ -159,7 +159,7 @@ const editor = useEditor({
   ],
   editorProps: {
     attributes: {
-      'class': 'prose-mail min-h-40 px-4 py-3 text-base leading-relaxed outline-none',
+      'class': 'prose-mail min-h-40 px-5 py-4 text-base leading-relaxed outline-none',
       'aria-label': props.label,
       'aria-multiline': 'true',
       'role': 'textbox',
@@ -249,13 +249,13 @@ onBeforeUnmount(() => editor.value?.destroy())
     <div class="min-h-0 flex-1 overflow-y-auto" @click="editor?.commands.focus()">
       <EditorContent :id="id" :editor="editor" />
     </div>
-    <div role="toolbar" aria-label="Mise en forme" :aria-controls="id" class="flex shrink-0 gap-0.5 overflow-x-auto border-t border-border/60 px-2 py-1 [scrollbar-width:none]">
+    <div role="toolbar" aria-label="Mise en forme" :aria-controls="id" class="flex shrink-0 gap-0.5 overflow-x-auto border-t border-border px-3 py-1 [scrollbar-width:none]">
       <Tooltip v-for="tool in tools" :key="tool.label">
         <TooltipTrigger as-child>
           <button
             type="button"
-            class="grid size-10 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground lg:size-8"
-            :class="{ 'bg-nav-active text-nav-active-foreground': tool.active() }"
+            class="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring lg:size-8"
+            :class="{ 'bg-primary/10 text-primary': tool.active() }"
             :aria-label="tool.label"
             :aria-pressed="tool.active()"
             @mousedown.prevent
@@ -311,10 +311,10 @@ onBeforeUnmount(() => editor.value?.destroy())
 .prose-mail p { margin: 0 0 .5em; }
 .prose-mail ul { list-style: disc; padding-left: 1.5em; }
 .prose-mail ol { list-style: decimal; padding-left: 1.5em; }
-.prose-mail blockquote { border-left: 3px solid var(--border); padding-left: .75em; color: var(--muted-foreground); margin: .5em 0; }
+.prose-mail blockquote { border-left: 2px solid var(--line-strong); padding-left: .75em; color: var(--muted-foreground); margin: .5em 0; }
 .prose-mail a { color: var(--primary); text-decoration: underline; }
-.prose-mail h2 { font-size: 1.25em; font-weight: 600; }
-.prose-mail h3 { font-size: 1.1em; font-weight: 600; }
+.prose-mail h2 { font-family: var(--font-heading); font-size: 1.35em; font-weight: 500; }
+.prose-mail h3 { font-family: var(--font-heading); font-size: 1.15em; font-weight: 500; }
 .prose-mail img { border-radius: .375em; }
 .prose-mail p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--muted-foreground); float: left; height: 0; pointer-events: none; }
 </style>

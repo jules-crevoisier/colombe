@@ -267,7 +267,7 @@ onMounted(() => {
     <!-- Dernière connexion et activité récente (R2.6) -->
     <div class="space-y-4">
       <div>
-        <h3 class="text-lg font-semibold">Dernière connexion</h3>
+        <h3 class="font-heading text-xl font-medium">Dernière connexion</h3>
         <div v-if="activityLoading" class="mt-2"><Skeleton class="h-10 w-full" /></div>
         <p v-else-if="activity?.lastLogin" class="mt-2 text-sm text-muted-foreground">
           {{ formatEventDate(activity.lastLogin.at) }} depuis {{ activity.lastLogin.ip }} — {{ activity.lastLogin.userAgent }}
@@ -276,7 +276,7 @@ onMounted(() => {
       </div>
 
       <div>
-        <h3 class="text-lg font-semibold">Activité récente</h3>
+        <h3 class="font-heading text-xl font-medium">Activité récente</h3>
         <div v-if="activityLoading" class="mt-2 space-y-2">
           <Skeleton class="h-10 w-full" />
           <Skeleton class="h-10 w-full" />
@@ -294,8 +294,8 @@ onMounted(() => {
     <!-- Sessions actives (R2.6) -->
     <div class="space-y-4 border-t border-border pt-8">
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <h3 class="text-lg font-semibold">Sessions actives</h3>
-        <Button variant="outline" class="h-11 rounded-full px-5" :disabled="sessionsLoading || sessions.length <= 1" @click="revokeOthersDialog = true">
+        <h3 class="font-heading text-xl font-medium">Sessions actives</h3>
+        <Button variant="outline" class="h-11 rounded-lg px-5" :disabled="sessionsLoading || sessions.length <= 1" @click="revokeOthersDialog = true">
           <LogOut class="size-4" aria-hidden="true" />
           Déconnecter les autres sessions
         </Button>
@@ -357,7 +357,7 @@ onMounted(() => {
     <!-- Setup step 1: QR code -->
     <div v-else-if="setup && !recoveryCodesShown" class="space-y-6">
       <div class="space-y-2">
-        <h3 class="text-lg font-semibold">Étape 1 : Scanner le QR code</h3>
+        <h3 class="font-heading text-xl font-medium">Étape 1 : Scanner le QR code</h3>
         <p class="text-sm text-muted-foreground">
           Scannez ce QR code avec une application d'authentification (Aegis, FreeOTP, Google Authenticator…)
         </p>
@@ -424,7 +424,7 @@ onMounted(() => {
     <!-- Recovery codes display -->
     <div v-else-if="recoveryCodesShown" class="space-y-6">
       <div class="space-y-2">
-        <h3 class="text-lg font-semibold">Codes de secours</h3>
+        <h3 class="font-heading text-xl font-medium">Codes de secours</h3>
         <div class="rounded-lg border border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">
           <strong>Important :</strong> Ces codes ne s'afficheront qu'une seule fois. Enregistrez-les dans un endroit sûr.
         </div>

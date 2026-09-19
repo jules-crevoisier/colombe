@@ -127,9 +127,9 @@ const phoneLabelText: Record<string, string> = { home: 'Domicile', work: 'Travai
 
 <template>
   <div class="flex h-full min-h-0 flex-col">
-    <div class="flex h-14 shrink-0 items-center gap-1 border-b border-border/60 px-2">
+    <div class="flex h-14 shrink-0 items-center gap-1 border-b border-border px-2">
       <MailIconButton :icon="ArrowLeft" label="Retour à la liste" class="lg:hidden" @click="emit('close')" />
-      <h2 class="min-w-0 flex-1 truncate px-2 text-base font-medium">{{ contact?.name || 'Contact' }}</h2>
+      <h2 class="min-w-0 flex-1 truncate px-2 font-heading text-xl font-medium">{{ contact?.name || 'Contact' }}</h2>
     </div>
 
     <div class="min-h-0 flex-1 overflow-y-auto p-4">
@@ -143,11 +143,11 @@ const phoneLabelText: Record<string, string> = { home: 'Domicile', work: 'Travai
 
       <template v-else-if="contact">
         <div class="flex items-start gap-3">
-          <span class="grid size-14 shrink-0 place-items-center rounded-full text-lg font-semibold text-white" :class="getAvatarColorClass(contact.email)" aria-hidden="true">
+          <span class="grid size-14 shrink-0 place-items-center rounded-full text-lg font-semibold text-white" :class="getAvatarTone(contact.email)" aria-hidden="true">
             {{ getInitials(contact.name || contact.email) }}
           </span>
           <div class="min-w-0 flex-1">
-            <p class="text-lg font-semibold">{{ contact.name || contact.email }}</p>
+            <p class="font-heading text-2xl leading-tight font-medium">{{ contact.name || contact.email }}</p>
             <p v-if="contact.jobTitle || contact.organization" class="text-sm text-muted-foreground">
               {{ [contact.jobTitle, contact.organization].filter(Boolean).join(' — ') }}
             </p>
@@ -155,15 +155,15 @@ const phoneLabelText: Record<string, string> = { home: 'Domicile', work: 'Travai
         </div>
 
         <div class="mt-4 flex flex-wrap gap-2">
-          <Button variant="outline" class="h-11 rounded-full px-4" @click="startEdit">
+          <Button variant="outline" class="h-11 rounded-lg px-4" @click="startEdit">
             <Pencil class="size-4" aria-hidden="true" /> Modifier
           </Button>
-          <Button variant="outline" class="h-11 rounded-full px-4" @click="writeMessage">
+          <Button variant="outline" class="h-11 rounded-lg px-4" @click="writeMessage">
             <Mail class="size-4" aria-hidden="true" /> Écrire un message
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
-              <Button variant="outline" class="h-11 rounded-full px-4">
+              <Button variant="outline" class="h-11 rounded-lg px-4">
                 <UsersRound class="size-4" aria-hidden="true" /> Ajouter au groupe
               </Button>
             </DropdownMenuTrigger>
@@ -174,7 +174,7 @@ const phoneLabelText: Record<string, string> = { home: 'Domicile', work: 'Travai
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" class="h-11 rounded-full px-4 text-destructive hover:text-destructive" @click="deleteConfirm = true">
+          <Button variant="outline" class="h-11 rounded-lg px-4 text-destructive hover:text-destructive" @click="deleteConfirm = true">
             <Trash2 class="size-4" aria-hidden="true" /> Supprimer
           </Button>
         </div>
@@ -211,8 +211,8 @@ const phoneLabelText: Record<string, string> = { home: 'Domicile', work: 'Travai
           <AlertDialogDescription>Cette action ne peut pas être annulée.</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel class="h-11 rounded-full">Annuler</AlertDialogCancel>
-          <AlertDialogAction class="h-11 rounded-full bg-destructive text-white hover:bg-destructive/90" @click="confirmDelete">Supprimer</AlertDialogAction>
+          <AlertDialogCancel class="h-11 rounded-lg">Annuler</AlertDialogCancel>
+          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmDelete">Supprimer</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

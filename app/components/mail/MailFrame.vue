@@ -65,9 +65,11 @@ const srcdoc = computed(() => {
     + `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${imgSrc}; style-src 'unsafe-inline'; font-src data:">`
     + `<meta name="referrer" content="no-referrer">`
     + `<base target="_blank">`
-    + `<style>html{color-scheme:light}body{margin:0;padding:16px;font:14px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1f1f1f;background:#fff;overflow-wrap:anywhere}`
-    + `img{max-width:100%;height:auto}table{max-width:100%}pre{margin:0;white-space:pre-wrap;font:inherit}a{color:#0b57d0}blockquote{margin:0 0 0 .8ex;border-left:2px solid #ccc;padding-left:1ex}`
-    + `details{margin:0.5em 0}summary{cursor:pointer;font-weight:bold;font-size:0.9em;margin:0.5em 0}</style>`
+    // Papier blanc et encre bleu nuit (identité « Pli ») ; police système : la CSP du document
+    // n'autorise que les polices en data:, les polices auto-hébergées de l'appli n'y entrent pas.
+    + `<style>html{color-scheme:light}body{margin:0;padding:20px;font:15px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1a2233;background:#fff;overflow-wrap:anywhere}`
+    + `img{max-width:100%;height:auto}table{max-width:100%}pre{margin:0;white-space:pre-wrap;font:inherit}a{color:#1f3a8a;text-underline-offset:2px}blockquote{margin:0 0 0 .8ex;border-left:2px solid #cfc8b8;padding-left:1.2ex;color:#4a5061}`
+    + `details{margin:0.5em 0}summary{cursor:pointer;font-weight:600;font-size:0.875em;margin:0.5em 0;color:#5a6070}</style>`
     + `</head><body>${body}</body></html>`
 })
 </script>
@@ -78,6 +80,6 @@ const srcdoc = computed(() => {
     sandbox="allow-popups allow-popups-to-escape-sandbox"
     referrerpolicy="no-referrer"
     :srcdoc="srcdoc"
-    class="block h-full min-h-[60dvh] w-full rounded-xl border-0 bg-white"
+    class="block h-full min-h-[60dvh] w-full border-0 bg-white"
   />
 </template>

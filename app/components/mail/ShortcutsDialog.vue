@@ -12,11 +12,11 @@ const groups = computed(() => (['Partout', 'Liste', 'Message'] as const).map(sco
       </DialogHeader>
       <div class="flex flex-col gap-5">
         <section v-for="g in groups" :key="g.scope">
-          <h3 class="mb-2 text-sm font-medium text-muted-foreground">{{ g.scope }}</h3>
-          <dl class="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 text-sm">
+          <h3 class="mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">{{ g.scope }}</h3>
+          <dl class="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2.5 text-sm">
             <template v-for="s in g.items" :key="`${g.scope}-${s.keys}`">
               <dt>{{ s.label }}</dt>
-              <dd><kbd class="rounded-md border bg-secondary px-2 py-0.5 font-mono text-xs">{{ s.keys }}</kbd></dd>
+              <dd><kbd class="inline-grid h-6 min-w-6 place-items-center rounded-md border border-line-strong border-b-2 bg-surface-app px-1.5 font-sans text-xs font-semibold">{{ s.keys }}</kbd></dd>
             </template>
           </dl>
         </section>

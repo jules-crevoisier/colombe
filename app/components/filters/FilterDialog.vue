@@ -474,8 +474,8 @@ async function save(): Promise<void> {
       </div>
 
       <DialogFooter class="gap-2 border-t border-border px-6 py-4 sm:justify-end">
-        <Button type="button" variant="outline" class="h-11 rounded-full px-6" @click="close">Annuler</Button>
-        <Button type="button" class="h-11 rounded-full px-6" :disabled="saving" @click="save">
+        <Button type="button" variant="outline" class="h-11 rounded-lg px-6" @click="close">Annuler</Button>
+        <Button type="button" class="h-11 rounded-lg px-6" :disabled="saving" @click="save">
           {{ saving ? 'Enregistrement…' : (isEditing ? 'Enregistrer' : 'Créer le filtre') }}
         </Button>
       </DialogFooter>

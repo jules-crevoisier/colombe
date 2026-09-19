@@ -412,14 +412,14 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
 
 <template>
   <div class="flex h-full min-h-0 flex-1">
-    <div v-if="isSplitView" class="flex h-full min-h-0 w-full max-w-sm shrink-0 flex-col border-r border-border/60">
+    <div v-if="isSplitView" class="flex h-full min-h-0 w-full max-w-[25rem] shrink-0 flex-col border-r border-border xl:max-w-[27rem]">
       <MailMessageList />
     </div>
     <article class="flex min-h-0 min-w-0 flex-1 flex-col" aria-labelledby="sujet">
-    <div class="sticky top-16 z-20 flex h-14 shrink-0 items-center gap-1 border-b border-border/60 bg-surface-panel px-2 lg:static lg:h-12 lg:px-3" role="toolbar" aria-label="Actions sur le message">
+    <div class="sticky top-16 z-20 flex h-14 shrink-0 items-center gap-0.5 border-b border-border bg-surface-panel px-2 lg:static lg:h-12 lg:px-3" role="toolbar" aria-label="Actions sur le message">
       <Tooltip>
         <TooltipTrigger as-child>
-          <NuxtLink :to="backLink" class="grid size-11 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground lg:size-10" aria-label="Retour à la liste">
+          <NuxtLink :to="backLink" class="grid size-11 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring lg:size-10" aria-label="Retour à la liste">
             <ArrowLeft class="size-5" aria-hidden="true" />
           </NuxtLink>
         </TooltipTrigger>
@@ -496,56 +496,57 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
     </div>
 
     <div class="min-h-0 flex-1 overflow-y-auto">
-      <div v-if="loading" class="flex flex-col gap-4 p-4 lg:p-6" aria-busy="true" aria-label="Chargement du message">
-        <Skeleton class="h-7 w-2/3" />
+      <div v-if="loading" class="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 pt-6 lg:px-8 lg:pt-8" aria-busy="true" aria-label="Chargement du message">
+        <Skeleton class="h-4 w-24" />
+        <Skeleton class="h-8 w-2/3" />
         <div class="flex items-center gap-3">
           <Skeleton class="size-10 rounded-full" />
           <div class="flex flex-1 flex-col gap-2"><Skeleton class="h-4 w-48" /><Skeleton class="h-3 w-32" /></div>
         </div>
-        <Skeleton class="h-64 w-full rounded-xl" />
+        <Skeleton class="h-64 w-full rounded-lg" />
       </div>
 
       <div v-else-if="notFound || failed" class="flex flex-col items-center gap-3 px-6 py-16 text-center" role="alert">
-        <CircleAlert class="size-10 text-destructive" aria-hidden="true" />
-        <p class="font-medium">{{ notFound ? 'Ce message n’existe plus. Il a peut-être été déplacé ou supprimé.' : 'Impossible d’afficher ce message.' }}</p>
+        <BrandDove class="mb-2 w-36 opacity-80" :trail="false" />
+        <p class="max-w-sm font-heading text-xl leading-snug font-medium">{{ notFound ? 'Ce message n’existe plus. Il a peut-être été déplacé ou supprimé.' : 'Impossible d’afficher ce message.' }}</p>
         <div class="flex gap-2">
-          <Button v-if="failed" variant="outline" class="h-11 rounded-full px-6" @click="load">Réessayer</Button>
-          <Button as-child variant="outline" class="h-11 rounded-full px-6"><NuxtLink :to="backLink">Retour à la liste</NuxtLink></Button>
+          <Button v-if="failed" variant="outline" class="h-11 rounded-lg px-6" @click="load">Réessayer</Button>
+          <Button as-child variant="outline" class="h-11 rounded-lg px-6"><NuxtLink :to="backLink">Retour à la liste</NuxtLink></Button>
         </div>
       </div>
 
-      <div v-else-if="msg" class="mx-auto flex w-full max-w-5xl flex-col gap-4 p-4 lg:p-6">
-        <div class="flex items-start gap-3">
-          <h1 id="sujet" class="min-w-0 flex-1 text-xl leading-snug font-normal break-words lg:text-[22px]">{{ msg.subject }}</h1>
-          <span v-if="folder" class="mt-1 hidden shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground sm:inline">{{ folder.name }}</span>
+      <div v-else-if="msg" class="mx-auto flex w-full max-w-4xl animate-settle flex-col gap-5 px-4 pt-5 pb-4 lg:px-8 lg:pt-8">
+        <div class="flex flex-col gap-2">
+          <span v-if="folder" class="stamp self-start">{{ folder.name }}</span>
+          <h1 id="sujet" class="min-w-0 font-heading text-[26px] leading-[1.15] font-medium tracking-[-0.015em] text-balance break-words lg:text-[32px]">{{ msg.subject }}</h1>
         </div>
 
-        <div class="flex items-start gap-3">
-          <span class="grid size-10 shrink-0 place-items-center rounded-full text-sm font-semibold text-white" :class="getAvatarColorClass(msg.from?.address ?? '')" aria-hidden="true">
+        <div class="flex items-start gap-3 border-b border-border pb-4">
+          <span class="grid size-10 shrink-0 place-items-center rounded-full text-sm font-semibold text-white" :class="getAvatarTone(msg.from?.address ?? '')" aria-hidden="true">
             {{ getInitials(msg.from?.name || msg.from?.address.split('@')[0] || '?') }}
           </span>
           <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-baseline gap-x-2">
+            <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
               <span class="font-semibold">{{ msg.from?.name || msg.from?.address || '(expéditeur inconnu)' }}</span>
-              <span v-if="msg.from?.name" class="truncate text-xs text-muted-foreground">&lt;{{ msg.from.address }}&gt;</span>
+              <span v-if="msg.from?.name" class="truncate text-[13px] text-muted-foreground">&lt;{{ msg.from.address }}&gt;</span>
               <button
                 v-if="msg.from && !msg.senderInContacts"
                 type="button"
-                class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-primary hover:bg-accent disabled:opacity-50"
+                class="-mx-1 inline-flex min-h-8 items-center gap-1 rounded-md px-1.5 text-xs font-semibold text-primary hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50"
                 :disabled="addingContact"
                 @click="addSenderToContacts"
               >
                 <UserPlus class="size-3.5" aria-hidden="true" /> Ajouter aux contacts
               </button>
             </div>
-            <button type="button" class="inline-flex max-w-full items-center gap-1 rounded text-left text-xs text-muted-foreground hover:text-foreground" :aria-expanded="showDetails" @click="showDetails = !showDetails">
+            <button type="button" class="-mx-1 inline-flex max-w-full items-center gap-1 rounded-md px-1 text-left text-[13px] text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" :aria-expanded="showDetails" @click="showDetails = !showDetails">
               <span class="truncate">à {{ shortList([...msg.to, ...msg.cc]) || '(aucun destinataire)' }}</span>
               <ChevronDown class="size-3.5 shrink-0 transition-transform" :class="{ 'rotate-180': showDetails }" aria-hidden="true" />
               <span class="sr-only">{{ showDetails ? 'Masquer' : 'Afficher' }} les détails</span>
             </button>
             <!-- Mobile : la date passe sous les destinataires (à droite à partir de 640 px). -->
             <time class="block text-xs text-muted-foreground sm:hidden" :datetime="msg.date">{{ fullDate }}</time>
-            <dl v-if="showDetails" class="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg border p-3 text-xs">
+            <dl v-if="showDetails" class="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-lg border border-border bg-surface-app/60 p-3 text-xs">
               <dt class="text-muted-foreground">De</dt><dd class="break-all">{{ msg.from ? formatAddress(msg.from) : '—' }}</dd>
               <template v-if="msg.replyTo.length"><dt class="text-muted-foreground">Répondre à</dt><dd class="break-all">{{ msg.replyTo.map(formatAddress).join(', ') }}</dd></template>
               <dt class="text-muted-foreground">À</dt><dd class="break-all">{{ msg.to.map(formatAddress).join(', ') || '—' }}</dd>
@@ -554,62 +555,67 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
               <dt class="text-muted-foreground">Date</dt><dd>{{ fullDate }}</dd>
             </dl>
           </div>
-          <time class="hidden shrink-0 text-xs text-muted-foreground sm:block" :datetime="msg.date">{{ fullDate }}</time>
-          <MailIconButton :icon="Star" :label="msg.flagged ? 'Retirer l’étoile' : 'Ajouter une étoile'" :pressed="msg.flagged" :class="msg.flagged ? '[&_svg]:fill-amber-400 [&_svg]:text-amber-500' : ''" @click="toggleStar" />
+          <time class="hidden shrink-0 pt-0.5 text-[13px] text-muted-foreground sm:block" :datetime="msg.date">{{ fullDate }}</time>
+          <MailIconButton :icon="Star" :label="msg.flagged ? 'Retirer l’étoile' : 'Ajouter une étoile'" :pressed="msg.flagged" class="-mt-2 -mr-2" :class="msg.flagged ? '[&_svg]:fill-beak [&_svg]:text-beak-strong' : ''" @click="toggleStar" />
         </div>
 
-        <p v-if="thread.length" class="-mb-2 text-xs font-medium text-muted-foreground">{{ thread.length + 1 }} messages dans cette conversation</p>
+        <p v-if="thread.length" class="-mb-2 text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">{{ thread.length + 1 }} messages dans cette conversation</p>
         <section v-if="earlier.length" aria-label="Messages précédents de la conversation">
-          <ul class="flex flex-col gap-2">
+          <ul class="flex flex-col">
             <MailThreadItem v-for="m in earlier" :key="`${m.folder}:${m.uid}`" :item="m" :folder-name="threadFolderName(m)" />
           </ul>
         </section>
 
-        <div v-if="msg.remoteImages > 0 && !showRemote" class="flex flex-col gap-2 rounded-xl bg-secondary px-4 py-3 text-sm sm:flex-row sm:items-center" role="status">
+        <div v-if="msg.remoteImages > 0 && !showRemote" class="flex flex-col gap-3 rounded-lg border border-dashed border-line-strong bg-surface-app/60 px-4 py-3 text-sm sm:flex-row sm:items-center" role="status">
           <ImageOff class="hidden size-5 shrink-0 text-muted-foreground sm:block" aria-hidden="true" />
           <p class="flex-1">Les images distantes sont masquées pour protéger votre vie privée.</p>
-          <Button variant="outline" class="h-10 self-start rounded-full px-4 sm:self-auto" @click="showRemote = true">Afficher les images</Button>
+          <Button variant="outline" class="h-11 self-start px-4 sm:h-9 sm:self-auto" @click="showRemote = true">Afficher les images</Button>
         </div>
 
         <!-- Read receipt banner -->
-        <div v-if="showReadReceiptBanner" class="flex flex-col gap-2 rounded-xl bg-secondary px-4 py-3 text-sm sm:flex-row sm:items-center">
+        <div v-if="showReadReceiptBanner" class="flex flex-col gap-3 rounded-lg border border-dashed border-line-strong bg-surface-app/60 px-4 py-3 text-sm sm:flex-row sm:items-center">
           <AlertCircle class="hidden size-5 shrink-0 text-muted-foreground sm:block" aria-hidden="true" />
           <p class="flex-1">L'expéditeur demande un accusé de lecture.</p>
           <div class="flex gap-2">
-            <Button variant="outline" class="h-10 rounded-full px-4" @click="sendMdn">Envoyer l'accusé</Button>
-            <Button variant="ghost" class="h-10 rounded-full px-4" @click="receiptDismissed = true">Ignorer</Button>
+            <Button variant="outline" class="h-11 px-4 sm:h-9" @click="sendMdn">Envoyer l'accusé</Button>
+            <Button variant="ghost" class="h-11 px-4 sm:h-9" @click="receiptDismissed = true">Ignorer</Button>
           </div>
         </div>
 
-        <MailFrame :html="html" :text="msg.text" :show-remote="showRemote" />
+        <!-- La lettre : le corps du message, toujours sur papier blanc (les e-mails HTML le supposent). -->
+        <div class="overflow-hidden rounded-lg border border-border bg-white shadow-sheet">
+          <MailFrame :html="html" :text="msg.text" :show-remote="showRemote" />
+        </div>
 
-        <section v-if="msg.attachments.length" aria-labelledby="pj-titre" class="flex flex-col gap-2">
-          <div class="flex items-center justify-between">
-            <h2 id="pj-titre" class="flex items-center gap-2 text-sm font-medium">
-              <Paperclip class="size-4" aria-hidden="true" />
+        <section v-if="msg.attachments.length" aria-labelledby="pj-titre" class="flex flex-col gap-2.5">
+          <div class="flex items-center justify-between gap-3">
+            <h2 id="pj-titre" class="flex items-center gap-2 text-sm font-semibold">
+              <Paperclip class="size-4 text-muted-foreground" aria-hidden="true" />
               {{ msg.attachments.length }} pièce{{ msg.attachments.length > 1 ? 's' : '' }} jointe{{ msg.attachments.length > 1 ? 's' : '' }}
             </h2>
             <template v-if="msg.attachments.length >= 2">
               <a
                 :href="api.attachmentsZipUrl(folderPath, uid)"
                 :download="`${msg.subject.slice(0, 50)}-attachments.zip`"
-                class="text-xs font-medium text-primary hover:underline"
+                class="inline-flex min-h-11 items-center rounded-md px-2 text-xs font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring lg:min-h-8"
               >
                 Tout télécharger (.zip)
               </a>
             </template>
           </div>
           <ul class="flex flex-wrap gap-2">
-            <li v-for="a in msg.attachments" :key="a.id" class="flex items-center gap-2">
+            <li v-for="a in msg.attachments" :key="a.id" class="flex max-w-full items-center gap-2">
               <!-- Aperçu uniquement pour les images et le texte (R1.3) ; le reste se télécharge. -->
               <button
                 v-if="isPreviewable(a.contentType)"
                 type="button"
-                class="flex h-14 max-w-72 items-center gap-3 rounded-xl border px-3 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
+                class="flex h-14 max-w-72 min-w-0 items-center gap-3 rounded-lg border border-border bg-surface-panel px-3 transition-colors hover:border-line-strong hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-ring"
                 :aria-label="`Aperçu de ${a.filename} (${formatSize(a.size)})`"
                 @click="previewAttachmentFile(a)"
               >
-                <component :is="a.contentType.startsWith('image/') ? ImageIcon : FileText" class="size-6 shrink-0 text-primary" aria-hidden="true" />
+                <span class="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                  <component :is="a.contentType.startsWith('image/') ? ImageIcon : FileText" class="size-[18px]" aria-hidden="true" />
+                </span>
                 <span class="flex min-w-0 flex-col text-left">
                   <span class="truncate text-sm font-medium">{{ a.filename }}</span>
                   <span class="text-xs text-muted-foreground">{{ formatSize(a.size) }}</span>
@@ -620,9 +626,11 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
                 v-else
                 :href="api.attachmentUrl(folderPath, uid, a.id)"
                 :download="a.filename"
-                class="flex h-14 max-w-72 items-center gap-3 rounded-xl border px-3 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
+                class="flex h-14 max-w-72 min-w-0 items-center gap-3 rounded-lg border border-border bg-surface-panel px-3 transition-colors hover:border-line-strong hover:bg-row-hover focus-visible:outline-2 focus-visible:outline-ring"
               >
-                <FileText class="size-6 shrink-0 text-destructive" aria-hidden="true" />
+                <span class="grid size-9 shrink-0 place-items-center rounded-md bg-destructive/10 text-destructive">
+                  <FileText class="size-[18px]" aria-hidden="true" />
+                </span>
                 <span class="flex min-w-0 flex-col">
                   <span class="truncate text-sm font-medium">{{ a.filename }}</span>
                   <span class="text-xs text-muted-foreground">{{ formatSize(a.size) }}</span>
@@ -630,7 +638,7 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
                 <Download class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <span class="sr-only">Télécharger</span>
               </a>
-              <Button v-if="isVcard(a)" variant="outline" class="h-10 shrink-0 rounded-full px-3 text-xs" @click="importVcardAttachment(a)">
+              <Button v-if="isVcard(a)" variant="outline" class="h-11 shrink-0 px-3 text-xs lg:h-10" @click="importVcardAttachment(a)">
                 <IdCard class="size-4" aria-hidden="true" /> Importer ce contact
               </Button>
             </li>
@@ -638,22 +646,22 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
         </section>
 
         <section v-if="later.length" aria-label="Réponses suivantes de la conversation">
-          <ul class="flex flex-col gap-2">
+          <ul class="flex flex-col">
             <MailThreadItem v-for="m in later" :key="`${m.folder}:${m.uid}`" :item="m" :folder-name="threadFolderName(m)" />
           </ul>
         </section>
 
-        <div class="flex flex-wrap gap-2 pt-2 pb-24 lg:pb-4">
-          <Button variant="outline" class="h-11 rounded-full px-5" @click="compose.openReply(msg, me, 'reply')">
+        <div class="flex flex-wrap gap-2 pt-1 pb-24 lg:pb-6">
+          <Button class="h-11 px-5" @click="compose.openReply(msg, me, 'reply')">
             <Reply class="size-4" aria-hidden="true" /> Répondre
           </Button>
-          <Button v-if="canReplyAll" variant="outline" class="h-11 rounded-full px-5" @click="compose.openReply(msg, me, 'replyAll')">
+          <Button v-if="canReplyAll" variant="outline" class="h-11 rounded-lg px-5" @click="compose.openReply(msg, me, 'replyAll')">
             <ReplyAll class="size-4" aria-hidden="true" /> Répondre à tous
           </Button>
-          <Button variant="outline" class="h-11 rounded-full px-5" @click="compose.openForward(msg)">
+          <Button variant="outline" class="h-11 rounded-lg px-5" @click="compose.openForward(msg)">
             <Forward class="size-4" aria-hidden="true" /> Transférer
           </Button>
-          <Button v-if="msg.listPost" variant="outline" class="h-11 rounded-full px-5" @click="compose.openReply(msg, me, 'list')">
+          <Button v-if="msg.listPost" variant="outline" class="h-11 rounded-lg px-5" @click="compose.openReply(msg, me, 'list')">
             <ListTree class="size-4" aria-hidden="true" /> Répondre à la liste
           </Button>
         </div>
@@ -691,8 +699,8 @@ useHead({ title: computed(() => msg.value?.subject ?? 'Message') })
           <AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel class="h-11 rounded-full">Annuler</AlertDialogCancel>
-          <AlertDialogAction class="h-11 rounded-full bg-destructive text-white hover:bg-destructive/90" @click="confirmPermanentDelete">Supprimer</AlertDialogAction>
+          <AlertDialogCancel class="h-11 rounded-lg">Annuler</AlertDialogCancel>
+          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmPermanentDelete">Supprimer</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

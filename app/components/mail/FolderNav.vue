@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { toast } from 'vue-sonner'
-import { Archive, BookUser, ChevronDown, ChevronRight, EllipsisVertical, FileText, Folder as FolderIcon, FolderPlus, HardDrive, Inbox, Pencil, Send, ShieldAlert, Trash2 } from '@lucide/vue'
+import { Archive, BookUser, ChevronDown, ChevronRight, EllipsisVertical, FileText, Folder as FolderIcon, FolderPlus, HardDrive, Inbox, PenLine, Pencil, Send, ShieldAlert, Trash2 } from '@lucide/vue'
 import type { Component } from 'vue'
 import type { Folder, SpecialUse } from '#shared/types/mail'
 
@@ -249,27 +249,28 @@ const quotaRatio = computed(() => {
 </script>
 
 <template>
-  <nav aria-label="Dossiers" class="flex h-full flex-col gap-3">
+  <nav aria-label="Dossiers" class="flex h-full min-h-0 flex-col gap-4">
+    <!-- « Nouveau message » : une lettre à l'encre, coin replié orange (le bec). -->
     <Tooltip :disabled="!props.collapsed">
       <TooltipTrigger as-child>
         <button
           type="button"
-          class="flex h-14 shrink-0 items-center gap-3 rounded-2xl bg-compose px-4 text-sm font-medium text-compose-foreground shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          :class="props.collapsed ? 'w-14 justify-center px-0' : 'w-fit pr-6'"
+          class="fold-corner group/compose flex h-12 shrink-0 items-center gap-3 rounded-lg bg-compose text-[15px] font-semibold text-compose-foreground transition-[filter,transform] hover:brightness-[1.12] active:translate-y-px"
+          :class="props.collapsed ? 'w-12 justify-center self-center' : 'w-full px-4'"
           :aria-label="props.collapsed ? 'Nouveau message' : undefined"
           @click="newMessage"
         >
-          <Pencil class="size-5" aria-hidden="true" />
+          <PenLine class="size-[18px] shrink-0" aria-hidden="true" />
           <span v-if="!props.collapsed">Nouveau message</span>
         </button>
       </TooltipTrigger>
       <TooltipContent side="right">Nouveau message</TooltipContent>
     </Tooltip>
 
-    <ul class="-mx-1 flex flex-col gap-0.5 overflow-y-auto px-1 pb-2">
+    <ul class="-mx-1 flex min-h-0 flex-col gap-px overflow-y-auto px-1 pb-2">
       <template v-if="!mail.loaded && mail.loading">
         <li v-for="n in 6" :key="n" class="px-3 py-2">
-          <Skeleton class="h-6 w-full rounded-full" />
+          <Skeleton class="h-5 w-full rounded-md" />
         </li>
       </template>
       <li
@@ -284,7 +285,7 @@ const quotaRatio = computed(() => {
         <button
           v-if="row.hasChildren && !props.collapsed"
           type="button"
-          class="absolute top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-foreground/10 lg:size-6 lg:rounded"
+          class="absolute top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring lg:size-6"
           :style="{ left: `${row.depth * 16}px` }"
           :aria-label="collapsedPaths.has(row.folder.path) ? `Développer ${row.folder.name}` : `Réduire ${row.folder.name}`"
           :aria-expanded="!collapsedPaths.has(row.folder.path)"
@@ -297,26 +298,28 @@ const quotaRatio = computed(() => {
           <TooltipTrigger as-child>
             <NuxtLink
               :to="`/mail/${encodeURIComponent(row.folder.path)}`"
-              class="relative flex h-11 items-center gap-4 rounded-full text-sm transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring lg:h-9"
+              class="relative flex h-11 items-center gap-3 rounded-md text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring lg:h-9"
               :class="[
-                current === row.folder.path ? 'bg-nav-active font-semibold text-nav-active-foreground hover:bg-nav-active' : 'text-foreground',
+                current === row.folder.path
+                  ? 'bg-nav-active font-semibold text-nav-active-foreground shadow-[0_0_0_1px_var(--border)] before:absolute before:top-1/2 before:left-0 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-r-sm before:bg-nav-marker'
+                  : 'text-foreground/90 hover:bg-foreground/[0.05] hover:text-foreground',
                 dropTarget === row.folder.path ? 'outline-2 outline-dashed outline-primary' : '',
-                props.collapsed ? 'w-14 justify-center' : '',
+                props.collapsed ? 'size-12 justify-center lg:size-11' : '',
                 props.collapsed ? '' : row.folder.specialUse ? 'pr-3' : 'pr-11',
               ]"
-              :style="props.collapsed ? undefined : { paddingLeft: `${16 + row.depth * 16 + (row.hasChildren ? 20 : 0)}px` }"
+              :style="props.collapsed ? undefined : { paddingLeft: `${12 + row.depth * 16 + (row.hasChildren ? 20 : 0)}px` }"
               :aria-current="current === row.folder.path ? 'page' : undefined"
               :aria-label="props.collapsed ? `${row.folder.name}${badge(row.folder) ? `, ${badge(row.folder)} non lus` : ''}` : undefined"
               @click="emit('navigate')"
             >
-              <component :is="iconOf(row.folder)" class="size-5 shrink-0" aria-hidden="true" />
+              <component :is="iconOf(row.folder)" class="size-[18px] shrink-0" :class="current === row.folder.path ? 'text-nav-marker' : 'text-muted-foreground'" :stroke-width="1.75" aria-hidden="true" />
               <template v-if="!props.collapsed">
                 <span class="flex-1 truncate" :class="{ 'font-semibold': badge(row.folder) > 0 }">{{ row.folder.name }}</span>
-                <span v-if="badge(row.folder) > 0" class="text-xs font-semibold tabular-nums" :class="{ 'group-hover:hidden group-focus-within:hidden': !row.folder.specialUse }">
+                <span v-if="badge(row.folder) > 0" class="text-xs tabular-nums" :class="[row.folder.specialUse === 'drafts' ? 'text-muted-foreground' : 'font-semibold text-foreground', { 'group-hover:hidden group-focus-within:hidden': !row.folder.specialUse }]">
                   {{ badge(row.folder) }}<span class="sr-only">{{ row.folder.specialUse === 'drafts' ? ' brouillons' : ' non lus' }}</span>
                 </span>
               </template>
-              <span v-else-if="badge(row.folder) > 0" class="absolute top-1 right-1.5 size-2 rounded-full bg-primary" aria-hidden="true" />
+              <span v-else-if="badge(row.folder) > 0" class="absolute top-2 right-2 size-2 rounded-full bg-unread-dot ring-2 ring-surface-app" aria-hidden="true" />
             </NuxtLink>
           </TooltipTrigger>
           <TooltipContent side="right">{{ row.folder.name }}</TooltipContent>
@@ -326,7 +329,7 @@ const quotaRatio = computed(() => {
           <DropdownMenuTrigger as-child>
             <button
               type="button"
-              class="absolute top-0 right-0 grid size-11 place-items-center rounded-full text-muted-foreground hover:bg-foreground/10 focus-visible:opacity-100 lg:size-9 lg:opacity-0 lg:group-hover:opacity-100"
+              class="absolute top-0 right-0 grid size-11 place-items-center rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=open]:opacity-100 lg:size-9 lg:opacity-0 lg:group-hover:opacity-100"
               :aria-label="`Actions pour le dossier ${row.folder.name}`"
             >
               <EllipsisVertical class="size-4" aria-hidden="true" />
@@ -357,36 +360,43 @@ const quotaRatio = computed(() => {
       </li>
     </ul>
 
-    <NuxtLink
-      to="/contacts"
-      class="flex h-11 items-center gap-4 rounded-full text-sm text-foreground transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring lg:h-9"
-      :class="props.collapsed ? 'w-14 justify-center' : 'pl-4'"
-      :aria-label="props.collapsed ? 'Contacts' : undefined"
-      @click="emit('navigate')"
-    >
-      <BookUser class="size-5 shrink-0" aria-hidden="true" />
-      <span v-if="!props.collapsed">Contacts</span>
-    </NuxtLink>
+    <div class="flex flex-col gap-px border-t border-border pt-3" :class="props.collapsed ? 'items-center' : ''">
+      <NuxtLink
+        to="/contacts"
+        class="relative flex h-11 items-center gap-3 rounded-md text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring lg:h-9"
+        :class="[
+          route.path.startsWith('/contacts')
+            ? 'bg-nav-active font-semibold text-nav-active-foreground shadow-[0_0_0_1px_var(--border)] before:absolute before:top-1/2 before:left-0 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-r-sm before:bg-nav-marker'
+            : 'text-foreground/90 hover:bg-foreground/[0.05] hover:text-foreground',
+          props.collapsed ? 'size-11 justify-center' : 'pl-3',
+        ]"
+        :aria-label="props.collapsed ? 'Contacts' : undefined"
+        @click="emit('navigate')"
+      >
+        <BookUser class="size-[18px] shrink-0 text-muted-foreground" :stroke-width="1.75" aria-hidden="true" />
+        <span v-if="!props.collapsed">Contacts</span>
+      </NuxtLink>
 
-    <button
-      v-if="!props.collapsed && mail.loaded"
-      type="button"
-      class="flex h-11 w-fit items-center gap-3 rounded-full px-4 text-sm text-muted-foreground hover:bg-accent hover:text-foreground lg:h-9"
-      @click="openCreate()"
-    >
-      <FolderPlus class="size-5" aria-hidden="true" /> Nouveau dossier
-    </button>
+      <button
+        v-if="!props.collapsed && mail.loaded"
+        type="button"
+        class="flex h-11 items-center gap-3 rounded-md pl-3 text-sm text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring lg:h-9"
+        @click="openCreate()"
+      >
+        <FolderPlus class="size-[18px]" :stroke-width="1.75" aria-hidden="true" /> Nouveau dossier
+      </button>
+    </div>
 
     <!-- Jauge « Espace utilisé » (R2.4), masquée si le serveur ne fournit pas de quota -->
-    <div v-if="!props.collapsed && quota?.limitBytes" class="flex flex-col gap-1.5 px-4 pb-1 text-xs text-muted-foreground">
+    <div v-if="!props.collapsed && quota?.limitBytes" class="mt-auto flex flex-col gap-2 px-3 pt-2 pb-1 text-xs text-muted-foreground">
       <div class="flex items-center gap-2">
         <HardDrive class="size-3.5 shrink-0" aria-hidden="true" />
         <span>Espace utilisé</span>
       </div>
-      <div class="h-1.5 w-full overflow-hidden rounded-full bg-muted" role="progressbar" :aria-valuenow="Math.round(quotaRatio * 100)" aria-valuemin="0" aria-valuemax="100">
-        <div class="h-full rounded-full bg-primary" :style="{ width: `${quotaRatio * 100}%` }" />
+      <div class="h-1 w-full overflow-hidden rounded-full bg-border" role="progressbar" aria-label="Espace utilisé" :aria-valuenow="Math.round(quotaRatio * 100)" aria-valuemin="0" aria-valuemax="100">
+        <div class="h-full rounded-full bg-nav-marker" :style="{ width: `${Math.max(quotaRatio * 100, 1.5)}%` }" />
       </div>
-      <span>{{ formatGigabytes(quota.usedBytes) }} sur {{ formatGigabytes(quota.limitBytes) }}</span>
+      <span class="tabular-nums">{{ formatGigabytes(quota.usedBytes) }} sur {{ formatGigabytes(quota.limitBytes) }}</span>
     </div>
 
     <Dialog :open="dialog !== null" @update:open="(v: boolean) => { if (!v) dialog = null }">
@@ -400,8 +410,8 @@ const quotaRatio = computed(() => {
           <Input id="folder-name" v-model="folderName" maxlength="100" autocomplete="off" class="h-11 text-base" :aria-invalid="!!nameError || undefined" aria-describedby="folder-name-error" />
           <p id="folder-name-error" class="min-h-5 text-sm text-destructive" role="alert">{{ nameError }}</p>
           <DialogFooter>
-            <Button type="button" variant="ghost" class="h-11 rounded-full px-5" @click="dialog = null">Annuler</Button>
-            <Button type="submit" class="h-11 rounded-full px-5" :disabled="saving">{{ dialog?.mode === 'rename' ? 'Renommer' : 'Créer' }}</Button>
+            <Button type="button" variant="ghost" class="h-11 rounded-lg px-5" @click="dialog = null">Annuler</Button>
+            <Button type="submit" class="h-11 rounded-lg px-5" :disabled="saving">{{ dialog?.mode === 'rename' ? 'Renommer' : 'Créer' }}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -426,8 +436,8 @@ const quotaRatio = computed(() => {
           </Select>
         </div>
         <DialogFooter>
-          <Button type="button" variant="ghost" class="h-11 rounded-full px-5" @click="moveDialog = null">Annuler</Button>
-          <Button type="button" class="h-11 rounded-full px-5" :disabled="moveSaving" @click="submitMove">Déplacer</Button>
+          <Button type="button" variant="ghost" class="h-11 rounded-lg px-5" @click="moveDialog = null">Annuler</Button>
+          <Button type="button" class="h-11 rounded-lg px-5" :disabled="moveSaving" @click="submitMove">Déplacer</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -441,8 +451,8 @@ const quotaRatio = computed(() => {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel class="h-11 rounded-full">Annuler</AlertDialogCancel>
-          <AlertDialogAction class="h-11 rounded-full bg-destructive text-white hover:bg-destructive/90" @click="confirmDelete">Supprimer</AlertDialogAction>
+          <AlertDialogCancel class="h-11 rounded-lg">Annuler</AlertDialogCancel>
+          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmDelete">Supprimer</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -455,8 +465,8 @@ const quotaRatio = computed(() => {
           <AlertDialogDescription>Tous les messages de ce dossier seront supprimés définitivement.</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel class="h-11 rounded-full">Annuler</AlertDialogCancel>
-          <AlertDialogAction class="h-11 rounded-full bg-destructive text-white hover:bg-destructive/90" @click="confirmEmpty">Vider</AlertDialogAction>
+          <AlertDialogCancel class="h-11 rounded-lg">Annuler</AlertDialogCancel>
+          <AlertDialogAction class="h-11 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90" @click="confirmEmpty">Vider</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

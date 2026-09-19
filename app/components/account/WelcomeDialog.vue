@@ -56,7 +56,8 @@ onMounted(check)
   <Dialog :open="open" @update:open="() => {}">
     <DialogContent class="sm:max-w-md" :show-close-button="false" @escape-key-down.prevent @pointer-down-outside.prevent>
       <DialogHeader>
-        <DialogTitle>Bienvenue</DialogTitle>
+        <BrandDove class="mb-1 w-28" :trail="false" />
+        <DialogTitle class="text-2xl">Bienvenue</DialogTitle>
         <DialogDescription>Comment souhaitez-vous apparaître auprès de vos destinataires ?</DialogDescription>
       </DialogHeader>
       <form class="flex flex-col gap-4" @submit.prevent="submit">
@@ -65,7 +66,7 @@ onMounted(check)
           <Input id="welcome-name" v-model="name" class="h-11 text-base" autofocus required />
         </div>
         <DialogFooter>
-          <Button type="submit" class="h-11 rounded-full px-6" :disabled="!name.trim() || saving">
+          <Button type="submit" class="h-11 rounded-lg px-6" :disabled="!name.trim() || saving">
             {{ saving ? 'Enregistrement…' : 'Continuer' }}
           </Button>
         </DialogFooter>

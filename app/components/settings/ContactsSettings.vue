@@ -162,7 +162,7 @@ onMounted(() => {
   <div class="space-y-6">
     <!-- Add contact form -->
     <div class="space-y-3 rounded-lg border border-border p-4">
-      <h3 class="text-base font-semibold">Ajouter un contact</h3>
+      <h3 class="font-heading text-lg font-medium">Ajouter un contact</h3>
       <div class="space-y-3">
         <div class="space-y-2">
           <Label for="contact-name" class="text-sm font-medium">Nom</Label>
@@ -228,7 +228,7 @@ onMounted(() => {
         <!-- Avatar -->
         <div
           class="flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
-          :class="getAvatarColorClass(contact.email)"
+          :class="getAvatarTone(contact.email)"
         >
           {{ getInitials(contact.name) }}
         </div>
