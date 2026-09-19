@@ -45,38 +45,13 @@ export default defineNuxtConfig({
         { name: 'robots', content: 'noindex, nofollow' },
         { name: 'referrer', content: 'no-referrer' },
       ],
-      // Dans le HTML initial (et non ajouté par JavaScript) : préfixé par le chemin de
-      // déploiement, sinon le navigateur demande /favicon.ico à la racine du site principal.
-      link: [
-        { rel: 'icon', type: 'image/svg+xml', href: `${process.env.NUXT_APP_BASE_URL || '/'}favicon.svg` },
-      ],
+      // Le lien favicon (préfixé par le chemin de déploiement) est injecté dans le HTML
+      // initial au moment de la requête par server/plugins/favicon.ts : NUXT_APP_BASE_URL
+      // se lit au RUNTIME (une même archive de release sert n'importe quel chemin de
+      // déploiement), il ne peut donc pas être figé ici au moment du build.
     },
   },
   runtimeConfig: {
-    mail: {
-      // 'imap' (serveur réel) ou 'mock' (serveur en mémoire pour dev et tests)
-      backend: process.env.MAIL_BACKEND || 'imap',
-      host: process.env.MAIL_HOST || 'mail.mmi-troyes.fr',
-      imapPort: Number(process.env.MAIL_IMAP_PORT || 993),
-      imapSecure: (process.env.MAIL_IMAP_SECURE || 'true') === 'true',
-      smtpPort: Number(process.env.MAIL_SMTP_PORT || 587),
-      smtpRequireTls: (process.env.MAIL_SMTP_REQUIRE_TLS || 'true') === 'true',
-      allowedDomain: process.env.MAIL_ALLOWED_DOMAIN || 'mmi-troyes.fr',
-      // true uniquement derrière le reverse proxy Apache (voir clientIp())
-      trustProxy: process.env.NUXT_MAIL_TRUST_PROXY === 'true',
-      // --- F : filtres, réponse automatique, transfert (ManageSieve) ---
-      // Vide par défaut : le repli sur `mail.host` se fait au moment de la requête
-      // (server/lib/sieve/service.ts), pour rester dynamique même si seul
-      // NUXT_MAIL_HOST est redéfini au démarrage (sans NUXT_MAIL_SIEVE_HOST).
-      sieveHost: process.env.MAIL_SIEVE_HOST || '',
-      sievePort: Number(process.env.MAIL_SIEVE_PORT || 4190),
-      // Nom attendu dans le certificat TLS de ManageSieve (défaut : MAIL_HOST).
-      sieveTlsServername: process.env.MAIL_SIEVE_TLS_SERVERNAME || '',
-      // Domaines autorisés pour tout transfert/redirection/notification (liste séparée par des virgules).
-      forwardDomains: process.env.MAIL_FORWARD_DOMAINS || 'mmi-troyes.fr',
-      // false uniquement en dev, contre le certificat auto-signé du conteneur Dovecot.
-      tlsRejectUnauthorized: process.env.MAIL_TLS_REJECT_UNAUTHORIZED !== 'false',
-    },
     session: {
       name: 'wm_session',
       password: process.env.NUXT_SESSION_PASSWORD || '',

@@ -3,6 +3,7 @@ import type { H3Error, H3Event } from 'h3'
 import type { MailBackend, MailServerConfig } from '../lib/mail/backend'
 import { MailError } from '../lib/mail/backend'
 import type { BackendKind } from '../lib/mail/index'
+import { getConfig } from '../lib/config'
 import { credentialsStore } from '../lib/session/credentials'
 import { backendPool } from '../lib/session/pool'
 
@@ -15,40 +16,47 @@ export interface MailSession {
 export interface ResolvedMailConfig {
   kind: BackendKind
   server: MailServerConfig
-  allowedDomain: string
 }
 
-export function mailConfig(event: H3Event): ResolvedMailConfig {
-  const c = useRuntimeConfig(event).mail
-  const kind: BackendKind = c.backend === 'mock' ? 'mock' : 'imap'
+/** Configuration mail résolue depuis server/lib/config (chargée au démarrage, pas au build). */
+export function mailConfig(_event: H3Event): ResolvedMailConfig {
+  const c = getConfig()
   return {
-    kind,
-    allowedDomain: c.allowedDomain,
+    kind: c.backend,
     server: {
-      host: c.host,
-      imapPort: Number(c.imapPort),
-      imapSecure: c.imapSecure === true || String(c.imapSecure) === 'true',
-      smtpPort: Number(c.smtpPort),
-      smtpRequireTls: c.smtpRequireTls === true || String(c.smtpRequireTls) === 'true',
-      tlsRejectUnauthorized: !(String((c as { tlsRejectUnauthorized?: unknown }).tlsRejectUnauthorized) === 'false'),
+      imapHost: c.imap.host,
+      imapPort: c.imap.port,
+      imapSecure: c.imap.secure,
+      imapServername: c.imap.servername,
+      smtpHost: c.smtp.host,
+      smtpPort: c.smtp.port,
+      smtpSecure: c.smtp.secure,
+      smtpRequireTls: c.smtp.requireTls,
+      smtpServername: c.smtp.servername,
+      tlsRejectUnauthorized: c.tlsRejectUnauthorized,
+      loginUsername: c.login.username,
     },
   }
 }
 
 /**
  * IP du client pour la limitation de débit. Derrière le reverse proxy Apache
- * (NUXT_MAIL_TRUST_PROXY=true), on prend la DERNIÈRE valeur de X-Forwarded-For,
+ * (MAIL_TRUST_PROXY=true), on prend la DERNIÈRE valeur de X-Forwarded-For,
  * celle ajoutée par notre proxy ; les précédentes sont fournies par le client
  * et donc falsifiables.
  */
 export function clientIp(event: H3Event): string {
-  const trustProxy = String(useRuntimeConfig(event).mail.trustProxy) === 'true'
-  if (trustProxy) {
+  if (getConfig().trustProxy) {
     const forwarded = getRequestHeader(event, 'x-forwarded-for')
     const last = forwarded?.split(',').map(s => s.trim()).filter(Boolean).at(-1)
     if (last) return last
   }
   return getRequestIP(event) ?? 'inconnue'
+}
+
+/** Retire retours à la ligne et espaces avant d'écrire une valeur dans les journaux (fail2ban). */
+export function logSafe(value: string): string {
+  return value.replace(/[\r\n\s]/g, '')
 }
 
 /**

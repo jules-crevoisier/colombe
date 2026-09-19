@@ -5,6 +5,11 @@ import { toast } from 'vue-sonner'
 // Thème : suit le système, choix mémorisé (préférence d'affichage uniquement, aucune donnée sensible).
 useColorMode({ storageKey: 'wm-color-mode' })
 
+// Nom, organisation, liens de l'établissement (GET /api/config, public) : chargés une
+// fois pour toute l'appli (page de connexion et messagerie), voir useSiteConfig().
+const { load: loadSiteConfig } = useSiteConfig()
+onMounted(() => { void loadSiteConfig() })
+
 const route = useRoute()
 const { loggedIn } = useUserSession()
 

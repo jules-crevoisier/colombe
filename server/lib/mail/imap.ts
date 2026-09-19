@@ -3,7 +3,7 @@ import type { FetchMessageObject, ListResponse, MessageAddressObject, MessageStr
 import nodemailer from 'nodemailer'
 import type { Transporter } from 'nodemailer'
 import type { Address, Folder, FolderSize, MessageSummary, QuotaInfo, SearchField, SortKey, SpecialUse } from '#shared/types/mail'
-import { MailError } from './backend'
+import { MailError, mailUsername } from './backend'
 import type {
   FlagChange,
   ListFoldersOptions,
@@ -252,12 +252,12 @@ export function decodePreview(part: MessageStructureObject, body: Buffer): strin
 
 function newClient(creds: MailCredentials, config: MailServerConfig): ImapFlow {
   const client = new ImapFlow({
-    host: config.host,
+    host: config.imapHost,
     port: config.imapPort,
     secure: config.imapSecure,
-    servername: config.host,
+    servername: config.imapServername,
     tls: { rejectUnauthorized: config.tlsRejectUnauthorized !== false },
-    auth: { user: creds.email, pass: creds.password },
+    auth: { user: mailUsername(creds.email, config), pass: creds.password },
     logger: false,
     disableAutoIdle: true,
     connectionTimeout: 10_000,
@@ -576,12 +576,12 @@ export class ImapBackend implements MailBackend {
 
   async send(raw: Buffer, envelope: SendEnvelope): Promise<void> {
     this.transport ??= nodemailer.createTransport({
-      host: this.config.host,
+      host: this.config.smtpHost,
       port: this.config.smtpPort,
-      secure: this.config.smtpPort === 465,
+      secure: this.config.smtpSecure,
       requireTLS: this.config.smtpRequireTls,
-      tls: { servername: this.config.host, rejectUnauthorized: this.config.tlsRejectUnauthorized !== false },
-      auth: { user: this.creds.email, pass: this.creds.password },
+      tls: { servername: this.config.smtpServername, rejectUnauthorized: this.config.tlsRejectUnauthorized !== false },
+      auth: { user: mailUsername(this.creds.email, this.config), pass: this.creds.password },
       connectionTimeout: 15_000,
     })
     try {

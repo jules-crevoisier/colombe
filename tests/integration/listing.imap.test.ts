@@ -15,7 +15,18 @@ import type { MailServerConfig } from '../../server/lib/mail/backend'
 import { buildRawMessage } from '../../server/lib/mail/compose'
 import { ImapBackend } from '../../server/lib/mail/imap'
 
-const config: MailServerConfig = { host: '127.0.0.1', imapPort: 3143, imapSecure: false, smtpPort: 3025, smtpRequireTls: false }
+const config: MailServerConfig = {
+  imapHost: '127.0.0.1',
+  imapPort: 3143,
+  imapSecure: false,
+  imapServername: '127.0.0.1',
+  smtpHost: '127.0.0.1',
+  smtpPort: 3025,
+  smtpSecure: false,
+  smtpRequireTls: false,
+  smtpServername: '127.0.0.1',
+  loginUsername: 'email',
+}
 const dev = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
 
 const reachable = await new Promise<boolean>((resolve) => {

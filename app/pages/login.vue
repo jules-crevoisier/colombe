@@ -3,7 +3,14 @@ import { ArrowLeft, Eye, EyeOff, LoaderCircle, ShieldCheck } from '@lucide/vue'
 import type { LoginResult } from '#shared/types/mail'
 
 definePageMeta({ layout: 'auth' })
-useHead({ title: 'Connexion — Colombe' })
+
+const { config, addressExample } = useSiteConfig()
+useHead({ title: computed(() => `Connexion — ${config.value.productName}`) })
+
+const emailLabel = computed(() => (config.value.login.defaultDomain ? 'Adresse e-mail ou identifiant' : 'Adresse e-mail'))
+const emailInputType = computed(() => (config.value.login.defaultDomain ? 'text' : 'email'))
+const loginMessage = computed(() => config.value.loginMessage || (config.value.orgName ? `Messagerie ${config.value.orgName}` : ''))
+const supportHref = computed(() => config.value.supportUrl ?? (config.value.supportEmail ? `mailto:${config.value.supportEmail}` : null))
 
 const step = ref<'password' | 'code'>('password')
 const email = ref('')
@@ -91,10 +98,13 @@ function backToPassword() {
       <div class="flex flex-col gap-10">
         <BrandDove class="w-full max-w-[520px] [--dove-trail:rgb(236_232_222/0.35)]" />
         <p class="max-w-md font-heading text-[40px] leading-[1.1] font-normal tracking-[-0.02em] text-balance xl:text-[46px]">
-          Le courrier du département, <em class="text-[#f59e6b] italic">plié avec soin</em>.
+          Votre courrier, <em class="text-[#f59e6b] italic">plié avec soin</em>.
         </p>
       </div>
-      <p class="text-sm text-[#ece8de]/75">IUT de Troyes · Département MMI · mmi-troyes.fr</p>
+      <div v-if="config.hasLogo || config.orgName" class="flex items-center gap-2 text-sm text-[#ece8de]/75">
+        <img v-if="config.hasLogo" :src="apiUrl('/api/branding/logo')" :alt="config.orgName || config.productName" class="h-6 w-auto shrink-0">
+        <span v-if="config.orgName">{{ config.orgName }}</span>
+      </div>
     </div>
 
   <main class="flex items-center justify-center px-5 py-10 sm:px-10">
@@ -110,15 +120,15 @@ function backToPassword() {
           <template v-if="step === 'code'">
             {{ useRecovery ? 'Saisissez l’un de vos codes de secours.' : 'Saisissez le code à 6 chiffres affiché par votre application d’authentification.' }}
           </template>
-          <template v-else>Messagerie du département MMI — mmi-troyes.fr</template>
+          <template v-else-if="loginMessage">{{ loginMessage }}</template>
         </p>
       </div>
     </div>
 
     <form v-if="step === 'password'" class="flex flex-col gap-5" novalidate @submit.prevent="submitPassword">
       <div class="flex flex-col gap-2">
-        <Label for="email">Adresse e-mail</Label>
-        <Input id="email" v-model="email" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="prenom.nom@mmi-troyes.fr" required class="h-12 rounded-lg text-base" :aria-invalid="!!error || undefined" aria-describedby="login-error" />
+        <Label for="email">{{ emailLabel }}</Label>
+        <Input id="email" v-model="email" :type="emailInputType" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" :placeholder="addressExample" required class="h-12 rounded-lg text-base" :aria-invalid="!!error || undefined" aria-describedby="login-error" />
       </div>
 
       <div class="flex flex-col gap-2">
@@ -129,6 +139,7 @@ function backToPassword() {
             <component :is="showPassword ? EyeOff : Eye" class="size-5" aria-hidden="true" />
           </button>
         </div>
+        <a v-if="config.passwordResetUrl" :href="config.passwordResetUrl" target="_blank" rel="noopener noreferrer" class="self-start text-sm font-medium text-primary hover:underline">Mot de passe oublié ?</a>
       </div>
 
       <p id="login-error" class="min-h-5 text-sm text-destructive" role="alert" aria-live="assertive">{{ error }}</p>
@@ -182,6 +193,10 @@ function backToPassword() {
         Ne saisissez jamais votre mot de passe sur une page reçue par e-mail. Le service informatique ne vous le demandera jamais.
       </p>
     </div>
+
+    <p v-if="supportHref" class="mt-4 text-center text-xs">
+      <a :href="supportHref" target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-foreground hover:underline">Besoin d'aide ?</a>
+    </p>
    </div>
   </main>
   </div>

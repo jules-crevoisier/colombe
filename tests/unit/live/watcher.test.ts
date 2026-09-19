@@ -59,7 +59,18 @@ function createFakeClient(): FakeImapFlow {
 }
 
 const testCreds: MailCredentials = { email: 'dev@mmi-troyes.fr', password: 'dev-password' }
-const testConfig: MailServerConfig = { host: '127.0.0.1', imapPort: 3143, imapSecure: false, smtpPort: 3025, smtpRequireTls: false }
+const testConfig: MailServerConfig = {
+  imapHost: '127.0.0.1',
+  imapPort: 3143,
+  imapSecure: false,
+  imapServername: '127.0.0.1',
+  smtpHost: '127.0.0.1',
+  smtpPort: 3025,
+  smtpSecure: false,
+  smtpRequireTls: false,
+  smtpServername: '127.0.0.1',
+  loginUsername: 'email',
+}
 
 describe('InboxWatcher', () => {
   let fakeClock: ReturnType<typeof vi.useFakeTimers>

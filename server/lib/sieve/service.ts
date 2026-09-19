@@ -20,6 +20,8 @@ import type {
   VacationSettings,
 } from '#shared/types/mail'
 import { verifySecondFactor } from '../auth/second-factor'
+import { getConfig } from '../config'
+import { mailUsername } from '../mail/backend'
 import { createBackend } from '../mail/index'
 import { buildRawMessage } from '../mail/compose'
 import { credentialsStore } from '../session/credentials'
@@ -56,28 +58,28 @@ export interface SieveSessionLike {
 
 export interface SieveRuntimeConfig {
   kind: 'mock' | 'real'
+  /** false : ManageSieve désactivé côté serveur (MAIL_SIEVE_ENABLED=false) — jamais de connexion tentée. */
+  enabled: boolean
   host: string
   port: number
   rejectUnauthorized: boolean
   servername: string
   forwardDomains: string[]
+  /** Identifiant présenté au serveur ManageSieve pour une adresse (voir ColombeConfig.login.username). */
+  loginUsername: 'email' | 'localpart'
 }
 
-export function sieveRuntimeConfig(event: H3Event): SieveRuntimeConfig {
-  const c = useRuntimeConfig(event).mail
-  const kind: 'mock' | 'real' = c.backend === 'mock' ? 'mock' : 'real'
-  const rejectRaw = (c as { tlsRejectUnauthorized?: unknown }).tlsRejectUnauthorized
+export function sieveRuntimeConfig(_event: H3Event): SieveRuntimeConfig {
+  const c = getConfig()
   return {
-    kind,
-    host: String((c as { sieveHost?: unknown }).sieveHost || c.host),
-    // ManageSieve en local (127.0.0.1) : le certificat est celui du serveur de messagerie.
-    servername: String((c as { sieveTlsServername?: unknown }).sieveTlsServername || c.host),
-    port: Number((c as { sievePort?: unknown }).sievePort || 4190),
-    rejectUnauthorized: !(rejectRaw === false || String(rejectRaw) === 'false'),
-    forwardDomains: String((c as { forwardDomains?: unknown }).forwardDomains || 'mmi-troyes.fr')
-      .split(',')
-      .map((d) => d.trim())
-      .filter(Boolean),
+    kind: c.backend === 'mock' ? 'mock' : 'real',
+    enabled: c.sieve.enabled,
+    host: c.sieve.host,
+    servername: c.sieve.servername,
+    port: c.sieve.port,
+    rejectUnauthorized: c.tlsRejectUnauthorized,
+    forwardDomains: c.forwardDomains,
+    loginUsername: c.login.username,
   }
 }
 
@@ -87,6 +89,9 @@ export async function openSieveSession(
   email: string
 ): Promise<{ available: boolean; session: SieveSessionLike | null; capabilities: string[] }> {
   const cfg = sieveRuntimeConfig(event)
+  if (!cfg.enabled) {
+    return { available: false, session: null, capabilities: [] }
+  }
   if (cfg.kind === 'mock') {
     const session = new MockSieveSession(email)
     return { available: true, session, capabilities: session.capabilities() }
@@ -98,7 +103,7 @@ export async function openSieveSession(
   try {
     const client = await SieveClient.connect(
       { host: cfg.host, port: cfg.port, rejectUnauthorized: cfg.rejectUnauthorized, servername: cfg.servername },
-      creds
+      { email: mailUsername(creds.email, { loginUsername: cfg.loginUsername }), password: creds.password }
     )
     return { available: true, session: client, capabilities: client.sieveExtensions() }
   } catch (err) {
