@@ -13,3 +13,4 @@ playwright-report
 .build.lock
 .orchestrator/
 .deploy/
+.claude/worktrees/
