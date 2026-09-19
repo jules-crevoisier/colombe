@@ -1,8 +1,12 @@
 import { z } from 'zod'
 import type { MessagePage, SearchField, SortKey, MessageSummary } from '#shared/types/mail'
+import type { ListOptions } from '../../lib/mail/backend'
 import { requireMail, mailError } from '../../utils/mail-session'
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/
+
+/** Nombre de résultats fusionnés max en scope=all (R1.2), et taille de page par dossier interrogé. */
+const ALL_SCOPE_CAP = 200
 
 const querySchema = z.object({
   folder: z.string().min(1).max(512).optional(),
@@ -24,52 +28,78 @@ const querySchema = z.object({
   order: z.enum(['asc', 'desc']).default('desc'),
 })
 
+function compareMessages(a: MessageSummary, b: MessageSummary, sort: SortKey): number {
+  switch (sort) {
+    case 'subject':
+      return a.subject.localeCompare(b.subject, 'fr', { sensitivity: 'base' })
+    case 'from':
+      return (a.from?.address ?? '').localeCompare(b.from?.address ?? '')
+    case 'size':
+      return a.size - b.size
+    default:
+      return new Date(a.date).getTime() - new Date(b.date).getTime()
+  }
+}
+
 export default defineEventHandler(async (event): Promise<MessagePage> => {
   try {
     const query = await getValidatedQuery(event, body => querySchema.parse(body))
     const { backend } = await requireMail(event)
 
-    const folders = await backend.listFolders()
-    let folderPaths: string[]
-
-    if (query.scope === 'all') {
-      folderPaths = folders
-        .filter(f => f.specialUse !== 'trash' && f.specialUse !== 'junk')
-        .map(f => f.path)
-    } else {
-      if (!query.folder) {
-        throw createError({ statusCode: 400, statusMessage: 'Dossier requis', message: 'Dossier requis pour cette recherche' })
-      }
-      folderPaths = [query.folder]
-    }
-
-    const filters: Record<string, unknown> = {}
+    const filters: NonNullable<ListOptions['filters']> = {}
     if (query.unread !== undefined) filters.unread = query.unread
     if (query.flagged !== undefined) filters.flagged = query.flagged
     if (query.unanswered !== undefined) filters.unanswered = query.unanswered
     if (query.attachments !== undefined) filters.attachments = query.attachments
     if (query.since) filters.since = query.since
     if (query.before) filters.before = query.before
+    const filtersOpt = Object.keys(filters).length > 0 ? filters : undefined
 
-    const allItems: Array<MessageSummary & { folder: string }> = []
-    for (const folder of folderPaths) {
-      const result = await backend.listMessages(folder, {
-        page: 1,
-        pageSize: 5000,
+    if (query.scope === 'folder') {
+      if (!query.folder) {
+        throw createError({ statusCode: 400, statusMessage: 'Dossier requis', message: 'Dossier requis pour cette recherche' })
+      }
+      // Un seul appel : le backend pagine, trie et filtre lui-même (jamais 5000 messages en mémoire).
+      const result = await backend.listMessages(query.folder, {
+        page: query.page,
+        pageSize: query.pageSize,
         query: query.q,
         fields: query.fields,
-        filters: Object.keys(filters).length > 0 ? filters : undefined,
+        filters: filtersOpt,
         sort: query.sort,
         order: query.order,
       })
-      for (const item of result.items) {
-        allItems.push({ ...item, folder })
+      return {
+        items: result.items,
+        total: result.total,
+        page: query.page,
+        pageSize: query.pageSize,
       }
     }
 
-    if (query.scope === 'all' && allItems.length > 200) {
-      allItems.splice(200)
+    // scope=all : un seul listFolders, puis page 1 (pageSize plafonné) par dossier éligible —
+    // jamais de bodyStructure/preview au-delà des ALL_SCOPE_CAP résultats finaux.
+    const folders = await backend.listFolders()
+    const folderPaths = folders
+      .filter(f => f.specialUse !== 'trash' && f.specialUse !== 'junk')
+      .map(f => f.path)
+
+    const allItems: MessageSummary[] = []
+    for (const folder of folderPaths) {
+      const result = await backend.listMessages(folder, {
+        page: 1,
+        pageSize: ALL_SCOPE_CAP,
+        query: query.q,
+        fields: query.fields,
+        filters: filtersOpt,
+        sort: query.sort,
+        order: query.order,
+      })
+      allItems.push(...result.items)
     }
+
+    allItems.sort((a, b) => (query.order === 'desc' ? -1 : 1) * compareMessages(a, b, query.sort))
+    if (allItems.length > ALL_SCOPE_CAP) allItems.splice(ALL_SCOPE_CAP)
 
     const total = allItems.length
     const start = (query.page - 1) * query.pageSize
@@ -77,7 +107,7 @@ export default defineEventHandler(async (event): Promise<MessagePage> => {
     const pageItems = allItems.slice(start, end)
 
     return {
-      items: pageItems as MessageSummary[],
+      items: pageItems,
       total,
       page: query.page,
       pageSize: query.pageSize,

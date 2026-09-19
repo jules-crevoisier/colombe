@@ -1,8 +1,8 @@
 import { ImapFlow } from 'imapflow'
-import type { FetchMessageObject, ListResponse, MessageAddressObject, MessageStructureObject } from 'imapflow'
+import type { FetchMessageObject, ListResponse, MessageAddressObject, MessageStructureObject, SearchObject } from 'imapflow'
 import nodemailer from 'nodemailer'
 import type { Transporter } from 'nodemailer'
-import type { Address, Folder, FolderSize, MessageSummary, QuotaInfo, SpecialUse } from '#shared/types/mail'
+import type { Address, Folder, FolderSize, MessageSummary, QuotaInfo, SearchField, SortKey, SpecialUse } from '#shared/types/mail'
 import { MailError } from './backend'
 import type {
   FlagChange,
@@ -78,6 +78,52 @@ function toAddresses(list: MessageAddressObject[] | undefined): Address[] {
   return (list ?? []).flatMap(a => (a.address ? [{ name: a.name ?? '', address: a.address }] : []))
 }
 
+const SEARCH_FIELD_KEY: Record<SearchField, 'subject' | 'from' | 'to' | 'cc' | 'body'> = {
+  subject: 'subject',
+  from: 'from',
+  to: 'to',
+  cc: 'cc',
+  body: 'body',
+}
+
+/**
+ * Combine au plus deux champs de recherche en un seul OR IMAP **non imbriqué**
+ * (`OR clé1 clé2`). Au-delà de deux champs, IMAP n'a pas d'autre choix que d'imbriquer
+ * (`OR a (OR b c)`) pour rester à deux opérandes par OR — or GreenMail échoue
+ * silencieusement (aucune erreur, aucun résultat) sur ce genre d'imbrication. Pour 3+
+ * champs, voir `searchByFieldsUnion` : une commande SEARCH par champ, union en mémoire.
+ */
+function fieldSearchCriteria(fields: SearchField[], q: string): SearchObject {
+  const [first, second] = fields.map((f): SearchObject => ({ [SEARCH_FIELD_KEY[f]]: q }))
+  if (!first) return { all: true }
+  if (!second) return first
+  return { or: [first, second] }
+}
+
+/** Construit les critères IMAP SEARCH pour `query`/`fields` (≤ 2 champs), sans les filtres (voir `applyFilters`). */
+function textSearchCriteria(query: string | undefined, fields: SearchField[] | undefined): SearchObject {
+  const q = query?.trim()
+  if (!q) return { all: true }
+  if (fields && fields.length > 0) return fieldSearchCriteria(fields, q)
+  // Pas de champs précisés : TEXT couvre en-têtes (sujet, expéditeur, destinataires) et corps.
+  return { text: q }
+}
+
+/** Ajoute les filtres R1.2 (non-lu, suivi, sans réponse, pièce jointe, dates) aux critères. */
+function applyFilters(criteria: SearchObject, filters: ListOptions['filters']): SearchObject {
+  if (!filters) return criteria
+  const result: SearchObject = { ...criteria }
+  if (filters.unread === true) result.seen = false
+  if (filters.flagged === true) result.flagged = true
+  if (filters.unanswered === true) result.answered = false
+  if (filters.since) result.since = filters.since
+  if (filters.before) result.before = filters.before
+  // Approximation IMAP : pas d'inspection de bodyStructure ici (coûteux pour tous les
+  // messages) — on regarde si l'en-tête Content-Type contient multipart/mixed.
+  if (filters.attachments === true) result.header = { ...result.header, 'content-type': 'multipart/mixed' }
+  return result
+}
+
 function toIso(value: Date | string | undefined): string {
   const date = value ? new Date(value) : new Date(0)
   return Number.isNaN(date.getTime()) ? new Date(0).toISOString() : date.toISOString()
@@ -122,6 +168,31 @@ function extractPriority(headers?: unknown): 'high' | 'normal' | 'low' {
   }
 
   return 'normal'
+}
+
+/** Construit un `MessageSummary` à partir d'un message récupéré (envelope + bodyStructure). */
+function toSummary(uid: number, folder: string, m: FetchMessageObject, preview: string): MessageSummary {
+  const env = m.envelope
+  const flags = m.flags ? Array.from(m.flags) : []
+  const answered = flags.includes('\\Answered')
+  const forwarded = flags.includes('$Forwarded')
+  const priority = extractPriority(m.headers)
+  return {
+    uid,
+    folder,
+    subject: env?.subject?.trim() || '(sans objet)',
+    from: toAddresses(env?.from)[0] ?? null,
+    to: toAddresses(env?.to),
+    date: toIso(env?.date ?? m.internalDate),
+    seen: m.flags?.has('\\Seen') ?? false,
+    flagged: m.flags?.has('\\Flagged') ?? false,
+    hasAttachments: hasAttachments(m.bodyStructure),
+    preview,
+    size: m.size ?? 0,
+    answered,
+    forwarded,
+    priority,
+  }
 }
 
 /** Première partie texte affichable, pour l'extrait de la liste. */
@@ -304,16 +375,17 @@ export class ImapBackend implements MailBackend {
 
   async listMessages(folder: string, opts: ListOptions): Promise<ListResult> {
     return this.withMailbox(folder, true, async (client) => {
-      const q = opts.query?.trim()
-      // TEXT couvre en-têtes (sujet, expéditeur, destinataires) et corps.
-      const criteria = q ? { text: q } : { all: true }
-      const found = await client.search(criteria, { uid: true })
-      // UID croissant = ordre d'arrivée : les plus récents en premier.
-      const uids = (Array.isArray(found) ? found : []).sort((a, b) => b - a)
-      const start = (opts.page - 1) * opts.pageSize
-      const pageUids = uids.slice(start, start + opts.pageSize)
-      if (pageUids.length === 0) return { items: [], total: uids.length }
+      const uids = await this.searchUids(client, opts)
+      const sort = opts.sort ?? 'date'
+      const order = opts.order ?? 'desc'
+      const orderedUids = await this.sortUids(client, uids, sort, order)
 
+      const start = (opts.page - 1) * opts.pageSize
+      const pageUids = orderedUids.slice(start, start + opts.pageSize)
+      if (pageUids.length === 0) return { items: [], total: orderedUids.length }
+
+      // La prévisualisation (et bodyStructure/envelope complets) n'est jamais récupérée
+      // pour plus qu'une page de résultats — c'était le coût principal des listes lentes.
       const messages = await client.fetchAll(
         uidRange(pageUids),
         { uid: true, flags: true, envelope: true, bodyStructure: true, size: true, internalDate: true, headers: ['x-priority', 'importance'] },
@@ -325,30 +397,99 @@ export class ImapBackend implements MailBackend {
       const items = pageUids.flatMap((uid): MessageSummary[] => {
         const m = byUid.get(uid)
         if (!m) return []
-        const env = m.envelope
-        const flags = m.flags ? Array.from(m.flags) : []
-        const answered = flags.includes('\\Answered')
-        const forwarded = flags.includes('$Forwarded')
-        const priority = extractPriority(m.headers)
-        return [{
-          uid,
-          folder,
-          subject: env?.subject?.trim() || '(sans objet)',
-          from: toAddresses(env?.from)[0] ?? null,
-          to: toAddresses(env?.to),
-          date: toIso(env?.date ?? m.internalDate),
-          seen: m.flags?.has('\\Seen') ?? false,
-          flagged: m.flags?.has('\\Flagged') ?? false,
-          hasAttachments: hasAttachments(m.bodyStructure),
-          preview: previews.get(uid) ?? '',
-          size: m.size ?? 0,
-          answered,
-          forwarded,
-          priority,
-        }]
+        return [toSummary(uid, folder, m, previews.get(uid) ?? '')]
       })
-      return { items, total: uids.length }
+      return { items, total: orderedUids.length }
     })
+  }
+
+  /** Recherche les UIDs correspondant à `opts`, avec repli sur TEXT si le serveur rejette la recherche. */
+  private async searchUids(client: ImapFlow, opts: ListOptions): Promise<number[]> {
+    const q = opts.query?.trim()
+    if (q && opts.fields && opts.fields.length > 2) {
+      // 3+ champs : jamais de OR imbriqué en une seule commande (GreenMail échoue
+      // silencieusement dessus) — une recherche par champ, puis union des UID.
+      return this.searchByFieldsUnion(client, opts.fields, q, opts.filters)
+    }
+    const primary = applyFilters(textSearchCriteria(opts.query, opts.fields), opts.filters)
+    try {
+      const found = await client.search(primary, { uid: true })
+      return Array.isArray(found) ? found : []
+    }
+    catch (err) {
+      // Une combinaison de champs (OR) ou de filtres a pu être rejetée par le serveur :
+      // on retente en cherchant sur tout (sujet + expéditeur + destinataires + corps)
+      // plutôt que d'échouer la liste entière.
+      if (!opts.fields?.length && !opts.filters) throw err
+      const fallback = applyFilters(textSearchCriteria(opts.query, undefined), opts.filters)
+      const found = await client.search(fallback, { uid: true })
+      return Array.isArray(found) ? found : []
+    }
+  }
+
+  /**
+   * Recherche `q` séparément dans chaque champ de `fields` (une commande SEARCH par champ,
+   * jamais un seul OR à 3+ opérandes) et renvoie l'union des UID trouvés. Un champ dont la
+   * recherche échoue ne fait pas échouer les autres. Si rien n'est trouvé (tous les champs
+   * vides ou en erreur), retente une recherche TEXT globale plutôt que de renvoyer une liste
+   * vide à tort.
+   */
+  private async searchByFieldsUnion(client: ImapFlow, fields: SearchField[], q: string, filters: ListOptions['filters']): Promise<number[]> {
+    const uids = new Set<number>()
+    for (const field of fields) {
+      try {
+        const criteria = applyFilters(fieldSearchCriteria([field], q), filters)
+        const found = await client.search(criteria, { uid: true })
+        if (Array.isArray(found)) for (const uid of found) uids.add(uid)
+      }
+      catch {
+        // Ce champ n'a pas pu être cherché sur ce serveur : on continue avec les autres.
+      }
+    }
+    if (uids.size > 0) return [...uids]
+
+    const fallback = applyFilters(textSearchCriteria(q, undefined), filters)
+    const found = await client.search(fallback, { uid: true })
+    return Array.isArray(found) ? found : []
+  }
+
+  /**
+   * Ordonne les UIDs trouvés. Pour `date` (par défaut), l'ordre UID suffit (croissant =
+   * ordre d'arrivée) et ne coûte rien. Pour `from`/`subject`/`size`, on récupère l'attribut
+   * léger correspondant (envelope ou taille — jamais bodyStructure ni preview) pour TOUS
+   * les UIDs trouvés, on trie en mémoire, puis seule la page demandée sera enrichie ensuite.
+   */
+  private async sortUids(client: ImapFlow, uids: number[], sort: SortKey, order: 'asc' | 'desc'): Promise<number[]> {
+    if (sort === 'date') {
+      // UID croissant = ordre d'arrivée : les plus récents en premier par défaut.
+      return [...uids].sort((a, b) => (order === 'desc' ? b - a : a - b))
+    }
+    if (uids.length === 0) return []
+
+    const attrByUid = new Map<number, string | number>()
+    if (sort === 'size') {
+      const fetched = await client.fetchAll(uidRange(uids), { uid: true, size: true }, { uid: true })
+      for (const m of fetched) attrByUid.set(m.uid, m.size ?? 0)
+    }
+    else {
+      const fetched = await client.fetchAll(uidRange(uids), { uid: true, envelope: true }, { uid: true })
+      for (const m of fetched) {
+        const value = sort === 'subject'
+          ? (m.envelope?.subject?.trim() || '')
+          : (toAddresses(m.envelope?.from)[0]?.address ?? '')
+        attrByUid.set(m.uid, value)
+      }
+    }
+
+    const compare = (a: number, b: number): number => {
+      const av = attrByUid.get(a)
+      const bv = attrByUid.get(b)
+      const cmp = sort === 'size'
+        ? (Number(av ?? 0) - Number(bv ?? 0))
+        : String(av ?? '').localeCompare(String(bv ?? ''), 'fr', { sensitivity: 'base' })
+      return order === 'desc' ? -cmp : cmp
+    }
+    return [...uids].sort(compare)
   }
 
   /** Récupère au plus 2 Ko de la première partie texte, groupé par identifiant de partie. */
@@ -532,27 +673,7 @@ export class ImapBackend implements MailBackend {
       const items = uids.flatMap((uid): MessageSummary[] => {
         const m = byUid.get(uid)
         if (!m) return []
-        const env = m.envelope
-        const flags = m.flags ? Array.from(m.flags) : []
-        const answered = flags.includes('\\Answered')
-        const forwarded = flags.includes('$Forwarded')
-        const priority = extractPriority(m.headers)
-        return [{
-          uid,
-          folder,
-          subject: env?.subject?.trim() || '(sans objet)',
-          from: toAddresses(env?.from)[0] ?? null,
-          to: toAddresses(env?.to),
-          date: toIso(env?.date ?? m.internalDate),
-          seen: m.flags?.has('\\Seen') ?? false,
-          flagged: m.flags?.has('\\Flagged') ?? false,
-          hasAttachments: hasAttachments(m.bodyStructure),
-          preview: previews.get(uid) ?? '',
-          size: m.size ?? 0,
-          answered,
-          forwarded,
-          priority,
-        }]
+        return [toSummary(uid, folder, m, previews.get(uid) ?? '')]
       })
       return items
     })

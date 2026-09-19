@@ -10,6 +10,7 @@ const route = useRoute()
 const api = useMailApi()
 const contactsApi = useContactsApi()
 const mail = useMailStore()
+const cacheStore = useMailCacheStore()
 const compose = useComposeStore()
 const { user } = useUserSession()
 const prefsStore = usePrefsStore()
@@ -56,17 +57,31 @@ const backLink = computed(() => {
 })
 
 async function load() {
-  loading.value = true
   notFound.value = false
   failed.value = false
+  cancelMarkReadTimer()
+  // Immuable (UID + dossier) : un détail en cache est encore valide, on ne
+  // refait jamais l'appel réseau tant qu'il n'a pas été invalidé (déplacé/supprimé).
+  const cached = cacheStore.getMessage(folderPath.value, uid.value)
+  if (cached) {
+    showDetails.value = false
+    msg.value = cached
+    loading.value = false
+    const pref = prefsStore.prefs.remoteImages
+    showRemote.value = pref === 'always' || (pref === 'contacts' && cached.senderInContacts)
+    void loadThread()
+    return
+  }
+  loading.value = true
   showRemote.value = false
   showDetails.value = false
-  cancelMarkReadTimer()
   try {
     const wasUnread = !msg.value || msg.value.uid !== uid.value
-    msg.value = await api.message(folderPath.value, uid.value)
+    const fresh = await api.message(folderPath.value, uid.value)
+    cacheStore.setMessage(folderPath.value, uid.value, fresh)
+    msg.value = fresh
     const pref = prefsStore.prefs.remoteImages
-    showRemote.value = pref === 'always' || (pref === 'contacts' && msg.value.senderInContacts)
+    showRemote.value = pref === 'always' || (pref === 'contacts' && fresh.senderInContacts)
     if (wasUnread) {
       void mail.loadFolders()
       scheduleMarkRead()
@@ -103,6 +118,7 @@ function scheduleMarkRead() {
     markReadTimer = null
     void api.setFlags(targetFolder, [targetUid], { seen: true }).then(() => {
       if (msg.value && msg.value.uid === targetUid && msg.value.folder === targetFolder) msg.value.seen = true
+      cacheStore.patchFlags(targetFolder, [targetUid], { seen: true })
       void mail.loadFolders()
     }).catch(() => null)
   }, delay * 1000)
@@ -167,9 +183,10 @@ const dateOpts = computed(() => ({ timeZone: prefsStore.prefs.timeZone, dateForm
 const fullDate = computed(() => (msg.value ? formatFullDate(msg.value.date, 'fr-FR', dateOpts.value) : ''))
 const html = computed(() => (prefsStore.prefs.preferHtml ? msg.value?.html ?? null : null))
 
-async function act(action: () => Promise<unknown>, done: string) {
+async function act(action: () => Promise<unknown>, done: string, onSuccess?: () => void) {
   try {
     await action()
+    onSuccess?.()
     toast(done)
     void mail.loadFolders()
     await navigateTo(backLink.value)
@@ -179,8 +196,23 @@ async function act(action: () => Promise<unknown>, done: string) {
   }
 }
 
-const doArchive = () => archive.value && act(() => api.move(folderPath.value, [uid.value], archive.value!.path), 'Message archivé')
-const doDelete = () => act(() => api.remove(folderPath.value, [uid.value]), folder.value?.specialUse === 'trash' ? 'Message supprimé définitivement' : 'Message placé dans la corbeille')
+const doArchive = () => archive.value && act(
+  () => api.move(folderPath.value, [uid.value], archive.value!.path),
+  'Message archivé',
+  () => {
+    cacheStore.removeMessages(folderPath.value, [uid.value])
+    cacheStore.invalidateFolderLists(archive.value!.path)
+  },
+)
+const doDelete = () => act(
+  () => api.remove(folderPath.value, [uid.value]),
+  folder.value?.specialUse === 'trash' ? 'Message supprimé définitivement' : 'Message placé dans la corbeille',
+  () => {
+    cacheStore.removeMessages(folderPath.value, [uid.value])
+    const trash = mail.special('trash')
+    if (trash && folder.value?.specialUse !== 'trash') cacheStore.invalidateFolderLists(trash.path)
+  },
+)
 /** deleteMode 'permanent' (R2.8) : confirmation avant suppression définitive, quel que soit le dossier. */
 function deleteClicked() {
   if (prefsStore.prefs.deleteMode === 'permanent') permanentDeleteConfirm.value = true
@@ -194,6 +226,7 @@ function confirmPermanentDelete() {
 async function copyTo(path: string, name: string) {
   try {
     await api.copy(folderPath.value, [uid.value], path)
+    cacheStore.invalidateFolderLists(path)
     toast(`Message copié vers « ${name} »`)
     void mail.loadFolders()
   }
@@ -201,8 +234,19 @@ async function copyTo(path: string, name: string) {
     toast.error(errorText(err))
   }
 }
-const doMove = (path: string, name: string) => act(() => api.move(folderPath.value, [uid.value], path), `Message déplacé vers « ${name} »`)
-const doUnread = () => act(() => api.setFlags(folderPath.value, [uid.value], { seen: false }), 'Marqué comme non lu')
+const doMove = (path: string, name: string) => act(
+  () => api.move(folderPath.value, [uid.value], path),
+  `Message déplacé vers « ${name} »`,
+  () => {
+    cacheStore.removeMessages(folderPath.value, [uid.value])
+    cacheStore.invalidateFolderLists(path)
+  },
+)
+const doUnread = () => act(
+  () => api.setFlags(folderPath.value, [uid.value], { seen: false }),
+  'Marqué comme non lu',
+  () => cacheStore.patchFlags(folderPath.value, [uid.value], { seen: false }),
+)
 
 async function toggleStar() {
   if (!msg.value) return
@@ -210,6 +254,7 @@ async function toggleStar() {
   msg.value.flagged = next
   try {
     await api.setFlags(folderPath.value, [uid.value], { flagged: next })
+    cacheStore.patchFlags(folderPath.value, [uid.value], { flagged: next })
   }
   catch (err) {
     msg.value.flagged = !next
@@ -233,6 +278,8 @@ async function loadSource() {
 async function sendMdn() {
   try {
     await api.sendMdn(folderPath.value, uid.value)
+    // readReceiptTo/$MDNSent changent côté serveur : le détail en cache doit être refait, pas seulement patché.
+    cacheStore.invalidateMessage(folderPath.value, uid.value)
     toast('Accusé de lecture envoyé')
     await load()
   }
@@ -311,6 +358,7 @@ async function addSenderToContacts() {
   try {
     await contactsApi.quickAdd(msg.value.from.address, msg.value.from.name)
     msg.value.senderInContacts = true
+    cacheStore.patchMessage(folderPath.value, uid.value, { senderInContacts: true })
     toast.success('Contact ajouté')
   }
   catch (err) {
@@ -341,6 +389,9 @@ async function importVcardAttachment(a: { id: string, filename: string, contentT
 async function junkSelected() {
   try {
     await api.junk(folderPath.value, [uid.value], true)
+    cacheStore.removeMessages(folderPath.value, [uid.value])
+    const junk = mail.special('junk')
+    if (junk) cacheStore.invalidateFolderLists(junk.path)
     toast('Message signalé comme spam')
     await navigateTo(backLink.value)
   }

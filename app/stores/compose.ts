@@ -340,6 +340,8 @@ export const useComposeStore = defineStore('compose', {
         this.draftUid = uid
         this.dirty = false
         this.saveState = 'saved'
+        const drafts = useMailStore().special('drafts')
+        if (drafts) useMailCacheStore().invalidateFolderLists(drafts.path)
         return true
       }
       catch {
@@ -362,7 +364,10 @@ export const useComposeStore = defineStore('compose', {
     async discard() {
       cancelAutosave()
       const drafts = useMailStore().special('drafts')
-      if (this.draftUid && drafts) await useMailApi().remove(drafts.path, [this.draftUid]).catch(() => null)
+      if (this.draftUid && drafts) {
+        await useMailApi().remove(drafts.path, [this.draftUid]).catch(() => null)
+        useMailCacheStore().removeMessages(drafts.path, [this.draftUid])
+      }
       this.reset()
       toast('Brouillon supprimé')
       await useMailStore().loadFolders()
@@ -381,8 +386,16 @@ export const useComposeStore = defineStore('compose', {
         this.sending = true
         try {
           await useMailApi().send(this.payload(form))
+          const mail = useMailStore()
+          const cache = useMailCacheStore()
+          const sent = mail.special('sent')
+          if (sent) cache.invalidateFolderLists(sent.path)
+          if (this.draftUid) {
+            const drafts = mail.special('drafts')
+            if (drafts) cache.removeMessages(drafts.path, [this.draftUid])
+          }
           toast.success('Message envoyé')
-          await useMailStore().loadFolders()
+          await mail.loadFolders()
           return true
         }
         catch (err) {

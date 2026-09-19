@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { MessageDetail } from '#shared/types/mail'
 import { parseMessage } from '../../lib/mail/parse'
 import { isKnownContact } from '../../lib/store/contacts'
+import { getPrefs } from '../../lib/store/prefs'
 import { useDb } from '../../lib/store/db'
 import { mailError, requireMail } from '../../utils/mail-session'
 
@@ -15,9 +16,13 @@ export default defineEventHandler(async (event): Promise<MessageDetail> => {
     const { email, backend } = await requireMail(event)
 
     const stored = await backend.getMessage(folder, uid)
-    if (!stored.seen) await backend.setFlags(folder, [uid], { seen: true })
+    // Prefs.markReadDelay (R2.5) : 0 = lu à l'ouverture (ici) ; 5/10 s ou « jamais » :
+    // c'est la page de lecture qui marque le message comme lu, après le délai.
+    const markNow = getPrefs(useDb(), email).markReadDelay === 0
+    if (markNow && !stored.seen) await backend.setFlags(folder, [uid], { seen: true })
+    const seen = stored.seen || markNow
 
-    const detail = await parseMessage(stored.raw, { uid, folder, seen: true, flagged: stored.flagged, size: stored.size, flags: stored.flags })
+    const detail = await parseMessage(stored.raw, { uid, folder, seen, flagged: stored.flagged, size: stored.size, flags: stored.flags })
     const senderInContacts = detail.from ? isKnownContact(useDb(), email, detail.from.address) : false
     return { ...detail, senderInContacts }
   }

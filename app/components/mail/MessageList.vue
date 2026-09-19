@@ -2,11 +2,12 @@
 import { toast } from 'vue-sonner'
 import { onKeyStroke } from '@vueuse/core'
 import { Archive, ArrowDownUp, ChevronLeft, ChevronRight, CircleAlert, Download, EllipsisVertical, FolderInput, Inbox, ListChecks, Mail, MailOpen, RefreshCw, SearchX, Trash2, X } from '@lucide/vue'
-import type { MessagePage, MessageSummary, SortKey } from '#shared/types/mail'
+import type { MessagePage, MessageQuery, MessageSummary, SortKey } from '#shared/types/mail'
 
 const route = useRoute()
 const api = useMailApi()
 const mail = useMailStore()
+const cacheStore = useMailCacheStore()
 const compose = useComposeStore()
 const prefsStore = usePrefsStore()
 const PAGE_SIZE_DEFAULT = 50
@@ -33,29 +34,62 @@ const showRecipient = computed(() => folder.value?.specialUse === 'sent' || isDr
 
 const data = ref<MessagePage | null>(null)
 const loading = ref(true)
+/** Revalidation en arrière-plan d'une page déjà affichée (depuis le cache) : indicateur discret, pas de squelette. */
+const refreshing = ref(false)
 const failed = ref(false)
 const selected = ref(new Set<number>())
 const fileInput = ref<HTMLInputElement | null>(null)
+/** Clé/dossier de la page actuellement rendue dans `data`, pour distinguer navigation et revalidation. */
+const loadedKey = ref<string | null>(null)
 
-async function load(silent = false) {
-  if (!silent) loading.value = true
-  failed.value = false
+const listQuery = computed<MessageQuery>(() => ({ q: q.value || undefined, sort: sort.value, order: order.value }))
+const listKey = computed(() => cacheStore.listKey(folderPath.value, page.value, pageSize.value, listQuery.value))
+
+function syncSelection() {
+  const uids = new Set((data.value?.items ?? []).map(m => m.uid))
+  selected.value = new Set([...selected.value].filter(uid => uids.has(uid)))
+}
+
+/**
+ * Stale-while-revalidate : si la page est en cache (ou déjà affichée pour
+ * cette même clé, ex. revalidation sur événement live), on l'affiche/garde
+ * sans squelette et on ne fait qu'un indicateur discret pendant le
+ * rechargement en arrière-plan. Sinon, chargement classique avec squelette.
+ */
+async function load() {
+  const key = listKey.value
+  const cached = cacheStore.getList(key)
+  const alreadyShown = loadedKey.value === key && data.value !== null
+  if (cached && !alreadyShown) {
+    data.value = cached
+    loadedKey.value = key
+    syncSelection()
+  }
+  const hasContent = cached !== undefined || alreadyShown
+  if (hasContent) refreshing.value = true
+  else { loading.value = true; failed.value = false }
   try {
-    data.value = await api.messages(folderPath.value, page.value, { q: q.value || undefined, sort: sort.value, order: order.value }, pageSize.value)
-    const uids = new Set(data.value.items.map(m => m.uid))
-    selected.value = new Set([...selected.value].filter(uid => uids.has(uid)))
+    const fresh = await api.messages(folderPath.value, page.value, listQuery.value, pageSize.value)
+    cacheStore.setList(key, folderPath.value, fresh)
+    data.value = fresh
+    loadedKey.value = key
+    failed.value = false
+    syncSelection()
   }
   catch {
-    failed.value = true
+    if (!hasContent) failed.value = true
+    // Sinon : on garde la page déjà affichée (obsolète mais utilisable) sans interrompre l'utilisateur.
   }
   finally {
     loading.value = false
+    refreshing.value = false
   }
 }
 
-// Changement poussé par le serveur (SSE) sur le dossier affiché : rechargement silencieux.
+// Changement poussé par le serveur (SSE) sur le dossier affiché : le cache a déjà été invalidé
+// par useLiveUpdates ; on revalide juste la page visible, sans squelette.
 watch(() => mail.liveTick, () => {
-  if (mail.liveFolder === folderPath.value && !loading.value) void load(true)
+  if (mail.liveFolder === folderPath.value) void load()
 })
 
 watch([folderPath, page, q, pageSize], () => {
@@ -132,18 +166,19 @@ async function openDraft(m: MessageSummary) {
   }
 }
 
-async function run(action: () => Promise<unknown>, done: string) {
+async function run(action: () => Promise<unknown>, done: string, onSuccess?: () => void) {
   const uids = [...selected.value]
   if (!uids.length) return
   try {
     await action()
+    onSuccess?.()
     toast(done)
     selected.value = new Set()
-    await Promise.all([load(true), mail.loadFolders()])
+    await Promise.all([load(), mail.loadFolders()])
   }
   catch (err) {
     toast.error(errorText(err))
-    await load(true)
+    await load()
   }
 }
 
@@ -154,7 +189,11 @@ function plural(n: number, word: string) {
 const markSeen = (seen: boolean) => {
   const uids = [...selected.value]
   for (const m of selection.value) m.seen = seen
-  return run(() => api.setFlags(folderPath.value, uids, { seen }), seen ? 'Marqué comme lu' : 'Marqué comme non lu')
+  return run(
+    () => api.setFlags(folderPath.value, uids, { seen }),
+    seen ? 'Marqué comme lu' : 'Marqué comme non lu',
+    () => cacheStore.patchFlags(folderPath.value, uids, { seen }),
+  )
 }
 /**
  * Suppression avec « Annuler » : les messages disparaissent tout de suite,
@@ -178,8 +217,9 @@ function removeUids(uids: number[]) {
   const timer = setTimeout(async () => {
     try {
       await api.remove(source, uids)
+      cacheStore.removeMessages(source, uids)
       await mail.loadFolders()
-      if (source === folderPath.value) await load(true)
+      if (source === folderPath.value) await load()
     }
     catch (err) {
       toast.error(errorText(err, 'La suppression a échoué.'))
@@ -208,8 +248,9 @@ async function confirmPermanentDelete() {
   selected.value = new Set()
   try {
     await api.remove(source, uids)
+    cacheStore.removeMessages(source, uids)
     toast(`${plural(n, 'message')} supprimé${n > 1 ? 's' : ''} définitivement`)
-    await Promise.all([load(true), mail.loadFolders()])
+    await Promise.all([load(), mail.loadFolders()])
   }
   catch (err) {
     toast.error(errorText(err, 'La suppression a échoué.'))
@@ -217,14 +258,23 @@ async function confirmPermanentDelete() {
 }
 const removeSelected = () => removeUids([...selected.value])
 const moveSelected = (destination: string, label: string) => {
-  const n = selected.value.size
-  return run(() => api.move(folderPath.value, [...selected.value], destination), `${plural(n, 'message')} déplacé${n > 1 ? 's' : ''} vers « ${label} »`)
+  const uids = [...selected.value]
+  const n = uids.length
+  return run(
+    () => api.move(folderPath.value, uids, destination),
+    `${plural(n, 'message')} déplacé${n > 1 ? 's' : ''} vers « ${label} »`,
+    () => {
+      cacheStore.removeMessages(folderPath.value, uids)
+      cacheStore.invalidateFolderLists(destination)
+    },
+  )
 }
 
 async function toggleStar(m: MessageSummary) {
   m.flagged = !m.flagged
   try {
     await api.setFlags(folderPath.value, [m.uid], { flagged: m.flagged })
+    cacheStore.patchFlags(folderPath.value, [m.uid], { flagged: m.flagged })
   }
   catch (err) {
     m.flagged = !m.flagged
@@ -289,8 +339,9 @@ function setOrder(value: string) {
 async function markAllAsRead() {
   try {
     await api.markFolderRead(folderPath.value)
+    cacheStore.invalidateFolderLists(folderPath.value)
     toast('Tous les messages marqués comme lus')
-    await Promise.all([load(true), mail.loadFolders()])
+    await Promise.all([load(), mail.loadFolders()])
   }
   catch (err) {
     toast.error(errorText(err))
@@ -298,14 +349,28 @@ async function markAllAsRead() {
 }
 
 async function copySelected(destination: string, label: string) {
-  const n = selected.value.size
-  return run(() => api.copy(folderPath.value, [...selected.value], destination), `${plural(n, 'message')} copié${n > 1 ? 's' : ''} vers « ${label} »`)
+  const uids = [...selected.value]
+  const n = uids.length
+  return run(
+    () => api.copy(folderPath.value, uids, destination),
+    `${plural(n, 'message')} copié${n > 1 ? 's' : ''} vers « ${label} »`,
+    () => cacheStore.invalidateFolderLists(destination),
+  )
 }
 
 async function junkSelected(junk: boolean) {
-  const n = selected.value.size
+  const uids = [...selected.value]
+  const n = uids.length
   const label = junk ? 'Signaler comme spam' : 'Ce n\'est pas un spam'
-  return run(() => api.junk(folderPath.value, [...selected.value], junk), junk ? `${plural(n, 'message')} déplacé${n > 1 ? 's' : ''} vers le spam` : `${plural(n, 'message')} déplacé${n > 1 ? 's' : ''} vers la boîte de réception`)
+  return run(
+    () => api.junk(folderPath.value, uids, junk),
+    junk ? `${plural(n, 'message')} déplacé${n > 1 ? 's' : ''} vers le spam` : `${plural(n, 'message')} déplacé${n > 1 ? 's' : ''} vers la boîte de réception`,
+    () => {
+      cacheStore.removeMessages(folderPath.value, uids)
+      const target = mail.special(junk ? 'junk' : 'inbox')
+      if (target) cacheStore.invalidateFolderLists(target.path)
+    },
+  )
 }
 
 function downloadSelected() {
@@ -323,8 +388,9 @@ async function importFiles(e: Event) {
   if (!files?.length) return
   try {
     const result = await api.importEml(folderPath.value, Array.from(files))
+    cacheStore.invalidateFolderLists(folderPath.value)
     toast(`${result.imported} message${result.imported > 1 ? 's' : ''} importé${result.imported > 1 ? 's' : ''}`)
-    await Promise.all([load(true), mail.loadFolders()])
+    await Promise.all([load(), mail.loadFolders()])
   }
   catch (err) {
     toast.error(errorText(err, 'Impossible d\'importer les messages.'))
@@ -335,9 +401,10 @@ async function importFiles(e: Event) {
 async function emptyFolderConfirm() {
   try {
     await api.emptyFolder(folderPath.value)
+    cacheStore.invalidateFolder(folderPath.value)
     toast(isTrash.value ? 'Corbeille vidée' : 'Spam vidé')
     selected.value = new Set()
-    await Promise.all([load(true), mail.loadFolders()])
+    await Promise.all([load(), mail.loadFolders()])
   }
   catch (err) {
     toast.error(errorText(err))
@@ -383,6 +450,9 @@ useHead({ title: computed(() => (q.value ? `Recherche « ${q.value} »` : folder
 
       <template v-if="!selected.size">
         <MailIconButton :icon="RefreshCw" label="Actualiser" @click="load(); mail.loadFolders()" />
+        <!-- Revalidation discrète d'une page déjà affichée (cache) : pas de squelette, juste cet indicateur. -->
+        <RefreshCw v-if="refreshing" class="size-3.5 shrink-0 animate-spin text-muted-foreground" aria-hidden="true" />
+        <span v-if="refreshing" class="sr-only" aria-live="polite">Actualisation de la liste…</span>
         <!-- Trier menu -->
         <DropdownMenu>
           <MailMenuButton :icon="ArrowDownUp" label="Trier" />

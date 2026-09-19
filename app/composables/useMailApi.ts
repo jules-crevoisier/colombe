@@ -114,6 +114,8 @@ export function useMailApi() {
     saveDraft: (payload: ComposePayload) => call<DraftSaveResult>('/api/drafts', { method: 'POST', body: payload }),
     async logout() {
       await $fetch('/api/auth/logout', { method: 'POST' }).catch(() => null)
+      // Aucun identifiant/contenu de mail ne doit survivre en mémoire après déconnexion.
+      useMailCacheStore().clear()
       await session.clear()
       await navigateTo('/login')
     },

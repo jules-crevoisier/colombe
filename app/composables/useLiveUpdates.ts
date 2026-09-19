@@ -13,6 +13,9 @@ export function useLiveUpdates() {
 
   async function onChange(folder: string) {
     const before = mail.inboxUnread
+    // Le contenu du dossier a changé côté serveur : le cache de listes est obsolète.
+    // La liste visible (si c'est ce dossier) sera revalidée par son propre watcher sur liveTick.
+    useMailCacheStore().invalidateFolderLists(folder)
     await mail.loadFolders()
     mail.notifyChange(folder)
     const gained = mail.inboxUnread - before
