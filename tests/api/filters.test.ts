@@ -323,7 +323,7 @@ describe('GET/PUT /api/filters/forward', () => {
     })
 
     const inbox = await c.json<MessagePage>('/api/messages?folder=INBOX&pageSize=100')
-    expect(inbox.items.some(m => m.subject === 'Courrielle : transfert modifié sur votre compte')).toBe(true)
+    expect(inbox.items.some(m => m.subject === 'Colombe : transfert modifié sur votre compte')).toBe(true)
   })
 })
 

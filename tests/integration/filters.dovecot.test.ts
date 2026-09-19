@@ -190,7 +190,7 @@ describe.skipIf(!reachable)('Filtres Sieve contre Dovecot + Pigeonhole (réel)',
     expect(folderRes.status).toBe(201)
     const folder = (await folderRes.json()) as Folder
 
-    const setRes = await c.request('/api/filters/sets', { method: 'POST', body: { name: 'courrielle' } })
+    const setRes = await c.request('/api/filters/sets', { method: 'POST', body: { name: 'colombe' } })
     expect(setRes.status).toBe(201)
 
     const rule: FilterRule = {
@@ -201,10 +201,10 @@ describe.skipIf(!reachable)('Filtres Sieve contre Dovecot + Pigeonhole (réel)',
       conditions: [{ field: 'subject', op: 'contains', value: '[MMI]' }],
       actions: [{ type: 'move', folder: folder.path }],
     }
-    const putRes = await c.request('/api/filters/sets/courrielle', { method: 'PUT', body: { rules: [rule] } })
+    const putRes = await c.request('/api/filters/sets/colombe', { method: 'PUT', body: { rules: [rule] } })
     expect(putRes.status).toBe(200)
 
-    const activateRes = await c.request('/api/filters/sets/courrielle/activate', { method: 'POST' })
+    const activateRes = await c.request('/api/filters/sets/colombe/activate', { method: 'POST' })
     expect(activateRes.status).toBe(204)
 
     await deliverByLmtp(userA, 'bob@mmi-troyes.fr', '[MMI] test filtre', 'Corps du message de test.')

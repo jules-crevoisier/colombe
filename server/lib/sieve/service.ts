@@ -436,7 +436,7 @@ export async function putVacation(
 
     const active = await loadActiveSet(session)
     if (active && !active.managed) throw UNMANAGED_SET
-    const name = active?.name ?? 'courrielle'
+    const name = active?.name ?? 'colombe'
 
     const requiresConfirmation = needsVacationConfirmation(active?.vacation ?? null, settings)
     if (requiresConfirmation) await assertConfirmed(ctx, confirm)
@@ -478,7 +478,7 @@ export async function putForward(
 
     const active = await loadActiveSet(session)
     if (active && !active.managed) throw UNMANAGED_SET
-    const name = active?.name ?? 'courrielle'
+    const name = active?.name ?? 'colombe'
 
     if (settings.enabled) await assertConfirmed(ctx, confirm)
 
@@ -516,7 +516,7 @@ export async function onForwardingChanged(ctx: FiltersContext, owner: string, su
         to: [owner],
         cc: [],
         bcc: [],
-        subject: 'Courrielle : transfert modifié sur votre compte',
+        subject: 'Colombe : transfert modifié sur votre compte',
         text: summary,
         html: null,
         inReplyTo: null,

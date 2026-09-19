@@ -24,7 +24,7 @@ export function useLiveUpdates() {
       && Notification.permission === 'granted'
     ) {
       // Pas de contenu du message dans la notification : elle peut s'afficher écran verrouillé.
-      const n = new Notification('Webmail MMI', {
+      const n = new Notification('Colombe', {
         body: gained > 1 ? `${gained} nouveaux messages` : 'Nouveau message',
         tag: 'webmail-nouveau',
       })

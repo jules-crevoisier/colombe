@@ -37,7 +37,7 @@ client ManageSieve).
 | **A** — Connexion CAS | **CAS de l'URCA via OpenID Connect**, avec un jeton vérifié par Dovecot (`passdb oauth2`, introspection) : ni mot de passe stocké, ni « utilisateur maître » capable d'ouvrir les 348 boîtes. La connexion par mot de passe (+ double authentification) reste disponible pendant la transition. Le code est préparé sans être activé. | DSI URCA : le CAS parle-t-il OIDC ? URL de l'émetteur, enregistrement d'un client, point d'introspection. Table de correspondance identifiant URCA → adresse `@mmi-troyes.fr`. Réglage Dovecot sur le serveur (feu vert admin). |
 | **L** — Annuaire LDAP | **Annuaire global en lecture seule** (comme le carnet LDAP de Roundcube) : autocomplétion et section **« Annuaire »** de la page Contacts. L'authentification reste sur Dovecot. | Adresse du serveur LDAP (URCA ou IUT), base de recherche, compte de lecture, attributs (nom, e-mail, service, téléphone). |
 | **G** — Autres appareils | Page **« Configurer un autre appareil »** : réglages IMAP/SMTP, QR code, profil iPhone/iPad (`.mobileconfig`, sans mot de passe), configuration automatique Thunderbird (`autoconfig`) et Outlook (`autodiscover`), pas-à-pas pour l'application Gmail (Android/iOS). Gmail web ne relève plus les comptes externes depuis 2026 ; le transfert vers Gmail reste bloqué par défaut (règle anti-exfiltration, F). | Pour la configuration automatique : enregistrements DNS `autoconfig.mmi-troyes.fr` / `autodiscover.mmi-troyes.fr` (admin). |
-| **Nom** | **Colombe** (retenu le 19/09 parmi Colombe, Courrielle, Vélin, Hirondelle ; aucun produit de messagerie ni projet libre à ce nom, nom npm libre). Renommage de l'interface, du paquet et de la documentation après la vague R2. | Renommage du dépôt GitHub (avec accord). |
+| **Nom** | **Colombe** (retenu le 19/09 parmi Colombe, Colombe, Vélin, Hirondelle ; aucun produit de messagerie ni projet libre à ce nom, nom npm libre). Renommage de l'interface, du paquet et de la documentation après la vague R2. | Renommage du dépôt GitHub (avec accord). |
 
 ---
 
@@ -84,7 +84,7 @@ connecté. Le standard est **Sieve**, géré à distance par le protocole **Mana
 1. installer `dovecot-sieve` et `dovecot-managesieved` ;
 2. activer le plugin `sieve` pour LMTP/LDA, **et vérifier que Postfix livre bien via Dovecot**
    (LMTP ou LDA). Sinon Sieve ne s'exécute jamais ;
-3. ManageSieve en écoute sur **127.0.0.1:4190** seulement (Courrielle est sur la même
+3. ManageSieve en écoute sur **127.0.0.1:4190** seulement (Colombe est sur la même
    machine) : le port n'est pas ouvert sur Internet.
 
 En développement : un conteneur Dovecot 2.4.1 avec Pigeonhole (`docker compose up -d
@@ -114,11 +114,11 @@ section F.
 - Client ManageSieve maison (STARTTLS, `AUTHENTICATE PLAIN`, `LISTSCRIPTS`, `GETSCRIPT`,
   `PUTSCRIPT`, `CHECKSCRIPT`, `SETACTIVE`), petit et testable, comme le TOTP. Identifiants
   pris dans le même stockage serveur que l'IMAP : rien ne passe par le navigateur.
-- Un script `courrielle` géré par l'application : les règles sont en JSON (en commentaire
+- Un script `colombe` géré par l'application : les règles sont en JSON (en commentaire
   d'en-tête) et le script Sieve en est **généré**. Un script écrit à la main (option avancée, PLAN-v4)
   n'est analysé que pour y refuser les redirections hors domaines autorisés.
 - Si l'utilisateur a déjà un autre script actif : avertissement, puis remplacement avec
-  sauvegarde (`courrielle-sauvegarde-AAAA-MM-JJ`).
+  sauvegarde (`colombe-sauvegarde-AAAA-MM-JJ`).
 - Les fonctions sont affichées selon les capacités annoncées par le serveur (`fileinto`,
   `vacation`, `copy`, `imap4flags`, `date`).
 
@@ -153,7 +153,7 @@ d'aide, plus une aide pour les filtres.
 
 ## P — Mise en production
 
-1. **Déploiement** : build Nuxt, service systemd, Apache en proxy inverse sur `/courrielle`,
+1. **Déploiement** : build Nuxt, service systemd, Apache en proxy inverse sur `/colombe`,
    `NUXT_MAIL_TRUST_PROXY=true`, génération des clés (`NUXT_SESSION_PASSWORD`,
    `WEBMAIL_DATA_KEY`), sauvegarde quotidienne de la base SQLite (la clé est sauvegardée
    **à part**).
@@ -164,14 +164,14 @@ d'aide, plus une aide pour les filtres.
 4. **Revue de sécurité** : en-têtes (CSP, HSTS), `pnpm audit`, corpus de charges XSS contre
    l'assainisseur, limites de débit, journaux.
 5. **Migration depuis Roundcube** :
-   - par l'utilisateur : Roundcube → Contacts → Exporter (.vcf), puis Courrielle →
+   - par l'utilisateur : Roundcube → Contacts → Exporter (.vcf), puis Colombe →
      Importer (R2.3) ;
    - option admin (sur feu vert) : script ponctuel qui lit la base Roundcube (contacts,
-     groupes, identités, signatures, réponses types) et remplit la base de Courrielle.
-6. **Bascule** : Courrielle en parallèle sur `/courrielle`, groupe pilote (personnels),
+     groupes, identités, signatures, réponses types) et remplit la base de Colombe.
+6. **Bascule** : Colombe en parallèle sur `/colombe`, groupe pilote (personnels),
    puis remplacement de `/webmail`.
 
-> **À faire sans attendre Courrielle** : RainLoop 1.17 est encore actif sur `/webmail`,
+> **À faire sans attendre Colombe** : RainLoop 1.17 est encore actif sur `/webmail`,
 > sans correctif depuis 2022. Il devrait être coupé dès que les utilisateurs ont
 > Roundcube.
 

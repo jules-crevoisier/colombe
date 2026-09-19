@@ -3,7 +3,7 @@ import { ArrowLeft, Eye, EyeOff, LoaderCircle, ShieldCheck } from '@lucide/vue'
 import type { LoginResult } from '#shared/types/mail'
 
 definePageMeta({ layout: 'auth' })
-useHead({ title: 'Connexion — Webmail MMI' })
+useHead({ title: 'Connexion — Colombe' })
 
 const step = ref<'password' | 'code'>('password')
 const email = ref('')

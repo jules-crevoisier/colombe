@@ -69,8 +69,8 @@ par `PUT /api/prefs` (valeur invalide → 400).
 
 | # | Fonction | Contrat |
 |---|---|---|
-| 42 | Liens mailto: | Paramètres → Général : bouton **« Ouvrir les liens mailto: avec Courrielle »** (`navigator.registerProtocolHandler`). La route `/compose?to=mailto:…` ouvre la rédaction préremplie (`to`, `cc`, `bcc`, `subject`, `body`). |
-| 43 | Compte | Paramètres → Sécurité → **« Informations du compte »** : **« Identifiant »** (adresse de connexion), **« Première connexion à Courrielle »** (date), **« Dernière connexion »**. `AccountActivity.firstLogin: string \| null`. |
+| 42 | Liens mailto: | Paramètres → Général : bouton **« Ouvrir les liens mailto: avec Colombe »** (`navigator.registerProtocolHandler`). La route `/compose?to=mailto:…` ouvre la rédaction préremplie (`to`, `cc`, `bcc`, `subject`, `body`). |
+| 43 | Compte | Paramètres → Sécurité → **« Informations du compte »** : **« Identifiant »** (adresse de connexion), **« Première connexion à Colombe »** (date), **« Dernière connexion »**. `AccountActivity.firstLogin: string \| null`. |
 | 44 | Reconnexion | Côté serveur : une opération IMAP **en lecture** (liste, lecture, recherche, drapeaux) qui échoue sur une erreur réseau passagère (`ECONNRESET`, délai dépassé, `BYE`) est retentée 2 fois (200 ms puis 1 s) avec une nouvelle connexion. Jamais pour l'envoi ni l'ajout d'un message. |
 
 ### R4.6 Liste regroupée par conversation (reportée de R2.7)
@@ -91,7 +91,7 @@ par `PUT /api/prefs` (valeur invalide → 400).
 | 29 | Options du correcteur | Le correcteur est celui du navigateur ; ces réglages s'y font. |
 | 31 | Options MIME | Messages toujours conformes (RFC 2047/2231, UTF-8) : pas de réglage à exposer. |
 | 38 | Formulaire perso / pro | La fiche contact montre déjà tous les champs. |
-| 42 (partie) | Fenêtres « standard » | Propre à l'interface de Roundcube (fenêtres internes) ; Courrielle utilise déjà des boîtes de dialogue accessibles. |
+| 42 (partie) | Fenêtres « standard » | Propre à l'interface de Roundcube (fenêtres internes) ; Colombe utilise déjà des boîtes de dialogue accessibles. |
 
 ---
 
@@ -169,8 +169,8 @@ interface FiltersStatus { available: boolean; capabilities: string[]; sets: Filt
   `POST /api/filters/import` (multipart `.sieve`, nom = nom du fichier).
 - Réponse automatique et transfert : `GET/PUT /api/filters/vacation` (`VacationSettings`),
   `GET/PUT /api/filters/forward` (`ForwardSettings`). Ils sont écrits dans l'ensemble
-  actif (créé sous le nom `courrielle` s'il n'y en a pas).
-- Un ensemble géré par Courrielle garde ses règles en JSON dans un commentaire d'en-tête ;
+  actif (créé sous le nom `colombe` s'il n'y en a pas).
+- Un ensemble géré par Colombe garde ses règles en JSON dans un commentaire d'en-tête ;
   le script est **généré** depuis ces règles. Un ensemble modifié à la main (`managed:
   false`) ne s'édite plus qu'en mode script.
 - Tout script est validé par `CHECKSCRIPT` avant `PUTSCRIPT` ; erreur → 400 avec le message
@@ -192,7 +192,7 @@ interface FiltersStatus { available: boolean; capabilities: string[]; sets: Filt
 - Créer ou modifier une redirection, une notification ou un transfert, ou enregistrer un
   script à la main, exige `confirmPassword` (ou `totpCode` si la double authentification
   est active) dans le corps de la requête ; sinon 403 **« Confirmez votre mot de passe. »**.
-- Après un tel changement : un e-mail **« Courrielle : transfert modifié sur votre
+- Après un tel changement : un e-mail **« Colombe : transfert modifié sur votre
   compte »** est envoyé à l'adresse de connexion, et l'événement apparaît dans
   « Activité récente ».
 - `reject` : message limité à 500 caractères.

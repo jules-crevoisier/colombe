@@ -10,7 +10,7 @@ const STEP = 30
 const DIGITS = 6
 /** Tolérance de ±1 pas (décalage d'horloge du téléphone). */
 const WINDOW = 1
-const ISSUER = 'Webmail MMI'
+const ISSUER = 'Colombe'
 
 export function base32Encode(buf: Buffer): string {
   let bits = 0

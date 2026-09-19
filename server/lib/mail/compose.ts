@@ -50,7 +50,7 @@ function extractInlineImages(html: string): { html: string; images: InlineImage[
 
     const format = dataMatch[1]!.toLowerCase()
     const content = Buffer.from(dataMatch[2] ?? '', 'base64')
-    const cid = `${randomUUID()}@courrielle.inline`
+    const cid = `${randomUUID()}@colombe.inline`
     images.push({ cid, contentType: `image/${format}`, content })
     return tag.replace(SRC_ATTR_RE, ` src="cid:${cid}"`)
   })

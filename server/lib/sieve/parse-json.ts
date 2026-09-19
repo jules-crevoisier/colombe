@@ -1,7 +1,7 @@
 /**
- * Lecture/écriture du commentaire d'en-tête `# courrielle:{base64 json}` qui
+ * Lecture/écriture du commentaire d'en-tête `# colombe:{base64 json}` qui
  * porte l'état structuré (règles, réponse automatique, transfert) d'un jeu de
- * filtres géré par Courrielle. Absent ou invalide -> `managed: false` côté
+ * filtres géré par Colombe. Absent ou invalide -> `managed: false` côté
  * appelant (service.ts).
  */
 import type { FilterRule, ForwardSettings, VacationSettings } from '#shared/types/mail'
@@ -12,7 +12,7 @@ export interface ManagedScriptData {
   forward: ForwardSettings | null
 }
 
-const HEADER_RE = /^#\s*courrielle:([A-Za-z0-9+/=]+)\s*$/m
+const HEADER_RE = /^#\s*colombe:([A-Za-z0-9+/=]+)\s*$/m
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -40,5 +40,5 @@ export function readManagedData(script: string): ManagedScriptData | null {
 export function writeManagedHeader(data: ManagedScriptData): string {
   const json = JSON.stringify({ rules: data.rules, vacation: data.vacation, forward: data.forward })
   const b64 = Buffer.from(json, 'utf-8').toString('base64')
-  return `# courrielle:${b64}`
+  return `# colombe:${b64}`
 }

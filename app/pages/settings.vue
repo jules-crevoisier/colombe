@@ -48,7 +48,7 @@ onMounted(async () => {
 })
 
 useHead({
-  title: 'Paramètres - Webmail MMI',
+  title: 'Paramètres - Colombe',
 })
 </script>
 

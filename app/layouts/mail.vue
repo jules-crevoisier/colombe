@@ -117,7 +117,7 @@ onMounted(() => {
 useLiveUpdates()
 
 useHead({
-  title: computed(() => (mail.inboxUnread ? `(${mail.inboxUnread}) Webmail MMI` : 'Webmail MMI')),
+  title: computed(() => (mail.inboxUnread ? `(${mail.inboxUnread}) Colombe` : 'Colombe')),
 })
 </script>
 
@@ -130,8 +130,8 @@ useHead({
     <header class="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-1 bg-surface-app px-2 lg:static lg:gap-2 lg:px-4">
       <MailIconButton :icon="Menu" label="Menu principal" @click="toggleMenu" />
       <NuxtLink to="/mail/INBOX" class="hidden items-center gap-2 pr-6 text-lg font-medium tracking-tight md:flex lg:w-[200px]">
-        <span class="grid size-8 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground" aria-hidden="true">M</span>
-        Webmail
+        <span class="grid size-8 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground" aria-hidden="true">C</span>
+        Colombe
       </NuxtLink>
 
       <form role="search" class="min-w-0 flex-1 lg:max-w-3xl" @submit.prevent="submitSearch">
@@ -257,7 +257,7 @@ useHead({
     <Sheet v-model:open="drawerOpen">
       <SheetContent side="left" class="w-[85vw] max-w-80 bg-surface-app p-3 pt-4">
         <SheetHeader class="p-1 pb-2">
-          <SheetTitle class="text-left text-lg font-medium">Webmail MMI</SheetTitle>
+          <SheetTitle class="text-left text-lg font-medium">Colombe</SheetTitle>
           <SheetDescription class="sr-only">Navigation entre les dossiers</SheetDescription>
         </SheetHeader>
         <MailFolderNav @navigate="drawerOpen = false" />

@@ -1,6 +1,6 @@
-# Audit : Roundcube 1.6 → Courrielle
+# Audit : Roundcube 1.6 → Colombe
 
-Objectif : Courrielle doit pouvoir **remplacer Roundcube pour tous les comptes** de
+Objectif : Colombe doit pouvoir **remplacer Roundcube pour tous les comptes** de
 `mmi-troyes.fr`. Source de l'audit : dépôt officiel `roundcube/roundcubemail`, branche
 `release-1.6` (actions `program/actions/{mail,settings,contacts}` + 37 plugins fournis).
 
@@ -8,7 +8,7 @@ Légende : ✅ présent · 🟡 partiel · ❌ manquant · ⛔ hors périmètre 
 
 ## 1. Messagerie
 
-| Roundcube | Courrielle | Lot |
+| Roundcube | Colombe | Lot |
 |---|---|---|
 | Liste paginée, tri par date | ✅ | — |
 | Tri par expéditeur / objet / taille, ordre inversé | ❌ | R1 |
@@ -43,7 +43,7 @@ Légende : ✅ présent · 🟡 partiel · ❌ manquant · ⛔ hors périmètre 
 
 ## 2. Rédaction
 
-| Roundcube | Courrielle | Lot |
+| Roundcube | Colombe | Lot |
 |---|---|---|
 | Éditeur HTML, texte brut | 🟡 riche uniquement | R2 |
 | Brouillons automatiques | ✅ | — |
@@ -61,7 +61,7 @@ Légende : ✅ présent · 🟡 partiel · ❌ manquant · ⛔ hors périmètre 
 
 ## 3. Carnet d'adresses
 
-| Roundcube | Courrielle | Lot |
+| Roundcube | Colombe | Lot |
 |---|---|---|
 | Contacts, recherche, autocomplétion | ✅ | — |
 | Adresses collectées automatiquement | ✅ | — |
@@ -72,7 +72,7 @@ Légende : ✅ présent · 🟡 partiel · ❌ manquant · ⛔ hors périmètre 
 
 ## 4. Dossiers
 
-| Roundcube | Courrielle | Lot |
+| Roundcube | Colombe | Lot |
 |---|---|---|
 | Créer, renommer, supprimer | ✅ | — |
 | Sous-dossiers, déplacer un dossier | 🟡 création à la racine | R2 |
@@ -83,7 +83,7 @@ Légende : ✅ présent · 🟡 partiel · ❌ manquant · ⛔ hors périmètre 
 
 ## 5. Paramètres
 
-| Roundcube | Courrielle | Lot |
+| Roundcube | Colombe | Lot |
 |---|---|---|
 | Langue (FR / EN) | ❌ | R3 |
 | Fuseau horaire, format de date et d'heure, dates relatives | ❌ | R2 |
@@ -94,7 +94,7 @@ Légende : ✅ présent · 🟡 partiel · ❌ manquant · ⛔ hors périmètre 
 
 ## 6. Sécurité et compte
 
-| Roundcube | Courrielle | Lot |
+| Roundcube | Colombe | Lot |
 |---|---|---|
 | Déconnexion automatique après inactivité (autologout) | 🟡 côté serveur (2 h) | R2 (avertissement + réglage) |
 | Informations de compte : dernière connexion (userinfo) | ❌ | R2 (+ adresse IP : utile après l'incident) |

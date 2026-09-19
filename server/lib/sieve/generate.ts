@@ -256,7 +256,7 @@ function buildVacationBlock(vacation: VacationSettings, e: Emitter, forwardDomai
   }
   // 'keep' : rien à ajouter, le comportement par défaut de Sieve est de garder le message.
 
-  return `# rule:courrielle-vacation\nif ${test} {\n${body.join('\n')}\n}`
+  return `# rule:colombe-vacation\nif ${test} {\n${body.join('\n')}\n}`
 }
 
 function buildForwardBlock(forward: ForwardSettings, e: Emitter, forwardDomains: string[]): string {
@@ -265,7 +265,7 @@ function buildForwardBlock(forward: ForwardSettings, e: Emitter, forwardDomains:
   }
   if (forward.keepCopy) e.require('copy', 'transfert avec copie conservée')
   const action = forward.keepCopy ? `redirect :copy ${quote(forward.address)};` : `redirect ${quote(forward.address)};`
-  return `# rule:courrielle-transfert\nif true {\n    ${action}\n}`
+  return `# rule:colombe-transfert\nif true {\n    ${action}\n}`
 }
 
 /**

@@ -1,4 +1,4 @@
-# Courrielle
+# Colombe
 
 Webmail moderne pour `mmi-troyes.fr`, conçu pour remplacer RainLoop (abandonné)
 puis Roundcube. Interface inspirée de Gmail, pensée d'abord pour le mobile.

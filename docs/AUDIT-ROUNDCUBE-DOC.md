@@ -120,8 +120,8 @@ Légende colonne 3 : **OUI (réf.)** = couvert, avec la ligne/le lot qui le couv
 | Nombre de contacts par page | settings `_addressbook_pagesize` | NON |
 | Mode du formulaire de contact (Personnel / Professionnel) | settings `_contact_form_mode` | NON |
 | Ignorer les adresses alternatives dans l'autocomplétion | settings `_autocomplete_single` | NON |
-| Choisir le carnet cible pour les adresses collectées automatiquement (destinataires / expéditeurs de confiance) | settings `_collected_recipients`, `_collected_senders` | 🟡 partiel (collecte OUI, déjà présent ; choix du carnet cible NON — un seul carnet dans Courrielle) |
-| Adresse par défaut utilisée à la composition (carnet par défaut) | settings `_default_addressbook` | ⛔ sans objet (un seul carnet dans Courrielle) |
+| Choisir le carnet cible pour les adresses collectées automatiquement (destinataires / expéditeurs de confiance) | settings `_collected_recipients`, `_collected_senders` | 🟡 partiel (collecte OUI, déjà présent ; choix du carnet cible NON — un seul carnet dans Colombe) |
+| Adresse par défaut utilisée à la composition (carnet par défaut) | settings `_default_addressbook` | ⛔ sans objet (un seul carnet dans Colombe) |
 
 ### 5. Dossiers
 
@@ -212,7 +212,7 @@ Légende colonne 3 : **OUI (réf.)** = couvert, avec la ligne/le lot qui le couv
 | Action "rejeter le message avec un message d'erreur personnalisé" | managesieve localisation (`messagediscard`) | NON |
 | Actions avancées : ajouter/retirer un indicateur IMAP quelconque, ajouter/supprimer un en-tête, définir une variable, envoyer une notification (e-mail/téléphone/SMS) | managesieve localisation (`setflags`, `addheader`, `setvariable`, `notify*`) | NON |
 | Créer un filtre depuis un message reçu (préremplit expéditeur/objet) | managesieve, cité par ROADMAP | OUI (ROADMAP §F) |
-| Ensembles de filtres multiples : créer (vide ou copie), nommer, activer/désactiver, en avoir plusieurs actifs simultanément | managesieve helpdocs settings-filters.rst | NON (choix explicite : un seul script généré par Courrielle) |
+| Ensembles de filtres multiples : créer (vide ou copie), nommer, activer/désactiver, en avoir plusieurs actifs simultanément | managesieve helpdocs settings-filters.rst | NON (choix explicite : un seul script généré par Colombe) |
 | Éditer le script Sieve brut ; importer/exporter un ensemble sous forme de fichier script | managesieve helpdocs + localisation (`filterseteditraw`, "importer depuis un fichier") | NON (choix explicite de sécurité : on ne réanalyse jamais du Sieve arbitraire, ROADMAP §F) |
 | Réponse automatique (vacation) : activer, dates de début/fin, objet, corps, ne pas répondre plus d'une fois tous les N jours | managesieve helpdocs settings-vacation.rst | OUI (ROADMAP §F) |
 | Réponse automatique — réglages avancés : adresse d'expédition de la réponse, adresses e-mail supplémentaires reconnues comme "les miennes", action sur le message entrant (garder/rejeter/rediriger ou copier, en plus de répondre) | managesieve helpdocs settings-vacation.rst | NON |
@@ -236,7 +236,7 @@ Légende colonne 3 : **OUI (réf.)** = couvert, avec la ligne/le lot qui le couv
 |---|---|---|
 | Émoticônes : afficher dans le texte brut, sélecteur à la composition | plugins/emoticons localisation en_US.inc | OUI (substitué par le sélecteur d'émojis du système, AUDIT §7) |
 | Notifications de nouveau message : navigateur, bureau, son, message de test | plugins/newmail_notifier localisation en_US.inc | OUI (AUDIT §1, "newmail_notifier ✅") |
-| Superposition d'une pastille sur le favicon de l'onglet à l'arrivée d'un message | plugins/newmail_notifier (fichiers `favicon.ico`, `overlay.ico` du plugin) | NON (non confirmé côté Courrielle) |
+| Superposition d'une pastille sur le favicon de l'onglet à l'arrivée d'un message | plugins/newmail_notifier (fichiers `favicon.ico`, `overlay.ico` du plugin) | NON (non confirmé côté Colombe) |
 | Aide contextuelle : lien "?", raccourcis clavier, page d'aide | AUDIT §7 ; plugins/help (contenu par défaut = simple page de licence) | OUI (ROADMAP R3) |
 | Boîte de bienvenue au premier login proposant le nom affiché | plugins/new_user_dialog localisation en_US.inc | OUI (PLAN R2.1) |
 | Redimensionner les zones de l'interface par glissement (ex. largeur du volet de lecture) | overview.html | NON |

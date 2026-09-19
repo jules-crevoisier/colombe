@@ -55,7 +55,7 @@ export default defineEventHandler(async (event) => {
 
     const zip = zipSync(files)
     setHeader(event, 'Content-Type', 'application/zip')
-    setHeader(event, 'Content-Disposition', 'attachment; filename="courrielle-messages.zip"')
+    setHeader(event, 'Content-Disposition', 'attachment; filename="colombe-messages.zip"')
     return Buffer.from(zip)
   } catch (err: unknown) {
     throw mailError(err)
