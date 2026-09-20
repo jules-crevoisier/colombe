@@ -79,6 +79,27 @@ export default defineConfigWithTheme<ColombeThemeConfig>({
   // Aucune police chargée depuis l'extérieur ; celles du thème sont importées localement.
   useWebFonts: false,
   head,
+
+  /**
+   * og:title, og:description et og:url par page. Sans eux, LinkedIn retombe sur le
+   * <title> et devine l'adresse : la carte de partage est incomplète, voire absente.
+   */
+  transformHead({ pageData, siteData }) {
+    const title = pageData.frontmatter.title || pageData.title || siteData.title
+    const description = pageData.frontmatter.description || pageData.description || siteData.description
+    const tags: HeadConfig[] = [
+      ['meta', { property: 'og:title', content: title }],
+      ['meta', { property: 'og:description', content: description }],
+    ]
+    if (siteUrl) {
+      // « guide/filtres.md » → « /guide/filtres » ; « index.md » → « / ».
+      const path = pageData.relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
+      const url = `${siteUrl}/${path}`.replace(/\/+$/, '/')
+      tags.push(['meta', { property: 'og:url', content: url }], ['link', { rel: 'canonical', href: url }])
+    }
+    return tags
+  },
+
   ignoreDeadLinks: [isPlannedPage],
   ...(siteUrl ? { sitemap: { hostname: siteUrl } } : {}),
 
