@@ -1,8 +1,6 @@
-import { createI18n } from 'vue-i18n'
+import type { Composer } from 'vue-i18n'
 import type { AppLocale, LanguagePref } from '#shared/types/i18n'
-import fr from '~/locales/fr'
 import type { Messages } from '~/locales/fr'
-import en from '~/locales/en'
 
 export type { AppLocale, LanguagePref }
 
@@ -15,31 +13,20 @@ declare module 'vue-i18n' {
 export const LANG_STORAGE_KEY = 'colombe.lang'
 
 /**
- * Règle de pluriel française : 0 et 1 au singulier (« 0 message », « 1 message »),
- * contrairement à la règle par défaut de vue-i18n (0 au pluriel, correcte en anglais).
- * Trois formes (« aucun | un | plusieurs ») : zéro, un, plusieurs.
+ * Instance globale de @nuxtjs/i18n pour le code hors composant (stores, utils : `i18n.global.t`).
+ * Le module la crée ; le plugin `colombe-i18n` la branche ici au démarrage.
+ * Messages, pluriel français et langue de repli : voir i18n.config.ts.
  */
-function frenchPlural(choice: number, choicesLength: number): number {
-  const n = Math.abs(choice)
-  if (choicesLength === 2) return n > 1 ? 1 : 0
-  return n === 0 ? 0 : n === 1 ? 1 : 2
+let composer: Composer | null = null
+export function bindI18n(c: Composer): void {
+  composer = c
 }
-
-/**
- * Instance unique, partagée par les composants (useI18n) et le code hors composant
- * (stores, utils : `i18n.global.t`). Le français est la langue source et de repli.
- * Messages embarqués dans le bundle : aucun chargement réseau de traductions.
- */
-export const i18n = createI18n<[Messages], AppLocale, false>({
-  legacy: false,
-  locale: 'fr',
-  fallbackLocale: 'fr',
-  messages: { fr, en },
-  pluralRules: { fr: frenchPlural },
-  missingWarn: import.meta.dev ?? false,
-  fallbackWarn: false,
-  warnHtmlMessage: false,
-})
+export const i18n = {
+  get global(): Composer {
+    if (!composer) throw new Error('i18n used before the colombe-i18n plugin bound it')
+    return composer
+  },
+}
 
 export function isAppLocale(value: unknown): value is AppLocale {
   return value === 'fr' || value === 'en'
@@ -155,7 +142,7 @@ export function currentLocale(): AppLocale {
 
 /** Change la langue active sans rechargement et met à jour `<html lang>`. */
 export function applyLocale(locale: AppLocale): void {
-  if (i18n.global.locale.value !== locale) i18n.global.locale.value = locale
+  if (i18n.global.locale.value !== locale) void (i18n.global as unknown as { setLocale(l: string): Promise<void> }).setLocale(locale)
   if (typeof document !== 'undefined') document.documentElement.lang = locale
 }
 

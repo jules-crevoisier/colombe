@@ -17,6 +17,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'unit',
+          setupFiles: ['tests/support/i18n-setup.ts'],
           include: ['tests/unit/**/*.test.ts'],
           environment: 'node',
           // getConfig() (limites, domaines) sans serveur de messagerie réel.

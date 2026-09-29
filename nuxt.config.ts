@@ -24,18 +24,23 @@ export default defineNuxtConfig({
   // Application derrière authentification : pas de SEO, rendu 100 % client.
   // Évite toute une classe de bugs d'hydratation ; l'API Nitro reste côté serveur.
   ssr: false,
-  modules: ['@pinia/nuxt', 'nuxt-auth-utils', 'shadcn-nuxt'],
+  modules: ['@pinia/nuxt', 'nuxt-auth-utils', 'shadcn-nuxt', '@nuxtjs/i18n'],
+  // Langue : pas de routes par langue (SPA derrière authentification), pas de détection
+  // ni de cookie du module — la résolution est faite par useLanguage() (compte, navigateur,
+  // établissement). Les messages sont embarqués (i18n.config.ts), aucun chargement réseau.
+  i18n: {
+    strategy: 'no_prefix',
+    defaultLocale: 'fr',
+    locales: [
+      { code: 'fr', language: 'fr-FR', name: 'Français' },
+      { code: 'en', language: 'en-GB', name: 'English' },
+    ],
+    detectBrowserLanguage: false,
+    vueI18n: 'i18n.config.ts',
+  },
   css: ['~/assets/css/tailwind.css'],
   vite: {
     plugins: [tailwindcss()],
-    // vue-i18n (build esm-bundler) : API de composition seule, compilation JIT des
-    // messages (sans eval, compatible avec la CSP), pas d'outils de développement.
-    define: {
-      __VUE_I18N_FULL_INSTALL__: true,
-      __VUE_I18N_LEGACY_API__: false,
-      __INTLIFY_PROD_DEVTOOLS__: false,
-      __INTLIFY_DROP_MESSAGE_COMPILER__: false,
-    },
   },
   shadcn: {
     prefix: '',
