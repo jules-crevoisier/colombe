@@ -249,6 +249,8 @@ const en = {
       keys: {
         enter: 'Enter',
         ctrlEnter: 'Ctrl + Enter',
+        shiftClick: 'Shift + click',
+        ctrlClick: 'Ctrl + click',
       },
       items: {
         compose: 'New message',
@@ -257,6 +259,8 @@ const en = {
         nextPrevious: 'Next / previous message',
         openMessage: 'Open message',
         select: 'Select',
+        selectRange: 'Select a range of messages',
+        selectToggle: 'Add or remove a message from the selection',
         star: 'Star',
         archive: 'Archive',
         delete: 'Delete',
