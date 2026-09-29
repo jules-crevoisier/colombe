@@ -45,6 +45,8 @@ export const SHORTCUTS: Shortcut[] = [
   { keys: 'j / k', labelKey: 'mail.shortcuts.items.nextPrevious', scope: 'list' },
   { keys: '', keysKey: 'mail.shortcuts.keys.enter', labelKey: 'mail.shortcuts.items.openMessage', scope: 'list' },
   { keys: 'x', labelKey: 'mail.shortcuts.items.select', scope: 'list' },
+  { keys: '', keysKey: 'mail.shortcuts.keys.shiftClick', labelKey: 'mail.shortcuts.items.selectRange', scope: 'list' },
+  { keys: '', keysKey: 'mail.shortcuts.keys.ctrlClick', labelKey: 'mail.shortcuts.items.selectToggle', scope: 'list' },
   { keys: 's', labelKey: 'mail.shortcuts.items.star', scope: 'list' },
   { keys: 'e', labelKey: 'mail.shortcuts.items.archive', scope: 'list' },
   { keys: '#', labelKey: 'mail.shortcuts.items.delete', scope: 'list' },

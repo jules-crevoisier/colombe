@@ -107,6 +107,7 @@ let started = false
 watch([folderPath, page, q, pageSize], () => {
   if (!started) return
   selected.value = new Set()
+  anchorUid.value = null
   void load()
 })
 
@@ -114,6 +115,7 @@ onMounted(async () => {
   if (!prefsStore.loaded) await prefsStore.load()
   started = true
   selected.value = new Set()
+  anchorUid.value = null
   void load()
 })
 
@@ -141,11 +143,25 @@ const archive = computed(() => mail.special('archive'))
 function toggleAll() {
   selected.value = allState.value === true ? new Set() : new Set(items.value.map(m => m.uid))
 }
+/** Dernier message coché : point de départ d'une sélection par plage (Maj + clic). */
+const anchorUid = ref<number | null>(null)
+// Sélection vidée (dossier, page, recherche, action effectuée…) : la plage n'a plus de départ.
+watch(() => selected.value.size, (n) => {
+  if (!n) anchorUid.value = null
+})
 function toggle(uid: number) {
   const next = new Set(selected.value)
   if (next.has(uid)) next.delete(uid)
   else next.add(uid)
   selected.value = next
+  anchorUid.value = uid
+}
+/** Clic sur une ligne : bascule seule, ou avec `range` (Maj) ajoute tout l'intervalle depuis le dernier coché. */
+function select(uid: number, range: boolean) {
+  const uids = range ? rangeUids(items.value.map(m => m.uid), anchorUid.value, uid) : []
+  if (!uids.length) return toggle(uid)
+  selected.value = new Set([...selected.value, ...uids])
+  anchorUid.value = uid
 }
 
 // ─── Menu de sélection (R2.7) : Tous, Aucun, Non lus, Suivis, Inverser la sélection ───
@@ -642,7 +658,7 @@ useHead({ title: computed(() => (q.value ? t('mail.list.pageTitle.search', { que
           :compact="compact"
           @dragstart="onDragStart(m, $event)"
           @open="openDraft(m)"
-          @toggle-select="toggle(m.uid)"
+          @toggle-select="select(m.uid, $event.range)"
           @toggle-star="toggleStar(m)"
         />
       </ul>
