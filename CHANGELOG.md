@@ -3,6 +3,15 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Colombe suit un schéma de version proche de [SemVer](https://semver.org/lang/fr/).
 
+## [Non publié]
+
+### Ajouté
+
+- **Sélection multiple à la souris** : `Maj` + clic sélectionne tous les messages entre le dernier
+  coché et celui sur lequel on clique (vers le bas comme vers le haut), `Ctrl` (ou `Cmd`) + clic
+  ajoute ou retire un seul message. Le navigateur n'étend plus la sélection de texte pendant le
+  geste, et la sélection repart de zéro au changement de dossier, de page ou de recherche.
+
 ## [1.0.0-rc.7] — 2026-09-19
 
 ### Corrigé

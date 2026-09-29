@@ -16,7 +16,8 @@ const props = defineProps<{
   interceptOpen?: boolean
   compact?: boolean
 }>()
-const emit = defineEmits<{ open: []; toggleSelect: []; toggleStar: []; dragstart: [event: DragEvent] }>()
+/** `range` : Maj enfoncée, on sélectionne toute la plage depuis le dernier message coché. */
+const emit = defineEmits<{ open: []; toggleSelect: [mode: { range: boolean }]; toggleStar: []; dragstart: [event: DragEvent] }>()
 
 const who = computed(() => (props.showRecipient ? props.message.to[0] : props.message.from) ?? null)
 const person = computed(() => {
@@ -32,12 +33,29 @@ const fullDate = computed(() => formatFullDate(props.message.date, intlLocale(),
 // Non lu : graisse (hiérarchie par la typographie, pas par un fond coloré).
 const weight = computed(() => (props.message.seen ? 'text-foreground/80' : 'font-bold text-foreground'))
 
+/** Case à cocher : c'est la ligne qui interprète le clic (Maj = plage), le composant Checkbox ne fait que l'afficher. */
+function onCheckClick(e: MouseEvent) {
+  e.preventDefault()
+  e.stopPropagation()
+  emit('toggleSelect', { range: e.shiftKey })
+}
+/** Maj / Ctrl + clic : sans cela le navigateur étend la sélection de texte d'une ligne à l'autre. */
+function onMouseDown(e: MouseEvent) {
+  if (e.shiftKey || e.ctrlKey || e.metaKey) e.preventDefault()
+}
+
 /*
  * Mise en page pilotée par la largeur de la liste (requêtes de conteneur, @container posé
  * par MessageList) : deux niveaux (expéditeur + date / objet / extrait) quand la liste est
  * étroite — mobile, volet de lecture à droite — et une ligne à colonnes fixes sinon.
  */
 function onLinkClick(e: MouseEvent) {
+  // Maj / Ctrl / Cmd + clic sur la ligne : on sélectionne au lieu d'ouvrir le message.
+  if (e.shiftKey || e.ctrlKey || e.metaKey) {
+    e.preventDefault()
+    emit('toggleSelect', { range: e.shiftKey })
+    return
+  }
   if (!props.interceptOpen) return
   e.preventDefault()
   emit('open')
@@ -50,6 +68,7 @@ function onLinkClick(e: MouseEvent) {
     :class="[selected ? 'bg-row-selected' : 'bg-row-read hover:bg-row-hover', compact ? 'py-2' : 'py-3']"
     :data-uid="message.uid"
     draggable="true"
+    @mousedown="onMouseDown"
     @dragstart="emit('dragstart', $event)"
   >
     <!-- Non lu : un point d'encre dans la marge -->
@@ -62,16 +81,16 @@ function onLinkClick(e: MouseEvent) {
       :class="selected ? 'bg-primary text-primary-foreground' : avatarTone"
       :aria-label="selected ? t('mail.row.deselect', { subject: displaySubject(message.subject) }) : t('mail.row.select', { subject: displaySubject(message.subject) })"
       :aria-pressed="selected"
-      @click="emit('toggleSelect')"
+      @click="emit('toggleSelect', { range: false })"
     >
       <Check v-if="selected" class="size-5" :stroke-width="2.5" aria-hidden="true" />
       <span v-else aria-hidden="true">{{ initials }}</span>
     </button>
 
     <!-- Bureau : case à cocher + étoile -->
-    <label class="relative z-10 hidden size-10 shrink-0 cursor-pointer place-items-center rounded-lg hover:bg-foreground/[0.06] lg:grid">
+    <label class="relative z-10 hidden size-10 shrink-0 cursor-pointer place-items-center rounded-lg hover:bg-foreground/[0.06] lg:grid" @click.capture="onCheckClick">
       <span class="sr-only">{{ t('mail.row.select', { subject: displaySubject(message.subject) }) }}</span>
-      <Checkbox :model-value="selected" @update:model-value="emit('toggleSelect')" />
+      <Checkbox :model-value="selected" />
     </label>
     <button
       type="button"

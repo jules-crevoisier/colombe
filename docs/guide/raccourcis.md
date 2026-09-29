@@ -24,6 +24,8 @@ recherche…) : pas de risque d'archiver un message par erreur en écrivant son 
 | `j` / `k` | Message suivant / précédent |
 | `Entrée` | Ouvrir le message |
 | `x` | Sélectionner |
+| `Maj` + clic | Sélectionner tous les messages entre le dernier coché et celui sur lequel vous cliquez (vers le bas comme vers le haut) |
+| `Ctrl` (ou `Cmd`) + clic | Ajouter ou retirer un seul message de la sélection, sans l'ouvrir |
 | `s` | Étoile |
 | `e` | Archiver |
 | `#` | Supprimer |

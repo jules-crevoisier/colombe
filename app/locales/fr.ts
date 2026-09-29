@@ -251,6 +251,8 @@ const fr = {
       keys: {
         enter: 'Entrée',
         ctrlEnter: 'Ctrl + Entrée',
+        shiftClick: 'Maj + clic',
+        ctrlClick: 'Ctrl + clic',
       },
       items: {
         compose: 'Nouveau message',
@@ -259,6 +261,8 @@ const fr = {
         nextPrevious: 'Message suivant / précédent',
         openMessage: 'Ouvrir le message',
         select: 'Sélectionner',
+        selectRange: 'Sélectionner une plage de messages',
+        selectToggle: 'Ajouter ou retirer un message de la sélection',
         star: 'Étoile',
         archive: 'Archiver',
         delete: 'Supprimer',
