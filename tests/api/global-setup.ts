@@ -58,6 +58,8 @@ export async function setup(project: TestProject): Promise<void> {
       MAIL_PUBLIC_HOST: 'mail.univ-exemple.fr',
       COLOMBE_ORG_NAME: 'Université Exemple',
       COLOMBE_PASSWORD_RESET_URL: 'https://mdp.univ-exemple.fr/',
+      COLOMBE_ADMIN_EMAILS: 'dev@universite.example',
+      COLOMBE_SERVER_STATUS_FILE: join(root, 'tests/fixtures/etat-serveur.json'),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   })

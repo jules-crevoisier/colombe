@@ -25,9 +25,16 @@ const SECTIONS = [
   { value: 'forward' },
   { value: 'devices' },
   { value: 'server' },
+  { value: 'status' },
   { value: 'security' },
   { value: 'contacts' },
 ] as const
+
+/** « État du serveur » : réservé aux administrateurs (vérifié côté serveur, ici seulement l'affichage). */
+const statusAccess = ref(false)
+const accessChecked = ref(false)
+
+const visibleSections = computed(() => SECTIONS.filter(section => section.value !== 'status' || statusAccess.value))
 
 const isDesktop = useMediaQuery('(min-width: 1024px)')
 
@@ -40,14 +47,32 @@ const selectedTab = computed({
   get: () => {
     const tab = route.query.tab
     const value = typeof tab === 'string' ? tab : 'general'
-    return TAB_ALIASES[value] ?? value
+    const resolved = TAB_ALIASES[value] ?? value
+    // Lien « ?tab=status » reçu par un non-administrateur : retour à Général.
+    if (resolved === 'status' && accessChecked.value && !statusAccess.value) return 'general'
+    return resolved
   },
   set: (value: string) => {
     void navigateTo({ query: { tab: value } })
   },
 })
 
+async function checkStatusAccess(): Promise<void> {
+  try {
+    const access = await useServerStatusApi().access()
+    statusAccess.value = access.serverStatus === true
+  }
+  catch {
+    // Pas d'accès (ou serveur injoignable) : l'onglet reste masqué.
+    statusAccess.value = false
+  }
+  finally {
+    accessChecked.value = true
+  }
+}
+
 onMounted(async () => {
+  void checkStatusAccess()
   if (!prefs.loaded) {
     await prefs.load()
   }
@@ -80,7 +105,7 @@ useHead({
         <TabsRoot v-model="selectedTab" :orientation="isDesktop ? 'vertical' : 'horizontal'" class="w-full lg:flex lg:items-start lg:gap-10">
           <TabsList :aria-label="t('settings.page.sectionsLabel')" class="-mx-4 mb-6 flex gap-1 overflow-x-auto border-b border-border px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:sticky lg:top-0 lg:mx-0 lg:mb-0 lg:w-52 lg:shrink-0 lg:flex-col lg:gap-px lg:overflow-visible lg:border-b-0 lg:px-0">
             <TabsTrigger
-              v-for="section in SECTIONS"
+              v-for="section in visibleSections"
               :key="section.value"
               :value="section.value"
               class="relative -mb-px h-11 flex-none border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=active]:border-nav-marker data-[state=active]:font-semibold data-[state=active]:text-foreground lg:mb-0 lg:h-9 lg:w-full lg:justify-start lg:rounded-md lg:border-b-0 lg:text-left lg:text-foreground/85 lg:hover:bg-foreground/[0.05] lg:data-[state=active]:bg-accent lg:data-[state=active]:before:absolute lg:data-[state=active]:before:top-1/2 lg:data-[state=active]:before:left-0 lg:data-[state=active]:before:h-4 lg:data-[state=active]:before:w-[3px] lg:data-[state=active]:before:-translate-y-1/2 lg:data-[state=active]:before:rounded-r-sm lg:data-[state=active]:before:bg-nav-marker"
@@ -133,6 +158,10 @@ useHead({
             <TabsContent value="server" class="outline-none">
               <h2 class="mb-5 font-heading text-2xl font-medium tracking-[-0.01em]">{{ sectionLabel('server') }}</h2>
               <SettingsServerSettings />
+            </TabsContent>
+            <TabsContent v-if="statusAccess" value="status" class="outline-none">
+              <h2 class="mb-5 font-heading text-2xl font-medium tracking-[-0.01em]">{{ sectionLabel('status') }}</h2>
+              <SettingsServerStatusSettings />
             </TabsContent>
             <TabsContent value="security" class="outline-none">
               <h2 class="mb-5 font-heading text-2xl font-medium tracking-[-0.01em]">{{ sectionLabel('security') }}</h2>

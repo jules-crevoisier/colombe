@@ -124,6 +124,10 @@ const en: Record<ServerMessageKey, string> = {
   'print.subject': 'Subject:',
   'print.date': 'Date:',
   'print.noContent': '(no content)',
+
+  // Administration
+  'admin.forbidden': 'Restricted to administrators.',
+  'admin.notConfigured': 'Server status page is not configured.',
 }
 
 export default en

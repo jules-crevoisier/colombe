@@ -124,6 +124,10 @@ const fr = {
   'print.subject': 'Objet :',
   'print.date': 'Date :',
   'print.noContent': '(pas de contenu)',
+
+  // Administration
+  'admin.forbidden': 'Accès réservé aux administrateurs.',
+  'admin.notConfigured': 'Page d’état du serveur non configurée.',
 } as const
 
 export type ServerMessageKey = keyof typeof fr

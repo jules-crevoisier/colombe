@@ -1,0 +1,585 @@
+{
+ "version": "1.0",
+ "genere_le": "2026-11-14T13:45:32+01:00",
+ "serveur": "mail",
+ "global": "attention",
+ "points_attention": [
+  "IP du serveur sur la liste noire b.barracudacentral.org"
+ ],
+ "services": [
+  {
+   "id": "postfix@-",
+   "nom": "Postfix",
+   "role": "Envoi et réception des mails",
+   "actif": true,
+   "sain": true,
+   "depuis": "2026-11-14T13:07:19+01:00",
+   "tests": [
+    {
+     "nom": "SMTP 25",
+     "ok": true,
+     "detail": "220 mail.mmi-troyes.fr ESMTP Postfix (Ubuntu)"
+    },
+    {
+     "nom": "Envoi 587",
+     "ok": true,
+     "detail": "220 mail.mmi-troyes.fr ESMTP Postfix (Ubuntu)"
+    },
+    {
+     "nom": "Envoi 465",
+     "ok": true,
+     "detail": "220 mail.mmi-troyes.fr ESMTP Postfix (Ubuntu)"
+    }
+   ],
+   "relance": null,
+   "relances_24h": 0
+  },
+  {
+   "id": "dovecot",
+   "nom": "Dovecot",
+   "role": "Boîtes mail (IMAP) et mots de passe",
+   "actif": true,
+   "sain": true,
+   "depuis": "2026-10-21T22:27:26+02:00",
+   "tests": [
+    {
+     "nom": "IMAP 993",
+     "ok": true,
+     "detail": "* OK [CAPABILITY IMAP4rev1 SASL-IR LOGIN-REFERRALS ID ENABLE IDLE LITE"
+    }
+   ],
+   "relance": null,
+   "relances_24h": 0
+  },
+  {
+   "id": "mariadb",
+   "nom": "MariaDB",
+   "role": "Base des comptes",
+   "actif": true,
+   "sain": true,
+   "depuis": "2026-10-21T22:30:28+02:00",
+   "tests": [
+    {
+     "nom": "Requête SQL",
+     "ok": true,
+     "detail": "348 comptes"
+    }
+   ],
+   "relance": null,
+   "relances_24h": 0
+  },
+  {
+   "id": "opendkim",
+   "nom": "OpenDKIM",
+   "role": "Signature des mails sortants",
+   "actif": true,
+   "sain": true,
+   "depuis": "2026-10-21T22:27:17+02:00",
+   "tests": [],
+   "relance": null,
+   "relances_24h": 0
+  },
+  {
+   "id": "policyd-rate-limit",
+   "nom": "Quotas d'envoi",
+   "role": "Limite le nombre de mails par compte",
+   "actif": true,
+   "sain": true,
+   "depuis": "2026-11-14T13:29:27+01:00",
+   "tests": [
+    {
+     "nom": "Socket quotas",
+     "ok": true,
+     "detail": "action=dunno"
+    }
+   ],
+   "relance": null,
+   "relances_24h": 0
+  },
+  {
+   "id": "fail2ban",
+   "nom": "Fail2ban",
+   "role": "Bannit les adresses IP qui attaquent",
+   "actif": true,
+   "sain": true,
+   "depuis": "2026-10-21T22:26:47+02:00",
+   "tests": [],
+   "relance": null,
+   "relances_24h": 0
+  },
+  {
+   "id": "colombe",
+   "nom": "Colombe",
+   "role": "Webmail",
+   "actif": true,
+   "sain": true,
+   "depuis": "2026-10-21T22:28:59+02:00",
+   "tests": [
+    {
+     "nom": "HTTP 3100",
+     "ok": true,
+     "detail": "HTTP 200"
+    }
+   ],
+   "relance": null,
+   "relances_24h": 0
+  },
+  {
+   "id": "apache2",
+   "nom": "Apache",
+   "role": "Accès web au webmail",
+   "actif": true,
+   "sain": true,
+   "depuis": "2026-10-21T22:27:55+02:00",
+   "tests": [
+    {
+     "nom": "HTTPS 443",
+     "ok": true,
+     "detail": "TLSv1.3"
+    }
+   ],
+   "relance": null,
+   "relances_24h": 0
+  }
+ ],
+ "file": {
+  "total": 19,
+  "hors_attente": 0,
+  "actifs": 0,
+  "differes": 0,
+  "mis_de_cote": 19,
+  "plus_ancien_minutes": null,
+  "expediteurs": [],
+  "raisons": []
+ },
+ "comptes": {
+  "total": 348,
+  "bloques": 336,
+  "actifs": 12,
+  "bloques_recemment": []
+ },
+ "activite": {
+  "heures": [
+   {
+    "heure": "14 h",
+    "debut": "2026-11-13T14:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "15 h",
+    "debut": "2026-11-13T15:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "16 h",
+    "debut": "2026-11-13T16:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "17 h",
+    "debut": "2026-11-13T17:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "18 h",
+    "debut": "2026-11-13T18:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "19 h",
+    "debut": "2026-11-13T19:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "20 h",
+    "debut": "2026-11-13T20:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "21 h",
+    "debut": "2026-11-13T21:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "22 h",
+    "debut": "2026-11-13T22:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "23 h",
+    "debut": "2026-11-13T23:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "00 h",
+    "debut": "2026-11-14T00:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "01 h",
+    "debut": "2026-11-14T01:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "02 h",
+    "debut": "2026-11-14T02:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "03 h",
+    "debut": "2026-11-14T03:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "04 h",
+    "debut": "2026-11-14T04:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "05 h",
+    "debut": "2026-11-14T05:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "06 h",
+    "debut": "2026-11-14T06:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "07 h",
+    "debut": "2026-11-14T07:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "08 h",
+    "debut": "2026-11-14T08:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "09 h",
+    "debut": "2026-11-14T09:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "10 h",
+    "debut": "2026-11-14T10:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "11 h",
+    "debut": "2026-11-14T11:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "12 h",
+    "debut": "2026-11-14T12:00:00+01:00",
+    "soumis": 0,
+    "recu": 0,
+    "livre_local": 0,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 0,
+    "rejet_entrant": 0,
+    "quota": 0,
+    "usurpation": 0
+   },
+   {
+    "heure": "13 h",
+    "debut": "2026-11-14T13:00:00+01:00",
+    "soumis": 0,
+    "recu": 3,
+    "livre_local": 4,
+    "livre_externe": 0,
+    "differe": 0,
+    "rejete": 192,
+    "rejet_entrant": 1,
+    "quota": 0,
+    "usurpation": 0
+   }
+  ],
+  "totaux_24h": {
+   "soumis": 0,
+   "recu": 3,
+   "livre_local": 4,
+   "livre_externe": 0,
+   "differe": 0,
+   "rejete": 192,
+   "rejet_entrant": 1,
+   "quota": 0,
+   "usurpation": 0
+  }
+ },
+ "fail2ban": {
+  "jails": [
+   {
+    "nom": "dovecot",
+    "bannis": 0,
+    "total": 1
+   },
+   {
+    "nom": "postfix",
+    "bannis": 0,
+    "total": 0
+   },
+   {
+    "nom": "postfix-ratelimit",
+    "bannis": 0,
+    "total": 1
+   },
+   {
+    "nom": "postfix-sasl",
+    "bannis": 0,
+    "total": 1
+   },
+   {
+    "nom": "recidive",
+    "bannis": 25,
+    "total": 25
+   },
+   {
+    "nom": "sshd",
+    "bannis": 2,
+    "total": 2900
+   }
+  ],
+  "bannis": 27
+ },
+ "systeme": {
+  "disques": [
+   {
+    "point": "/",
+    "pourcent": 61,
+    "libre_go": 5.3
+   }
+  ],
+  "certificat": {
+   "fichier": "/etc/letsencrypt/live/mail.mmi-troyes.fr/fullchain.pem",
+   "expire_le": "2027-01-30T13:27:41+01:00",
+   "jours": 76
+  }
+ },
+ "delivrabilite": {
+  "verifie_le": "2026-11-14T13:45:23+01:00",
+  "domaine": "mmi-troyes.fr",
+  "ip": "89.234.182.177",
+  "listes": [
+   {
+    "nom": "zen.spamhaus.org",
+    "statut": "propre",
+    "code": null
+   },
+   {
+    "nom": "bl.spamcop.net",
+    "statut": "propre",
+    "code": null
+   },
+   {
+    "nom": "b.barracudacentral.org",
+    "statut": "listee",
+    "code": "127.0.0.2"
+   },
+   {
+    "nom": "psbl.surriel.com",
+    "statut": "propre",
+    "code": null
+   },
+   {
+    "nom": "bl.mailspike.net",
+    "statut": "propre",
+    "code": null
+   }
+  ],
+  "ptr": "mail.mmi-troyes.fr.",
+  "spf": "v=spf1 mx ip4:89.234.182.177 -all",
+  "dmarc": "v=DMARC1 ; p=reject; pct=100; adkim=s; aspf=s",
+  "dkim_selecteur": "mail",
+  "dkim": true
+ },
+ "evenements": [
+  {
+   "t": "2026-11-14T13:43:25+01:00",
+   "ts": 1794660205,
+   "niveau": "critique",
+   "type": "liste-noire",
+   "message": "L'IP du serveur (89.234.182.177) est sur la liste noire b.barracudacentral.org : code 127.0.0.2 : les mails envoyés risquent d'arriver en spam ou d'être refusés. Demander le retrait sur le site de b.barracudacentral.org une fois le spam stoppé."
+  }
+ ],
+ "dernier_rapport": "2026-11-14T13:45:24+01:00",
+ "intervalle_minutes": 15
+}

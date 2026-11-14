@@ -125,6 +125,18 @@ export interface ColombeConfig {
   // ─── SSO (OIDC) : fin ───
   /** Langue de l'interface quand le navigateur ne propose ni français ni anglais (COLOMBE_DEFAULT_LANGUAGE). */
   defaultLanguage: AppLocale
+  // ─── État du serveur mail ───
+  /**
+   * Page « État du serveur » (réglages) : réservée aux adresses de
+   * COLOMBE_ADMIN_EMAILS, lit le fichier COLOMBE_SERVER_STATUS_FILE écrit par le
+   * script de surveillance. Désactivée si l'un des deux manque.
+   */
+  serverStatus: {
+    /** Adresses en minuscules ; vide = personne. */
+    adminEmails: string[]
+    /** Chemin absolu du fichier d'état (etat.json), ou null. */
+    file: string | null
+  }
 }
 
 /** Recherche dans l'annuaire LDAP de l'établissement (schéma SupAnn / inetOrgPerson). */
@@ -504,6 +516,16 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
   if (defaultLanguageRaw !== 'fr' && defaultLanguageRaw !== 'en') problems.push(`COLOMBE_DEFAULT_LANGUAGE doit valoir fr ou en (reçu « ${defaultLanguageRaw} »).`)
   const defaultLanguage: AppLocale = defaultLanguageRaw === 'en' ? 'en' : 'fr'
 
+  // ─── État du serveur mail ───
+  const adminEmails = list(pick(env, 'COLOMBE_ADMIN_EMAILS'))
+  for (const email of adminEmails) {
+    if (!EMAIL_RE.test(email)) problems.push(`COLOMBE_ADMIN_EMAILS : « ${email} » n'est pas une adresse e-mail.`)
+  }
+  // En démo, n'importe qui ouvre un compte : aucune adresse ne doit donner accès à l'état du serveur.
+  if (demoEnabled && adminEmails.length) problems.push('COLOMBE_ADMIN_EMAILS est interdit avec COLOMBE_DEMO=true (les comptes de démonstration sont ouverts à tous).')
+  const statusFileRaw = pick(env, 'COLOMBE_SERVER_STATUS_FILE') ?? null
+  if (statusFileRaw && !isAbsolute(statusFileRaw)) problems.push(`COLOMBE_SERVER_STATUS_FILE doit être un chemin absolu (reçu « ${statusFileRaw} »).`)
+
   if (problems.length) throw new ConfigError(problems)
 
   return {
@@ -547,6 +569,7 @@ export function loadConfig(env: Env = process.env, cwd: string = process.cwd()):
     portalUrl,
     // ─── SSO (OIDC) : fin ───
     defaultLanguage,
+    serverStatus: { adminEmails, file: statusFileRaw },
   }
 }
 
