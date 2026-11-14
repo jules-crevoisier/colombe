@@ -121,6 +121,15 @@ Si aucun nom public n'est connu (Colombe configuré sur `localhost` sans
 | `COLOMBE_SUPPORT_URL`, `COLOMBE_SUPPORT_EMAIL` | — | Lien « Besoin d'aide ? ». |
 | `COLOMBE_DEFAULT_LANGUAGE` | `fr` | Langue de l'interface (`fr` ou `en`) quand le navigateur ne propose ni le français ni l'anglais, et langue des alertes envoyées par Colombe aux comptes restés en « Automatique ». Chaque utilisateur peut choisir sa langue dans **Paramètres → Général**. |
 
+## État du serveur mail
+
+Onglet **Paramètres → État du serveur**, visible seulement par les adresses listées. Il lit le fichier JSON écrit toutes les 15 minutes par le script de surveillance `mail-sante` : services, file d'attente, réputation de l'IP, comptes bloqués, activité sur 24 h. L'onglet est désactivé si l'une des deux variables manque.
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `COLOMBE_ADMIN_EMAILS` | — | Adresses autorisées, séparées par des virgules. Refusé avec `COLOMBE_DEMO=true`. Le contrôle est fait côté serveur (`GET /api/admin/server-status` répond 403 aux autres comptes). |
+| `COLOMBE_SERVER_STATUS_FILE` | — | Chemin absolu du fichier d'état, par exemple `/var/lib/mail-sante/etat.json`. Il doit être lisible par l'utilisateur système de Colombe. Un fichier absent, illisible, invalide ou de plus de 2 Mo affiche « état indisponible ». |
+
 ## Annuaire de l'établissement (LDAP)
 
 Recherche seule (jamais d'authentification) dans l'annuaire LDAP publié par
