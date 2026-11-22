@@ -13,8 +13,10 @@
 	root * /srv/site
 	encode zstd gzip
 
-	# URLs "propres" de VitePress : /guide -> guide.html si guide/ n'existe pas.
-	try_files {path} {path}.html {path}/ =404
+	# URLs "propres" de VitePress : /guide -> guide.html, sinon guide/index.html.
+	# La racine "/" passe par {path}/index.html : les versions récentes de Caddy
+	# renvoyaient 404 sur "/" avec l'ancien ordre ({path} en premier).
+	try_files {path}.html {path}/index.html {path} =404
 	file_server
 
 	@assets path /assets/*
