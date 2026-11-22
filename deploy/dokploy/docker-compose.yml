@@ -4,8 +4,8 @@
 # lui-même les domaines/HTTPS via Traefik — configuré dans SON interface, pas
 # ici). Voir README.md pour la marche à suivre complète.
 #
-# Deux services, tous deux CONSTRUITS depuis ce dépôt (aucune image pré-construite
-# à publier séparément pour la démo) :
+# Deux services, construits par GitHub Actions et publiés sur ghcr.io
+# (.github/workflows/deploy-demo.yml) ; Dokploy ne fait que télécharger les images :
 #   - colombe : l'application, en mode démo (COLOMBE_DEMO=true, voir le contrat
 #     gelé documenté dans .env.example et server/lib/config).
 #   - site    : le site vitrine statique (VitePress, docs/), construit par
@@ -29,9 +29,10 @@
 
 services:
   colombe:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
+    # Image construite par GitHub Actions (.github/workflows/deploy-demo.yml) et
+    # publiée sur ghcr.io : le serveur Dokploy ne compile plus rien.
+    image: ${COLOMBE_IMAGE:-ghcr.io/jules-crevoisier/colombe}:${COLOMBE_TAG:-demo}
+    pull_policy: always
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -71,13 +72,10 @@ services:
           memory: 512M
 
   site:
-    build:
-      context: ../..
-      dockerfile: deploy/dokploy/site.Dockerfile
-      # Figées dans le site au build : bouton « Essayer la démo », image de partage, sitemap.
-      args:
-        COLOMBE_DEMO_URL: ${COLOMBE_DEMO_URL:?COLOMBE_DEMO_URL est obligatoire (ex. https://demo.colombe.exemple.org)}
-        COLOMBE_SITE_URL: ${COLOMBE_SITE_URL:-}
+    # Construit par GitHub Actions, avec COLOMBE_DEMO_URL / COLOMBE_SITE_URL
+    # passés en build args (voir .github/workflows/deploy-demo.yml).
+    image: ${COLOMBE_IMAGE:-ghcr.io/jules-crevoisier/colombe}-site:${COLOMBE_TAG:-demo}
+    pull_policy: always
     restart: unless-stopped
     expose:
       - "8080"
